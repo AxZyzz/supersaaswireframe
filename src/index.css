@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    border-color: #ebebeb;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-page text-ink font-sans antialiased;
+    font-size: 14px;
+    margin: 0;
+  }
+  ::selection {
+    background: #dce3fb;
+  }
+}
+
+@layer components {
+  /* Accent focus ring on inputs/controls */
+  .focus-ring:focus,
+  .focus-ring:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(62, 99, 221, 0.35);
+    border-color: #3e63dd;
+  }
+}
+
+/* Slim, calm scrollbars to match the dense pro look */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #e3e3e3;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #d6d6d6;
+  background-clip: content-box;
+}

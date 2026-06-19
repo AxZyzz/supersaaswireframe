@@ -1,0 +1,518 @@
+# AI Outreach SaaS — Clickable Prototype: Master UI Build Prompt
+
+Prepared for: Yakin Shah / Business Lab
+Prepared by: A2B AI Technologies
+Date: 2026-06-19
+Purpose: A single, detailed, tool-agnostic prompt to generate the **Phase 0 clickable wireframe/prototype** of the AI Outreach SaaS. The prototype is **UI-only and non-functional** — every screen looks real and every button/link navigates, but nothing actually sends email, saves data, or logs in. It exists to validate the end-to-end user journey before V1 coding begins.
+
+Visual language target: **Twenty CRM** (github.com/twentyhq/twenty) — clean, dense, calm, "Notion × Linear" with a single indigo accent and colorful tags.
+
+---
+
+## How to use this document
+
+1. Copy everything inside the fenced block titled **"=== BEGIN MASTER PROMPT ==="** down to **"=== END MASTER PROMPT ==="** and paste it into your builder.
+2. Recommended builders (in order of fit): **v0.dev**, **Lovable**, **Bolt.new** (all output React + Tailwind, matching the planned Next.js + Tailwind stack). **Figma Make** also works for a design-only mockup.
+3. See **Appendix C — Tool adaptation notes** at the very bottom for the one or two tweaks each tool needs.
+4. If the builder has a screen/length limit, build it in **flow batches** (Flow 0+1, then 2+3, then 4, then 5+6, then extras) using the same design-system section each time so styling stays consistent.
+
+---
+
+=== BEGIN MASTER PROMPT ===
+
+# ROLE & GOAL
+
+You are a senior product designer and front-end engineer. Build a **clickable, multi-screen prototype** of a B2B SaaS web application called an **AI Outreach Platform** (working name: shown as the workspace brand, neutral — not your own brand).
+
+The product helps directory owners, agencies, and business communities: import leads, build email outreach campaigns (manually or with an AI assistant), send controlled email sequences, manage all replies in one unified inbox, and track performance with analytics.
+
+This is a **UI-only prototype for stakeholder review**. It must look like a finished, premium product, but it has **no backend and no real functionality**. Every interactive element must **navigate** to the correct screen so a reviewer can click through the entire journey. Use **realistic placeholder data everywhere** (real-sounding names, companies, emails, numbers, charts) so the product feels alive.
+
+Optimize for: clarity of flow, professional density, and a confident demo. The desktop web layout is the priority (target 1440px wide); make it responsive enough not to break, but do not invest in mobile.
+
+---
+
+# HARD CONSTRAINTS (read carefully)
+
+- **No real functionality.** No real authentication, no real email sending, no database, no API calls. Forms do not validate or persist — their submit/primary buttons simply navigate to the next screen.
+- **Everything clickable routes somewhere.** Every button, link, sidebar item, table row, and tab must navigate to a real screen in this prototype (or open a modal that exists). No dead buttons. If an action would normally do work, it instead routes to the logical "next" or "result" screen.
+- **Use placeholder/mock data**, hard-coded in the components. Charts can use a charting library with static data.
+- **Consistency over novelty.** Reuse the same shell, components, and tokens on every screen.
+- Build with **React + Tailwind CSS** (or the closest equivalent your environment supports). Use **client-side routing** so navigation is instant. Use **Tabler Icons** (or Lucide as a fallback) for all icons.
+
+---
+
+# DESIGN SYSTEM (mimic Twenty CRM — follow exactly)
+
+The entire look must feel like the open-source CRM "Twenty". The defining traits: monochrome neutral base, a single indigo-blue accent, compact dense typography, hairline borders instead of shadows, small corner radii, and pill-shaped colorful tags.
+
+## Typography
+- **Font family:** `Inter`, sans-serif (load from Google Fonts). Apply globally.
+- **Weights:** use only **400 (regular), 500 (medium), 600 (semibold)**. Never use 700+/heavy. Headings are semibold, not black.
+- **Scale (compact):**
+  - Body / base: **14px** (0.875rem)
+  - Small / secondary / table cells: **13px**
+  - Micro / captions / tag text: **11–12px**
+  - Section heading: **16px** semibold
+  - Page title: **20px** semibold
+  - Large display (landing hero only): **40–56px** semibold
+- **Color of text:** primary text `#333333`, secondary/muted `#666666`, disabled/placeholder `#999999`.
+- Line-height comfortable but tight (~1.4). Letter-spacing default.
+
+## Color tokens (use these exact values)
+- **Accent / primary (indigo-blue):** `#3E63DD`
+  - Accent hover (darker): `#3A56C5`
+  - Accent pressed: `#3651B8`
+  - Accent soft background (tints): `#EDF0FD` / `#DCE3FB`
+- **Neutrals (grayscale):**
+  - White / surfaces: `#FFFFFF`
+  - App page background: `#FCFCFC`
+  - Subtle panel background: `#F8F8F8`
+  - Hover row / hover fill: `#F4F4F4`
+  - Light border / divider: `#EBEBEB` (primary border color everywhere)
+  - Mid border: `#E3E3E3`
+  - Disabled border / faint: `#D6D6D6`
+  - Icon / muted: `#999999`
+  - Secondary text: `#666666`
+  - Primary text: `#333333`
+  - True dark (rare, e.g. sidebar text active): `#1A1A1A`
+- **Semantic / status (used for tags, badges, charts — soft pastel bg + saturated text):**
+  - Green / success / "interested": text `#2A7E3B`, bg `#E7F5EA`
+  - Red / danger / "not interested" / errors: text `#C62A2F`, bg `#FCEBEC`
+  - Amber / warning / "question": text `#9A6700`, bg `#FFF4D6`
+  - Blue / info / "out of office": text `#3E63DD`, bg `#EDF0FD`
+  - Purple: text `#7C3AED`, bg `#F2EBFE`
+  - Gray / neutral / "manual review": text `#666666`, bg `#F1F1F1`
+- **Dark mode:** not required for this prototype. Build **light mode only**. (If your tool auto-adds a theme toggle, leave it on light.)
+
+## Shape, spacing, elevation
+- **Border radius:** small. Inputs/buttons/cards/tags = **6px**; modals/large panels = **8px**; avatars = full circle. Nothing should look like a big rounded pill card.
+- **Borders:** 1px solid `#EBEBEB` is the primary way to separate things. Tables, cards, inputs, sidebar — all separated by hairline borders, **not** heavy shadows.
+- **Shadows:** almost none. Only a very subtle shadow on floating elements (dropdowns, modals, command menu): `0 8px 24px rgba(0,0,0,0.08)`. Cards and panels use borders, not shadows.
+- **Density:** compact. Table rows ~40px tall. Buttons ~32–36px tall. Generous but not airy padding (12–16px inside cards, 8–12px inside cells). This is an information-dense pro tool, not a marketing site.
+- **Focus states:** 2px accent ring (`#3E63DD` at low opacity) on focused inputs.
+
+## Core components (define once, reuse everywhere)
+- **Button — primary:** accent `#3E63DD` bg, white text, 6px radius, 500 weight, hover `#3A56C5`. Small (32px) and medium (36px) sizes.
+- **Button — secondary:** white bg, 1px `#E3E3E3` border, `#333` text, hover bg `#F4F4F4`.
+- **Button — ghost/tertiary:** transparent, `#666` text, hover bg `#F4F4F4`. Used for icon buttons and toolbar actions.
+- **Button — danger:** red text/border variant for destructive actions.
+- **Input / select / textarea:** white bg, 1px `#E3E3E3` border, 6px radius, 13–14px text, `#999` placeholder, accent focus ring. Compact height (~34px).
+- **Tag / chip:** pill (full radius is OK *for tags only*), 11–12px text, soft pastel bg + saturated text from the semantic palette, optional tiny colored dot. Used for statuses, lead tags, reply classifications.
+- **Avatar:** circular, initials on a soft colored bg, or a photo. 24px in tables, 32px in headers, 64px on profiles.
+- **Card / panel:** white bg, 1px `#EBEBEB` border, 8px radius, optional header row with title + actions.
+- **Stat card:** label (12px muted), big number (24px semibold `#333`), small delta line (e.g. "▲ 12% vs last week" in green/red).
+- **Table:** header row (`#FCFCFC` bg, 12px uppercase-ish muted labels, sortable carets), dense body rows (40px, hover `#F4F4F4`, 1px bottom border), leftmost column often checkbox + avatar + name, inline-editable feel (cells look editable on hover). Right-aligned action menu (⋯) per row.
+- **Tabs:** underline-style tabs (active tab = `#333` text + 2px accent underline; inactive = `#666`).
+- **Modal / dialog:** centered, white, 8px radius, subtle shadow + dim backdrop, header with title + close (✕), body, footer with secondary + primary buttons.
+- **Dropdown / menu:** white, hairline border, subtle shadow, 13px items, hover `#F4F4F4`.
+- **Empty state:** centered icon (line style, muted), short title, one sentence, one primary button.
+- **Toast/snackbar:** small bottom-left card (only show as a static example where relevant).
+- **Segmented control & filter chips:** for table filters/view switches.
+
+---
+
+# GLOBAL APP SHELL (used on ALL signed-in screens: Dashboard onward)
+
+Every screen from the Dashboard onward sits inside this persistent shell. Public/auth/onboarding screens do NOT use the sidebar (see those flows).
+
+## Left sidebar (fixed, ~240px, collapsible to ~64px icon-rail)
+- Background `#FBFBFB`, 1px right border `#EBEBEB`.
+- **Top: workspace switcher** — small square logo tile + workspace name "Business Lab" + tiny chevron (opens a dropdown listing the workspace + "Add workspace"). Below it, a compact **search field** with `⌘K` hint.
+- **Primary nav** (icon + label, active item has soft accent bg `#EDF0FD` + accent text + left accent bar):
+  - Dashboard (home icon)
+  - Leads (users icon)
+  - Campaigns (send/rocket icon)
+  - Inbox (inbox icon) — with a small unread count badge "3"
+  - Templates (file-text icon)
+  - Analytics (bar-chart icon)
+- **Favorites** section (small heading "Favorites", with 1–2 starred items like a saved segment "Hot Leads" and a campaign).
+- **Bottom of sidebar:** Settings (gear icon) and a user chip (avatar "YS" + "Yakin Shah" + tiny status dot). Admin link appears here too (only as an extra).
+- Collapse toggle (chevron) at the very bottom or top-right of the sidebar.
+
+## Top bar (per screen, ~52px, white, 1px bottom border)
+- Left: **breadcrumb / page title** (e.g. "Leads" or "Campaigns / New Campaign").
+- Center-left: contextual **view switcher / filters** where relevant (e.g. table/kanban toggle on lists).
+- Right: a **"⌘K" search/command button**, a **bell (notifications)** with a dot, a **"+ New" primary button** (context-aware: on Leads it's "Import leads", on Campaigns it's "New campaign"), and a small avatar.
+
+## Command menu (⌘K) — show as a reachable modal
+Pressing `⌘K` (or clicking the search/command button) opens a centered command palette modal: a search input + grouped quick actions ("Go to Dashboard", "Go to Leads", "New campaign", "Import leads", "Open inbox"). Each item navigates. This is a signature Twenty-style detail — include it.
+
+---
+
+# NAVIGATION MAP (routes + where things go)
+
+Public/onboarding:
+- `/` Landing → buttons go to `/signup`, `/login`, `/pricing`
+- `/pricing` → "Start free" → `/signup`
+- `/signup` → primary "Create account" → `/onboarding/workspace`
+- `/login` → primary "Log in" → `/dashboard`
+- `/onboarding/workspace` → Continue → `/onboarding/sender`
+- `/onboarding/sender` → Continue → `/onboarding/domain`
+- `/onboarding/domain` → Continue → `/onboarding/done`
+- `/onboarding/done` → "Go to dashboard" → `/dashboard`
+
+App (inside shell):
+- `/dashboard` — hub; cards/links route into each area
+- `/leads` → row click → `/leads/:id`; "Import leads" → `/leads/import` (modal)
+- `/leads/import` (modal over `/leads`) → "Import" → back to `/leads` (with a success toast)
+- `/leads/:id` — lead profile
+- `/campaigns` → "New campaign" → `/campaigns/new`; row click → `/campaigns/:id` (optional detail, can reuse analytics)
+- `/campaigns/new` — choose Manual vs AI
+  - Manual: `/campaigns/new/setup` → `/campaigns/new/senders` → `/campaigns/new/template` → `/campaigns/new/sequence` → `/campaigns/new/preview` → "Launch" → `/campaigns/launched` (confirmation) → "View campaign" → `/dashboard` or `/analytics`
+  - AI: `/campaigns/new/ai` (chat) → "Generate" → `/campaigns/new/ai/summary` → "Edit in builder" → `/campaigns/new/setup`, OR "Launch" → `/campaigns/launched`
+- `/templates` → "New template" or row click → `/templates/editor`
+- `/inbox` → thread list item selects a thread in the same 3-pane screen
+- `/analytics` — tabs switch sections in place
+- `/settings` — tabs switch sections in place
+- `/admin` — admin overview (extra)
+
+---
+
+# SCREEN-BY-SCREEN SPECIFICATION
+
+> For each screen: build the layout, the named components, the placeholder content, and wire every interactive element to the route shown. Keep the design system identical across all screens.
+
+## FLOW 0 — PUBLIC ENTRY + AUTH
+
+### S1 — Landing / Home  (`/`)
+- **No app shell.** Marketing layout, but still Twenty-clean (white, hairline borders, indigo accent, Inter).
+- **Top nav bar:** left = small logo + "Business Lab Outreach"; right = links (Product, Pricing → `/pricing`, Docs), "Log in" (ghost → `/login`), "Start free" (primary → `/signup`).
+- **Hero:** large semibold headline e.g. "Turn your directory into a pipeline." Sub-line: "Import leads, launch AI-assisted email campaigns, and manage every reply in one inbox." Two buttons: "Start free" (primary → `/signup`), "See pricing" (secondary → `/pricing`). To the right or below, a clean product screenshot mock (a small faux dashboard image/box).
+- **Logos row:** "Trusted by directory owners" + 4–5 gray placeholder logos.
+- **Feature sections (3–4):** alternating image/text blocks — "Lead management", "AI campaign builder", "Unified inbox", "Analytics". Each with a line icon, a short heading, two lines of copy, and a faux UI snippet.
+- **How it works:** 3 steps (Import leads → Build campaign → Manage replies) as numbered cards.
+- **CTA band:** "Ready to start?" + "Start free" button → `/signup`.
+- **Footer:** columns (Product, Company, Legal), copyright.
+- Keep marketing copy practical and calm (no hype words). 
+
+### S2 — Pricing  (`/pricing`)
+- Same public top nav + footer.
+- Page title "Simple pricing for every stage."
+- **Billing toggle:** Monthly / Yearly segmented control (visual only).
+- **3 plan cards** (hairline borders, middle one highlighted with accent border + "Most popular" tag):
+  - Starter — "For getting started" — price — feature list (✓ 1,000 leads, ✓ 1 sender, ✓ Manual campaigns, ✓ Unified inbox) — "Start free" → `/signup`.
+  - Growth (highlighted) — "For active outreach" — price — (everything in Starter + AI campaign builder, 5 senders, analytics, sender rotation) — "Start free" → `/signup`.
+  - Scale — "For directories & agencies" — price — (everything + white-label readiness, API access, admin tools, priority support) — "Contact sales" → `/signup`.
+- **FAQ accordion** (4–5 questions, static).
+
+### S3 — Sign up  (`/signup`)
+- Split layout: left = form, right = soft accent panel with a short value prop + a tiny testimonial-style quote (clearly generic, not a fake named client).
+- **Form (no validation):** Full name, Work email, Password, "Create account" (primary → `/onboarding/workspace`). Divider "or", "Continue with Google" (secondary, also → `/onboarding/workspace`). Small "Already have an account? Log in" → `/login`.
+
+### S4 — Log in  (`/login`)
+- Same split layout style.
+- **Form:** Email, Password, "Log in" (primary → `/dashboard`), "Continue with Google" → `/dashboard`, "Forgot password?" link (→ a simple static reset screen or back to `/login`), "New here? Sign up" → `/signup`.
+
+## FLOW 1 — ONBOARDING (no sidebar; use a slim top bar with logo + a 4-step progress indicator)
+
+A persistent **stepper** at the top of all onboarding screens: ① Workspace → ② Sender → ③ Domain → ④ Done (current step highlighted in accent).
+
+### S5 — Workspace setup  (`/onboarding/workspace`)
+- Centered card, max ~560px.
+- Title "Set up your workspace." 
+- Fields: Workspace name (prefilled "Business Lab"), Logo upload (a dashed drop area, visual only), Industry (select: "Directory / Community", "Agency", "Other"), Team size (select), Your role (select).
+- Footer: "Continue" (primary → `/onboarding/sender`), skip link.
+
+### S6 — Connect sender email  (`/onboarding/sender`)
+- Title "Connect a sender email." Subtitle "Add the email address campaigns will send from. You can add more later."
+- Two connection option cards: "Connect with Google" and "Connect with Microsoft / SMTP" (each a selectable card with logo + short text).
+- A small form appearing below selection: From name, From email (e.g. "outreach@businesslab.com"), Daily send limit (number, default 50).
+- An info callout (soft blue) explaining sender rotation in plain words.
+- Footer: "Continue" (primary → `/onboarding/domain`), "I'll do this later" (ghost → `/onboarding/domain`).
+
+### S7 — Domain readiness (SPF / DKIM / DMARC)  (`/onboarding/domain`)
+- Title "Check your email domain readiness." Subtitle about deliverability in plain language.
+- A **checklist of 3 cards**: SPF, DKIM, DMARC. Each card shows: the name, one-line description, a **status tag** (SPF = green "Verified"; DKIM = amber "Action needed"; DMARC = gray "Not set up"), and a "View instructions" expander showing a faux DNS record row with a copy button.
+- An overall readiness meter (e.g. "Domain readiness: 60%").
+- Footer: "Continue" (primary → `/onboarding/done`), "Skip for now" (ghost → `/onboarding/done`).
+
+### S8 — You're ready  (`/onboarding/done`)
+- Centered success state: large check icon (accent), "You're all set, Yakin." Short line "Your workspace is ready. Import your first leads to get started."
+- Primary "Go to dashboard" → `/dashboard`. Secondary "Import leads" → `/dashboard` (then they click into leads).
+
+## FLOW 2 — DASHBOARD
+
+### S9 — Dashboard  (`/dashboard`)  [inside app shell]
+- Top bar title "Dashboard"; right "+ New campaign" (→ `/campaigns/new`).
+- **Greeting row:** "Good morning, Yakin" + today's date + a small "Last 30 days" date-range chip.
+- **Stat cards row (4):**
+  - Total leads — "12,480" — ▲ 6% 
+  - Active campaigns — "5" — 2 sending now
+  - Emails sent (30d) — "38,210" — ▲ 14%
+  - Reply rate — "7.4%" — ▲ 1.2%
+- **Two-column content:**
+  - Left (wider): **Campaign status** card — a small table of 4–5 campaigns with: name, status tag (Sending/Paused/Draft/Completed), sent, open %, reply % , a mini progress bar. Row click → `/campaigns/:id` (or `/analytics`). "View all" → `/campaigns`.
+  - Left also: **Recent activity feed** — timeline list ("Anita replied to 'Q3 Directory Outreach'", "Campaign 'Welcome Sequence' completed", "142 new leads imported from CSV") each with icon + timestamp.
+  - Right (narrower): **Alerts / to-dos** card — small list with status tags: "DKIM not verified for businesslab.com" (amber, "Fix" → `/settings`), "Sender approaching daily limit" (amber), "3 replies need review" (blue → `/inbox`). 
+  - Right also: **Quick actions** card — buttons: Import leads (→ `/leads`), New campaign (→ `/campaigns/new`), Open inbox (→ `/inbox`).
+- Everything links somewhere real.
+
+## FLOW 3 — LEAD MANAGEMENT
+
+### S10 — Lead list  (`/leads`)  [inside app shell]
+- Top bar: title "Leads"; view toggle **Table / Kanban** (segmented); right "Import leads" (primary → opens `/leads/import` modal).
+- **Toolbar row above table:** search input ("Search leads…"), **filter chips** ("Status: All", "Source: All", "Tag: All" — each opens a small dropdown), a "Segments" dropdown (with "Hot Leads", "New this week", "No reply yet"), a sort control, and a column-settings (⋯) icon. A bulk-action bar appears (visually) when rows are checked: "Add to campaign", "Tag", "Delete".
+- **Dense table** (Twenty-style), columns:
+  - checkbox | **Name** (avatar initials + full name) | Email | Company | **Tags** (colored chips) | Source (chip: CSV / Google Sheet / API / Brilliant Directories) | **Status** (chip: New / Contacted / Replied / Interested / Bounced) | Last activity (relative time) | ⋯ row menu
+- **Placeholder rows (use ~10):**
+  - Anita Sharma · anita@brightdental.com · Bright Dental · tags [Hot, Dentist] · Source CSV · Status Interested · 2h ago
+  - Marcus Lee · marcus@peaklegal.co · Peak Legal · tags [Law] · Source Google Sheet · Status Replied · 5h ago
+  - Priya Nair · priya@nairclinic.in · Nair Skin Clinic · tags [Clinic, Hot] · Source API · Status Contacted · 1d ago
+  - David Cohen · david@cohenrealty.com · Cohen Realty · tags [Real estate] · Source Brilliant Directories · Status New · 1d ago
+  - Sara Mendez · sara@mendezspa.com · Mendez Spa · tags [Spa] · Source CSV · Status Bounced · 2d ago
+  - Tom Becker · tom@beckerfit.com · Becker Fitness · tags [Gym] · Source CSV · Status New · 2d ago
+  - Lena Petrova · lena@petrovalaw.com · Petrova Law · tags [Law, Hot] · Source Google Sheet · Status Replied · 3d ago
+  - Omar Farouk · omar@faroukdental.com · Farouk Dental · tags [Dentist] · Source API · Status Contacted · 3d ago
+  - Grace Kim · grace@kimagency.co · Kim Agency · tags [Agency] · Source CSV · Status Interested · 4d ago
+  - John Patel · john@patelco.com · Patel & Co · tags [Finance] · Source CSV · Status New · 5d ago
+- Footer: pagination ("1–10 of 12,480"), rows-per-page select.
+- **Kanban view** (when toggled): columns by Status (New / Contacted / Replied / Interested / Bounced), each a stack of lead cards (avatar + name + company + tag). Cards are draggable in look (no real logic). Clicking a card → `/leads/:id`.
+- Row click anywhere (except checkbox/menu) → `/leads/:id`.
+
+### S11 — Import leads  (`/leads/import`)  [modal over `/leads`]
+- Modal title "Import leads", close ✕ returns to `/leads`.
+- **Tabs:** CSV Upload · Google Sheet · REST API · Brilliant Directories.
+  - **CSV Upload:** dashed drop zone ("Drag a .csv here or browse"), then a faux **column-mapping** table (CSV column → field: Name, Email, Company, Tag…) with selects, plus a "first 3 rows preview". Footer "Import 142 leads" (primary → closes modal, returns to `/leads`, show success toast "142 leads imported").
+  - **Google Sheet:** input for a Google Sheet URL + "Connect Google" button + sheet/tab selector (faux) + same mapping preview. "Import".
+  - **REST API:** read-only display of a faux endpoint + API key + a sample `curl`/JSON snippet with copy button (developer-facing). "Done".
+  - **Brilliant Directories:** short explainer + "Connect" button + status ("Coordination required" note). 
+- Show the **tag-on-import** option (a tag input to label this batch, e.g. "March import").
+
+### S12 — Lead profile / detail  (`/leads/:id`)  [inside app shell]
+- Breadcrumb "Leads / Anita Sharma".
+- **Layout: two columns.**
+  - **Left column (~320px field panel):** large avatar + name + company + status tag. A list of **inline-editable fields** (Twenty style — label left, value right, looks editable on hover): Email, Phone, Company, Title, Source, Tags (chips + "add tag"), Owner, Created, Lists/Segments. A "Stop all sequences for this lead" ghost-danger button.
+  - **Right column (main):** **tabs** — Timeline · Emails · Notes · Tasks.
+    - **Timeline (default):** chronological activity ("Email opened", "Replied", "Added to campaign 'Q3 Directory Outreach'", "Tag 'Hot' added") with icons + timestamps.
+    - **Emails:** list of email threads with this lead (subject, snippet, status); clicking one could open `/inbox`.
+    - **Notes:** a note composer (textarea + "Add note") and 1–2 existing notes with author + time.
+    - **Tasks:** small checklist ("Follow up call", due date).
+- Top-right actions: "Add to campaign" (primary → `/campaigns/new`), "Send email" (secondary → `/inbox`), ⋯ menu.
+
+## FLOW 4 — CAMPAIGN CREATION (the centerpiece)
+
+### S13 — Campaigns list  (`/campaigns`)  [inside app shell]
+- Title "Campaigns"; right "+ New campaign" (primary → `/campaigns/new`).
+- Filter chips (Status, Sender, Date). 
+- **Table/cards of campaigns** (5–6 rows): Name | Status (Sending/Paused/Draft/Completed/Scheduled) | Segment | Sender(s) | Sent | Open % | Reply % | Created | ⋯.
+  - "Q3 Directory Outreach" · Sending · Hot Leads · 2 senders · 1,240 sent · 58% open · 9.1% reply
+  - "Welcome Sequence" · Completed · New this week · 1 sender · 3,400 sent · 61% open · 7.8% reply
+  - "Dentist Re-engagement" · Paused · Dentists · 1 sender · 820 sent · 49% open · 5.2% reply
+  - "Agency Partners" · Draft · Agencies · — · — · — · —
+  - "Spa Promo" · Scheduled · Spas · 1 sender · — · — · —
+- Row click → `/campaigns/:id` (reuse the Analytics screen as the campaign detail, scoped to that campaign), or to `/analytics`.
+
+### S14 — New campaign: choose mode  (`/campaigns/new`)  [inside app shell, but content-focused]
+- Title "Create a campaign." Subtitle "Choose how you want to build it."
+- **Two large choice cards side by side:**
+  - **"Build with AI" (make this the visually primary / recommended card — accent border + "Recommended" tag + sparkle icon):** "Answer a few questions and let the assistant draft your campaign, emails, and follow-ups." Button "Start with AI" → `/campaigns/new/ai`.
+  - **"Build manually":** "Set up your segment, sender, templates, and follow-up steps yourself." Button "Build manually" → `/campaigns/new/setup`.
+- Below: a faint "You can switch between modes anytime" note.
+
+### S15 — Manual: Campaign setup  (`/campaigns/new/setup`)  [inside app shell]
+- A **horizontal step indicator** across the top of all manual-builder screens: ① Setup → ② Sender → ③ Template → ④ Sequence → ⑤ Preview (current highlighted in accent). A persistent "Save draft" (ghost) and "Next" (primary) in a sticky footer.
+- **Setup fields:** Campaign name ("Q3 Directory Outreach"), **Target segment** selector (radio/list: "Hot Leads (320)", "New this week (142)", "Dentists (610)", "+ Create new segment"), a small live count of recipients ("Sending to ~320 leads"), Schedule (Send now / Schedule for later with a date-time), Daily cap.
+- "Next" → `/campaigns/new/senders`.
+
+### S16 — Manual: Sender selection  (`/campaigns/new/senders`)  [inside app shell]
+- Step ② active.
+- Title "Choose senders & rotation."
+- A list of connected sender accounts as selectable rows (checkbox): "outreach@businesslab.com — 50/day — Verified (green)", "hello@businesslab.com — 50/day — DKIM action needed (amber)", "+ Add sender" (→ `/settings`).
+- **Sender rotation & ramp-up** card: a toggle "Rotate between selected senders", a "Daily limit per sender" number, a "Ramp-up" toggle with a small explainer ("Start low and increase sending volume gradually"). Show a tiny illustrative ramp chart.
+- Footer "Back" / "Next" → `/campaigns/new/template`.
+
+### S17 — Manual: Template / email editor  (`/campaigns/new/template`)  also reused by `/templates/editor`  [inside app shell]
+- Step ③ active.
+- **Two-pane editor:**
+  - **Left = editor:** Subject line input (with a "{{first_name}}" personalization-variable inserter button), a rich-text email body area with a small toolbar (bold, italic, link, list, image, and a **"Insert variable" dropdown**: First name, Company, Title, Custom). Show example body using variables: "Hi {{first_name}}, I came across {{company}} in the directory…". A "Save as template" button.
+  - **Right = live preview:** a phone/email-client style preview card showing the email rendered with sample data (Hi Anita, … Bright Dental …), sender name, subject. A recipient-switcher ("Preview as: Anita Sharma ▾").
+- A row of **personalization variable chips** the user can click to insert.
+- Footer "Back" / "Next" → `/campaigns/new/sequence`.
+
+### S18 — Manual: Sequence (follow-up steps + delays)  (`/campaigns/new/sequence`)  [inside app shell]
+- Step ④ active.
+- **Vertical sequence builder** (the key screen): a column of step blocks connected by a line, each step a card:
+  - **Step 1 — Initial email** (links to the template from S17; shows subject preview).
+  - A **delay node** between steps: "Wait 3 days" (editable number + unit) with a small condition chip ("if no reply").
+  - **Step 2 — Follow-up 1** ("Re: {{subject}}", short bump). Delay "Wait 4 days, if no reply".
+  - **Step 3 — Follow-up 2** (final nudge).
+  - "+ Add step" button at the bottom (adds another email/delay block visually).
+- Each step card: edit (→ opens editor S17 style), duplicate, delete, and a **condition selector** (Send if: no reply / not opened / always).
+- A right-side mini summary ("3 emails over ~10 days").
+- Footer "Back" / "Next" → `/campaigns/new/preview`.
+
+### S19 — Manual: Preview & launch  (`/campaigns/new/preview`)  [inside app shell]
+- Step ⑤ active.
+- A **review summary** laid out in sections (each with an "Edit" link back to its step):
+  - Campaign name + schedule.
+  - Audience ("320 leads — Hot Leads segment").
+  - Senders ("2 senders, rotation on, 50/day each, ramp-up on").
+  - Sequence ("3 emails over 10 days") with each email's subject + a collapsed preview.
+  - Estimated sending window / completion date.
+- A **pre-flight checklist** (green/amber ticks): "Senders verified", "Domain readiness 60% — DKIM action needed (amber)", "Segment has 320 leads", "Unsubscribe link included".
+- Big primary **"Launch campaign"** → `/campaigns/launched`. Secondary "Save as draft" → `/campaigns`.
+
+### S19b — Campaign launched (confirmation)  (`/campaigns/launched`)  [inside app shell]
+- Success state: check icon, "Campaign launched 🎉" "Q3 Directory Outreach is now sending to 320 leads." Buttons: "View campaign" (→ `/analytics`), "Back to campaigns" (→ `/campaigns`). A small note "Replies will appear in your inbox."
+
+### S20 — AI campaign builder (HERO SCREEN)  (`/campaigns/new/ai`)  [inside app shell, focused]
+This must look genuinely impressive — it's the demo centerpiece.
+- **Layout: a centered chat column (max ~760px)** with a calm, premium feel. Header: sparkle icon + "AI Campaign Assistant" + a small "Step 1 of 5: Business context" progress hint that advances as the chat proceeds.
+- **Chat transcript** with alternating bubbles (assistant = soft gray/white card with sparkle avatar; user = soft accent bubble right-aligned). Pre-fill a realistic back-and-forth so reviewers see the whole flow:
+  1. Assistant: "Hi Yakin! I'll help you build a campaign. First — what does your business do, and what are you offering?"
+  2. User: "We run a local business directory. We help service businesses get more clients."
+  3. Assistant: "Great. Who should this campaign target?" + **quick-reply chips** ("Use 'Hot Leads' segment", "Dentists", "All new leads").
+  4. User: "Target the Hot Leads segment — mostly clinics and law firms."
+  5. Assistant: "What's the main goal of this campaign?" + chips ("Book a call", "Get a reply", "Promote an offer").
+  6. User: "Book a call."
+  7. Assistant: "What tone should I use?" + chips ("Friendly", "Professional", "Direct").
+  8. User: "Professional but warm."
+  9. Assistant: "Any constraints? (send limits, follow-ups, things to avoid)"
+  10. User: "Max 3 emails, no pushy language."
+  11. Assistant: "Perfect — I have what I need. Generating your campaign…" with a small animated "thinking" indicator.
+- **Composer at the bottom:** text input + send button + the contextual quick-reply chips above it. Also a subtle "Switch to manual builder" link (→ `/campaigns/new/setup`).
+- The **final assistant message** shows a "✨ Generate campaign" primary button → `/campaigns/new/ai/summary`.
+
+### S21 — AI generated campaign summary  (`/campaigns/new/ai/summary`)  [inside app shell]
+- Title "Here's your campaign draft." Subtitle "Review and edit before launching."
+- A clean **summary card** with editable-looking sections (each with an "Edit" pencil):
+  - **Campaign name:** "Hot Leads — Book a Call" (editable text).
+  - **Audience:** "Hot Leads segment · 320 leads".
+  - **Senders:** "outreach@businesslab.com (rotation on)".
+  - **Sequence (AI-generated, show full content):**
+    - Email 1 — Subject "Quick idea for {{company}}" — body preview (3–4 lines, warm professional, with a clear call-to-action to book a call, uses {{first_name}}/{{company}}).
+    - Wait 3 days (if no reply) → Email 2 — Subject "Following up, {{first_name}}" — short bump.
+    - Wait 4 days (if no reply) → Email 3 — Subject "Last note about {{company}}" — final nudge.
+  - Each email in an expandable card with the full draft text + a "Regenerate" and "Edit" button (visual).
+- Right rail / footer: "Edit in builder" (secondary → `/campaigns/new/setup`, pre-filled feel), **"Launch campaign"** (primary → `/campaigns/launched`).
+
+### S22 — Templates library  (`/templates`)  [inside app shell]
+- Title "Templates"; right "+ New template" (→ `/templates/editor` = reuse S17).
+- **Grid or table of template cards:** name, subject preview snippet, last edited, used-in-N-campaigns, a tiny thumbnail. Examples: "Cold intro — Clinics", "Follow-up bump", "Re-engagement", "Partner outreach", "Final nudge".
+- Each card: Edit (→ `/templates/editor`), Duplicate, Delete (⋯). Search + tag filter at top.
+
+## FLOW 5 — UNIFIED INBOX
+
+### S23 — Unified inbox  (`/inbox`)  [inside app shell]
+- **Three-pane layout** (Twenty/email-client style), all within the app shell:
+  - **Pane 1 — conversation list (~340px):** top has search + filter tabs ("All", "Unread", "Interested", "Needs review"). A scrollable list of conversation rows: avatar + lead name + company, subject/snippet, a **classification tag** (colored chip), time, unread dot. Selecting a row loads it in pane 2 (in-place; no route change needed). Sample rows:
+    - Anita Sharma — Bright Dental — "Re: Quick idea for Bright Dental" — "Yes, I'd love to hear more…" — tag **Interested (green)** — 2h — unread
+    - Marcus Lee — Peak Legal — "Re: Quick idea for Peak Legal" — "Who is this?" — tag **Question (amber)** — 5h
+    - Priya Nair — Nair Skin Clinic — "Out of office until Monday" — tag **Out of office (blue)** — 1d
+    - Sara Mendez — Mendez Spa — "Please remove me" — tag **Not interested (red)** — 1d
+    - David Cohen — Cohen Realty — "Re: Following up" — "Maybe next quarter" — tag **Needs review (gray)** — 2d
+  - **Pane 2 — thread view (flex, center):** header with lead name + company + status tags + actions (Archive, Snooze, ⋯). The **email thread** as stacked messages (their reply on the left, your sent emails on the right or clearly labeled), each with sender, time, body. Below the thread: a **reply composer** (To/From auto-filled, subject, body with the same variable/formatting toolbar, "Send" primary button that just shows a sent state, plus an **"AI draft reply"** sparkle button that fills the composer with a suggested reply — visual only).
+  - **Pane 3 — lead context panel (~300px, right):** the lead's mini-profile (avatar, name, company, email, tags, source, status), the campaign they're in, quick **reply actions**: a **classification selector** (Interested / Not interested / Question / Wrong person / Out of office / Manual review), "Stop sequence for this lead" (ghost-danger), "Add note" (textarea), and recent activity. An "Open full profile" link → `/leads/:id`.
+
+## FLOW 6 — ANALYTICS
+
+### S24 — Analytics  (`/analytics`)  [inside app shell]
+- Title "Analytics"; right side a **date-range picker** ("Last 30 days ▾") + "Export" (ghost).
+- **Tabs:** Overview · Campaigns · Templates · Lead Sources · Follow-ups.
+- **Overview tab (default):**
+  - **KPI stat cards row (5):** Emails sent 38,210 · Open rate 57% · Reply rate 7.4% · Click rate 3.1% · Unsubscribe rate 0.4% (each with a small ▲/▼ delta).
+  - **Line/area chart:** "Emails sent vs opens vs replies" over time (static data, accent + green + gray lines).
+  - **Bar chart:** "Replies by classification" (Interested / Question / OOO / Not interested).
+- **Campaigns tab:** a sortable table — campaign | sent | open % | reply % | interested | unsubscribed — with a tiny sparkline per row. (Reuse this as the per-campaign detail when arriving from `/campaigns/:id`.)
+- **Templates tab:** table — template | uses | open % | reply % — to compare template performance.
+- **Lead Sources tab:** table/donut — source (CSV / Google Sheet / API / Brilliant Directories) | leads | reply % — showing which source converts best.
+- **Follow-ups tab:** funnel/bar — performance by sequence step (Email 1 → Email 2 → Email 3), showing where replies happen.
+- All charts use static placeholder data; keep them clean and on-palette.
+
+## EXTRAS (end-user-secondary — include but keep light)
+
+### S25 — Settings  (`/settings`)  [inside app shell]
+- Title "Settings". **Left sub-nav (tabs/vertical):** Workspace · Sender accounts · Team · Brand · Billing.
+  - **Workspace:** name, logo, timezone, default sending window.
+  - **Sender accounts:** table of senders (email, provider, daily limit, status tag Verified/Action needed, rotation toggle), "+ Add sender" button + a "Domain readiness" link reusing the SPF/DKIM/DMARC cards from S7.
+  - **Team:** member table (avatar, name, email, role select [Owner/Admin/Member], status), "Invite member" button (modal with email + role).
+  - **Brand (white-label readiness):** logo upload, accent color picker (default accent `#3E63DD`), custom domain field ("app.businesslab.com") with a "readiness" status tag — labeled clearly as white-label-ready preview.
+  - **Billing:** current plan card (Growth), usage meters (leads, emails, AI credits), "Manage plan" button.
+
+### S26 — Admin overview  (`/admin`)  [inside app shell, accessed from sidebar bottom]
+- Title "Admin". A monitoring dashboard (for A2B/Business Lab operators):
+  - Stat cards: Total workspaces/users, Active campaigns, Emails sent (platform-wide), Errors (24h).
+  - **Users/workspaces table:** workspace | owner | plan | leads | emails sent | status (Active/Suspended).
+  - **Sending activity** mini-chart + a **system status** list (Email queue: healthy/green, API: healthy, Tracking: healthy, with colored dots).
+  - **Errors / logs** table: time, level (Error/Warn chip), message, source. 
+- Keep it clearly "operator" flavored and a bit denser.
+
+---
+
+# DEMO HAPPY PATH (the click-through to optimize for)
+
+Make sure this exact sequence works smoothly end to end, because it's how the prototype will be demoed:
+
+`/` Landing → "Start free" → `/signup` → "Create account" → `/onboarding/workspace` → Continue → `/onboarding/sender` → Continue → `/onboarding/domain` → Continue → `/onboarding/done` → "Go to dashboard" → `/dashboard` → sidebar **Leads** → `/leads` → "Import leads" → (modal) → Import → back to `/leads` → click a lead → `/leads/:id` → "Add to campaign" → `/campaigns/new` → **"Start with AI"** → `/campaigns/new/ai` → walk the chat → "Generate campaign" → `/campaigns/new/ai/summary` → **"Launch campaign"** → `/campaigns/launched` → "View campaign" → `/analytics` → sidebar **Inbox** → `/inbox` → select **Anita Sharma** → read thread → set classification "Interested" → done.
+
+Also verify the **manual** path works: `/campaigns/new` → "Build manually" → setup → senders → template → sequence → preview → launch.
+
+---
+
+# DELIVERY CHECKLIST (what "done" means for this prototype)
+
+- [ ] Every screen listed above exists and is reachable.
+- [ ] Sidebar + top bar are identical and persistent across all signed-in screens.
+- [ ] `⌘K` command menu opens and its items navigate.
+- [ ] Every button/link/row/tab navigates — no dead ends.
+- [ ] The Twenty design system (Inter, `#3E63DD` accent, hairline borders, compact density, small radii, pill tags) is consistent everywhere.
+- [ ] Realistic placeholder data on every screen (leads, campaigns, inbox threads, charts).
+- [ ] The AI campaign builder looks like the premium centerpiece.
+- [ ] The full demo happy path clicks through cleanly at 1440px.
+- [ ] No real auth, sending, saving, or API calls anywhere.
+
+=== END MASTER PROMPT ===
+
+---
+
+## Appendix A — Screen inventory (quick reference)
+
+| # | Screen | Route | Flow |
+|---|---|---|---|
+| S1 | Landing / Home | `/` | Public |
+| S2 | Pricing | `/pricing` | Public |
+| S3 | Sign up | `/signup` | Public |
+| S4 | Log in | `/login` | Public |
+| S5 | Workspace setup | `/onboarding/workspace` | Onboarding |
+| S6 | Connect sender | `/onboarding/sender` | Onboarding |
+| S7 | Domain readiness | `/onboarding/domain` | Onboarding |
+| S8 | You're ready | `/onboarding/done` | Onboarding |
+| S9 | Dashboard | `/dashboard` | Dashboard |
+| S10 | Lead list | `/leads` | Leads |
+| S11 | Import leads (modal) | `/leads/import` | Leads |
+| S12 | Lead profile | `/leads/:id` | Leads |
+| S13 | Campaigns list | `/campaigns` | Campaigns |
+| S14 | New campaign (mode choice) | `/campaigns/new` | Campaigns |
+| S15 | Manual: setup | `/campaigns/new/setup` | Campaigns |
+| S16 | Manual: senders | `/campaigns/new/senders` | Campaigns |
+| S17 | Manual: template editor | `/campaigns/new/template` | Campaigns |
+| S18 | Manual: sequence | `/campaigns/new/sequence` | Campaigns |
+| S19 | Manual: preview & launch | `/campaigns/new/preview` | Campaigns |
+| S19b | Campaign launched | `/campaigns/launched` | Campaigns |
+| S20 | AI campaign builder (hero) | `/campaigns/new/ai` | Campaigns |
+| S21 | AI generated summary | `/campaigns/new/ai/summary` | Campaigns |
+| S22 | Templates library | `/templates` | Campaigns |
+| S23 | Unified inbox | `/inbox` | Inbox |
+| S24 | Analytics | `/analytics` | Analytics |
+| S25 | Settings | `/settings` | Extras |
+| S26 | Admin overview | `/admin` | Extras |
+
+## Appendix B — Placeholder data bank (reuse for consistency)
+
+- **Workspace / user:** Business Lab · Yakin Shah (owner, avatar "YS") · domain businesslab.com · plan "Growth".
+- **Senders:** outreach@businesslab.com (Verified, 50/day), hello@businesslab.com (DKIM action needed, 50/day).
+- **Segments:** Hot Leads (320), New this week (142), Dentists (610), Agencies (88), Spas (54).
+- **Leads:** the 10 leads listed in S10 (reuse the same names/companies across Inbox, Lead profile, and charts so the demo feels coherent).
+- **Campaigns:** Q3 Directory Outreach (Sending), Welcome Sequence (Completed), Dentist Re-engagement (Paused), Agency Partners (Draft), Spa Promo (Scheduled).
+- **Inbox classifications:** Interested (green), Not interested (red), Question (amber), Out of office (blue), Wrong person (gray), Manual review (gray).
+- **Headline metrics:** 12,480 leads · 5 active campaigns · 38,210 emails sent (30d) · 57% open · 7.4% reply · 3.1% click · 0.4% unsubscribe.
+
+## Appendix C — Tool adaptation notes
+
+- **v0.dev / Lovable / Bolt.new:** paste the master prompt as-is. These output React + Tailwind with routing. If it stops early, continue with "build the next flow, same design system" and name the screens. Ask it to put the sidebar/top bar in a shared layout component.
+- **Figma Make / Figma AI:** add at the top: "Produce editable Figma frames, one per screen; use auto-layout; create shared components for the sidebar, top bar, button, tag, and table." Routing becomes prototype links between frames.
+- **Claude / single-file artifact:** add "Build as a single self-contained React file using hash-based routing and inline mock data; no external API." Good for a quick preview, less production-shaped.
+- **Length limits:** build in flow batches (Public+Onboarding → Dashboard+Leads → Campaigns → Inbox+Analytics → Settings+Admin), repeating the **Design System** section each time so styling stays identical.
+
+---

@@ -1,0 +1,622 @@
+# Yakin Shah UI Prototype Continuation: Meeting-Driven Feature Additions
+
+Date: 2026-06-19
+Status: Working
+Prepared for: Yakin Shah / Business Lab
+Prepared by: A2B AI Technologies
+
+
+## Purpose
+
+This file is a continuation brief for the already-created clickable prototype prompt. It does not replace the master prompt. It adds the meeting-specific product ideas Yakin repeatedly cared about, explains how much the current prompt already covers, and gives exact UI placement and click behavior for a follow-up prototype pass.
+
+Use this when the first UI is already generated from the master prompt and the next builder prompt needs to say: "Keep the existing app, but add these meeting-driven feature details."
+
+## Short Feedback
+
+The existing prompt already covers the correct V1 skeleton: public pages, onboarding, dashboard, leads, import, campaign builder, AI campaign assistant, templates, unified inbox, analytics, settings, and admin.
+
+What is missing or too light are the ideas that make the product feel like Yakin's actual vision:
+
+- AI business memory that learns the user's company, offers, URLs, calendar links, and instructions.
+- List-first lead management with ongoing sync from Google Sheets, Brilliant Directories, and REST APIs.
+- Global sender account pool, then per-campaign sender assignment with human-like sending variation.
+- Inbox reply routing: same sender replies back vs central human inbox handoff.
+- BCC/forwarding tracking so replies outside the platform do not lose context.
+- AI draft reply learning with approval counts and confidence-based automation by category.
+- Timestamped event tracking per lead, per email, and per campaign.
+- Conversion-aware analytics, not just opens/replies.
+- AI weekly/monthly campaign improvement suggestions.
+- Signal-based nurturing when external systems update tags like `signed_up` or `profile_incomplete`.
+- White-label/Super SaaS readiness beyond just a logo picker.
+- A single Documentation entry where Yakin can open the complete platform guide and review every workflow step.
+
+## Current Prompt Coverage
+
+| Meeting-driven idea | Current prompt coverage | Recommendation |
+|---|---|---|
+| Clickable fake UI, no backend | Strong | Keep exactly as-is. |
+| AI chat campaign builder | Strong | Keep as centerpiece, but make it use business memory and builder limits. |
+| Lead import by CSV, Google Sheet, API, directory platform | Medium | Add list creation, ongoing sync, custom fields/statuses/tags, and sync health. |
+| Multiple sender accounts and sender rotation | Medium | Add global sender pool, per-campaign sender selection, random daily variation, and ramp stages. |
+| Unified inbox with thread and lead profile | Strong | Add reply-routing setup and source sender behavior. |
+| Basic reply classification | Medium | Add AI draft learning, approval count, and automation toggle per classification. |
+| Analytics for opens/replies/clicks | Medium | Add timestamped event log, open count per recipient, conversion rate, and AI improvement actions. |
+| White-label readiness | Medium | Add "SaaS owner setup" and partner-facing brand/custom-domain preview. |
+| WhatsApp/SMS/future channels | Light | Keep as disabled roadmap cards, not active V1 flows. |
+| Chief of Staff as a Product | Missing | Add as future-facing inbox AI rules panel, not a full new product yet. |
+| Platform documentation / user guide | Missing | Add one Documentation button/page that lists all current docs and explains each app workflow step-by-step. |
+
+## Add-On Prompt For Builder
+
+Use the opening instruction block below, then include the Feature Additions section that follows as the detailed continuation brief.
+
+```md
+You have already built the base AI Outreach Platform clickable prototype from the previous prompt. Keep the existing design system, routes, shell, demo data, and Twenty-style UI. Do not rebuild from scratch. Add the following meeting-driven feature details as a continuation pass.
+
+Rules:
+- Keep this as a clickable, non-functional UI prototype.
+- No backend, no real email sending, no real auth, no real API calls.
+- Every new button, row, tab, and menu item must route somewhere, open a modal, or show an existing static state.
+- Preserve the existing demo happy path.
+- New additions should feel native to the existing screens, not like a separate product.
+```
+
+## Feature Additions
+
+### 1. AI Business Memory
+
+Why Yakin would like it:
+He repeatedly described the AI needing full business context before writing campaigns or replies: business details, personal context, URLs, offers, booking links, lead magnets, and custom instructions. This is the foundation for the later "Chief of Staff" idea.
+
+Current prompt:
+The AI campaign builder asks for business context in chat, but there is no persistent business memory area.
+
+Where to add it:
+- Add a new onboarding screen after `S5 Workspace setup`: `/onboarding/business-memory`.
+- Add the same editable area under `Settings -> AI Memory`.
+- In `S20 AI Campaign Assistant`, show a small right-side "Using memory" panel.
+
+UI content:
+- Business description textarea.
+- Website URLs table: URL, purpose, "Used by AI" toggle.
+- Offer/lead magnet fields.
+- Calendar booking link field.
+- Common objections and answers.
+- Tone preference: Professional, Warm, Direct, Friendly.
+- "Personal context" optional field.
+- Source health cards: Website scanned, Offer added, Calendar link added, Reply rules missing.
+
+Click behavior:
+- On `/onboarding/workspace`, clicking "Continue" goes to `/onboarding/business-memory`.
+- On `/onboarding/business-memory`, clicking "Add URL" opens a modal with URL and instruction fields.
+- Clicking "Save and continue" goes to `/onboarding/sender`.
+- In `/campaigns/new/ai`, clicking "View memory" opens a side drawer with the saved context.
+- In the side drawer, clicking "Edit memory" routes to `/settings?tab=ai-memory`.
+
+Prototype state:
+Show static saved data for Business Lab:
+- Website: `businesslab.com`
+- Offer: "Help local businesses get more customers from directory visibility."
+- Booking link: `cal.com/businesslab/demo`
+- Tone: "Professional but warm"
+
+### 2. List-First Lead Management And Ongoing Sync
+
+Why Yakin would like it:
+He clarified that leads should belong to named lists, and each list asks how leads should come in. He also corrected that Google Sheet and Brilliant Directories should be ongoing syncs, not one-time imports.
+
+Current prompt:
+Lead import exists, but it is mostly import-modal oriented.
+
+Where to add it:
+- Enhance `S10 Lead list` at `/leads`.
+- Enhance `S11 Import leads` modal at `/leads/import`.
+- Add a lightweight list detail route: `/leads/lists/:id`.
+
+UI content:
+- Left rail or top segmented control: All leads, Lists, Segments.
+- List cards/table: name, source, leads count, sync status, last sync, campaign attached.
+- Create list modal:
+  - List name.
+  - Source selection: CSV/Excel, Google Sheet, Brilliant Directories, REST API.
+  - Required fields: first name, last name, email, phone, company.
+  - Custom fields builder.
+  - Custom tags and custom statuses.
+
+Click behavior:
+- Clicking "New list" opens the Create list modal.
+- Clicking source "Google Sheet" shows a static connect flow: paste sheet URL -> map columns -> preview 10 rows -> "Start sync".
+- Clicking source "Brilliant Directories" shows a connection check: Site URL, API key/plugin bridge status, "Fetch sample records".
+- Clicking source "REST API" opens an endpoint panel with fake endpoint URLs and copy buttons.
+- Clicking "Start sync" routes to `/leads/lists/hot-leads` and shows a success toast.
+- Clicking a list row opens `/leads/lists/:id`.
+- Clicking "Sync now" shows a "Sync complete" toast and updates "Last sync: just now".
+
+Prototype state:
+Add a sync health badge:
+- Google Sheet: Synced 8 min ago.
+- Brilliant Directories: Connected, 142 changed records.
+- REST API: Waiting for first request.
+
+### 3. Global Sender Pool And Campaign Sender Assignment
+
+Why Yakin would like it:
+He described users having 10, 20, or even 100 sender accounts globally, then choosing which accounts are used for each campaign. He also wanted human-like randomized volume and warm ramping.
+
+Current prompt:
+Sender selection and ramp-up are present, but too simple.
+
+Where to add it:
+- `Settings -> Sender accounts`
+- `S16 Manual: Sender selection` at `/campaigns/new/senders`
+- `S6 Connect sender email` during onboarding
+
+UI content:
+- Global sender pool table:
+  - Email, provider, status, daily cap, ramp stage, last used, campaigns assigned.
+- Per-campaign sender assignment:
+  - Checkbox rows from the global pool.
+  - Summary: "7 of 20 senders selected."
+  - Estimated send capacity by day.
+- Human-like sending card:
+  - Max cap per sender: 30/day.
+  - Variation: 30 percent below cap.
+  - Ramp stage: Week 1: 0-7/day, Week 2: 5-10/day, Week 3: 11-16/day, Week 4: 16-24/day, Mature: 0-30/day.
+
+Click behavior:
+- Clicking "+ Add sender" opens provider modal: Google, Microsoft, SMTP.
+- Clicking a sender row opens sender detail drawer.
+- Clicking "Assign selected senders" returns to `/campaigns/new/senders` with selected count updated.
+- Clicking "Preview schedule" opens a static daily distribution chart.
+- Clicking "Next" goes to `/campaigns/new/template`.
+
+Prototype state:
+Show a mini schedule:
+- Monday: sender 1 sends 22, sender 2 sends 27, sender 3 sends 20.
+- Tuesday: sender 1 sends 27, sender 2 sends 21, sender 3 sends 24.
+
+### 4. Reply Routing Setup For Unified Inbox
+
+Why Yakin would like it:
+He specifically wanted a configuration question: when replies come in, should future communication continue from the same sender account, or should it hand off to one central human inbox?
+
+Current prompt:
+Unified inbox exists, but reply routing is not clearly configured.
+
+Where to add it:
+- `S6 Connect sender email`
+- `Settings -> Sender accounts`
+- `S23 Unified inbox`
+
+UI content:
+Add a "Reply routing" card with two options:
+
+1. Same sender continues
+- If the lead replied to `email3@domain.com`, replies from the platform use `email3@domain.com`.
+- Best for continuity and sender consistency.
+
+2. Central human handoff
+- First response sends a handoff note and CCs the main person.
+- Future replies move into the main inbox.
+- Best when Yakin or a team member personally continues the conversation.
+
+Add forwarding/BCC tracking panel:
+- Forward all sender inboxes into one platform inbox.
+- Add BCC tracking address to outside replies.
+- Show help/video placeholder buttons.
+
+Click behavior:
+- Clicking "Configure reply routing" opens a modal with the two routing cards.
+- Selecting "Same sender continues" shows a checkmark and closes modal.
+- Selecting "Central human handoff" opens fields: Main reply-to email, CC owner, handoff message preview.
+- Clicking "Copy BCC address" shows a copied toast.
+- In `/inbox`, clicking "Source sender" in a thread opens a tooltip explaining which sender received the reply.
+
+Prototype state:
+For Anita Sharma's thread, show:
+- Source sender: `outreach@businesslab.com`
+- Routing mode: Same sender continues
+- Reply button label: "Reply from outreach@businesslab.com"
+
+### 5. AI Reply Learning And Confidence-Based Automation
+
+Why Yakin would like it:
+This is one of his strongest future ideas. The AI should classify incoming email, draft a reply, learn from edits, and only suggest automation after 10 to 20 approvals without edits for the same category.
+
+Current prompt:
+AI draft reply exists, but learning/confidence automation is missing.
+
+Where to add it:
+- `S23 Unified inbox`
+- New modal: "AI reply rules"
+- Future-oriented settings area: `Settings -> AI Memory -> Reply rules`
+
+UI content:
+- Classification chips: Interested, Question, Out of office, Not interested, Wrong person, Hiring/Candidate, Vendor, Support, Manual review.
+- AI draft box with:
+  - "Drafted from business memory"
+  - "Confidence: 82%"
+  - "Approved without edits: 7 of 10"
+- Automation prompt card:
+  - "You approved 10 replies in this category without edits. Enable auto-reply for this category?"
+  - Buttons: "Keep drafting" and "Enable for this category".
+
+Click behavior:
+- Clicking "AI draft reply" fills the composer with a suggested reply and shows confidence.
+- Clicking "Edit draft" changes state to "AI will learn from this edit."
+- Clicking "Approve and send" increments the static approval count.
+- Clicking "Enable for this category" opens confirmation modal with warning: "Only emails matching this exact classification will be automated."
+- Clicking confirm adds an "Auto mode on" badge to that classification.
+
+Prototype state:
+Use the "Out of office" example:
+- AI understands "I am on vacation until June 2."
+- Suggested action: Send courteous reply now and move follow-up to June 5.
+- Click "Apply action" updates the lead timeline with "Follow-up rescheduled to Jun 5."
+
+### 6. Timestamped Lead And Email Event Timeline
+
+Why Yakin would like it:
+He was clear that every open, reply, click, unsubscribe, and repeated open should be recorded with date and time. These events power future smart follow-ups.
+
+Current prompt:
+Analytics exist, but timestamp-level tracking is not visible enough.
+
+Where to add it:
+- `S12 Lead profile`
+- `S24 Analytics`
+- `S23 Inbox` right lead context panel
+
+UI content:
+- Add "Event timeline" tab on lead profile.
+- Add event rows:
+  - Email sent: Jun 19, 10:02 AM
+  - Opened: Jun 19, 10:18 AM
+  - Opened again: Jun 19, 11:44 AM
+  - Replied: Jun 19, 12:07 PM
+  - Classification: Interested
+- Add open count badge: "Opened 4 times."
+- Add "Tracking source" label: Pixel, click redirect, reply parser, manual status.
+
+Click behavior:
+- Clicking an event row opens a detail drawer with campaign, template, sender, lead, and timestamp.
+- Clicking "View in analytics" routes to `/analytics?lead=anita`.
+- Clicking "Export events" shows a static export toast.
+
+Prototype state:
+In analytics, add a table named "Recent tracked events" with timestamped rows.
+
+### 7. AI Campaign Improvement Panel
+
+Why Yakin would like it:
+He wanted the product to act like the "world's best secretary": detect underperforming templates, stop losers, keep winners, generate new variants, and ask for one-click approval.
+
+Current prompt:
+Analytics has charts but not action recommendations.
+
+Where to add it:
+- `S24 Analytics`
+- `/campaigns/:id` detail view if implemented by reusing Analytics.
+
+UI content:
+Add right-side "AI recommendations" panel:
+- Stop: "Template 4 has low opens and zero conversions."
+- Continue: "Template 2 has lower opens but one conversion. Keep testing."
+- Improve: "Subject line may be weak for clinics."
+- Generate: "Create 5 new variants from top performers."
+- Apply: "Pause bottom 50% and test new variants."
+
+Click behavior:
+- Clicking "Review recommendation" opens modal with evidence: opens, replies, conversions, unsubscribe rate.
+- Clicking "Generate variants" routes to `/campaigns/new/ai/summary` in a "variant generation" state.
+- Clicking "Apply test" shows a confirmation modal and then a success toast.
+- Clicking "Dismiss" moves card to "Dismissed this week."
+
+Prototype state:
+Show a weekly summary card:
+- "This week: 2 templates paused, 5 variants suggested, 1 audience segment improved."
+
+### 8. Conversion-Aware Analytics And Goal Signals
+
+Why Yakin would like it:
+He corrected that open rate is not enough. A template with fewer opens may still convert better. He wants goal/conversion data from systems like Brilliant Directories or Magento to influence analysis.
+
+Current prompt:
+Analytics includes open, reply, click, unsubscribe, but conversion is not a first-class metric.
+
+Where to add it:
+- `S24 Analytics`
+- `S15 Manual: Campaign setup`
+- `Settings -> Integrations` or `Settings -> API`
+
+UI content:
+- Add "Campaign goal" field in campaign setup:
+  - Book a call
+  - Paid signup
+  - Upgrade listing
+  - Website traffic
+  - Custom API event
+- Add conversion KPI card.
+- Add "Goal signal" setup card:
+  - Event name: `paid_listing_upgraded`
+  - Match by: email
+  - Source: Brilliant Directories API
+- Add template table column: Conversions.
+
+Click behavior:
+- Clicking "Set goal" opens goal modal.
+- Selecting "Custom API event" shows fake endpoint and event payload sample.
+- Clicking "Test event" shows "Sample conversion received."
+- Clicking a conversion KPI routes to filtered analytics table.
+
+Prototype state:
+Analytics example:
+- Template A: 7 percent open, 1 conversion.
+- Template B: 2 percent open, 1 conversion.
+- AI note: "Do not judge by opens alone. Both converted; keep Template B in test."
+
+### 9. API Signal-Based Nurturing
+
+Why Yakin would like it:
+He described campaigns changing based on external signals: if someone signs up, stop the sales campaign and start a nurturing campaign; if profile fields are incomplete, send context-specific reminders.
+
+Current prompt:
+Campaign conditions exist, but external signal logic is not visible.
+
+Where to add it:
+- `S18 Manual: Sequence`
+- `Settings -> API`
+- Add route: `/settings?tab=signals`
+
+UI content:
+- Add "Signal rules" section:
+  - If `signed_up` is received, stop current outreach campaign.
+  - If `profile_incomplete` is received, start profile-completion nurture.
+  - If `employment_updated` is received, skip employment reminder.
+- Add condition selector in sequence builder:
+  - Send if no reply.
+  - Send if tag exists.
+  - Send if tag does not exist.
+  - Stop if conversion signal received.
+
+Click behavior:
+- Clicking "+ Add signal rule" opens a rule builder modal.
+- Clicking "Copy API endpoint" shows copied toast.
+- Clicking "Simulate signal" updates a lead card: status becomes "Signed up", campaign becomes "Stopped", nurture becomes "Started."
+- In sequence builder, clicking a condition chip opens the condition menu.
+
+Prototype state:
+Use David Cohen:
+- Before signal: In "Q3 Directory Outreach."
+- After `signed_up`: outreach stopped, "Onboarding nurture" starts.
+
+### 10. White-Label Super SaaS Setup
+
+Why Yakin would like it:
+His bigger vision is that directory owners become SaaS owners. They upload their logo, answer setup questions, and sell the product to their own customers under their brand.
+
+Current prompt:
+Settings includes brand and custom domain, but the Super SaaS positioning is too light.
+
+Where to add it:
+- `Settings -> Brand`
+- `S26 Admin overview`
+- Pricing page
+
+UI content:
+- Add "SaaS owner setup" card:
+  - Logo.
+  - Brand color.
+  - Custom domain.
+  - Support email.
+  - Public product name.
+  - About text.
+  - Plan display name.
+- Add preview buttons:
+  - Preview login page.
+  - Preview customer dashboard.
+  - Preview email footer.
+- Add admin table column: White-label status.
+
+Click behavior:
+- Clicking "Preview login page" opens a modal with branded login mock.
+- Clicking "Publish brand changes" shows "Brand preview updated" toast.
+- Clicking a workspace in Admin opens a workspace drawer with brand, plan, users, and usage.
+
+Prototype state:
+Show "Business Lab Outreach" as current brand and "JustDial-style partner demo" as another workspace in Admin.
+
+### 11. Pricing And Usage Limits By Leads, Emails, And Campaigns
+
+Why Yakin would like it:
+He specifically discussed pricing around number of emails, leads, and campaigns, because AI cost depends more on campaign creation than raw sending volume.
+
+Current prompt:
+Pricing exists, but the plan cards are generic.
+
+Where to add it:
+- `S2 Pricing`
+- `Settings -> Billing`
+- `S14 New campaign`
+
+UI content:
+- Update plan cards to show:
+  - Leads included.
+  - Monthly email volume.
+  - Active campaign limit.
+  - Sender account limit.
+  - AI campaign generations.
+- In campaign creation, if the demo user has too many campaigns, show a soft usage banner: "You are using 4 of 5 active campaigns."
+
+Click behavior:
+- Clicking "View usage" routes to `/settings?tab=billing`.
+- Clicking "Upgrade" opens a static upgrade modal.
+- Clicking "Start new campaign" continues as normal.
+
+Prototype state:
+Growth plan:
+- 12,500 leads used of 25,000.
+- 38,210 emails used of 100,000.
+- 5 active campaigns used of 10.
+- 7 sender accounts connected of 20.
+
+### 12. Future Channel Roadmap Cards
+
+Why Yakin would like it:
+He mentioned SMS, WhatsApp, AI calling, AI reception, and even physical/inland letters as future campaign channels. These should be acknowledged without expanding the V1 prototype into too much.
+
+Current prompt:
+WhatsApp/SMS are excluded or mostly absent.
+
+Where to add it:
+- `S14 New campaign`
+- `S25 Settings`
+- `S24 Analytics`
+
+UI content:
+Add a small "Future channels" section, visually disabled:
+- Email: Active.
+- SMS: Roadmap.
+- WhatsApp: Roadmap.
+- Inland letter: Roadmap.
+- AI calling/reception: Future.
+
+Click behavior:
+- Clicking a disabled roadmap card opens a modal: "Roadmap feature. Not active in this prototype."
+- Clicking "Add to roadmap" shows a toast.
+- Do not let these cards enter the campaign builder in the current prototype.
+
+Prototype state:
+Keep email as the only active channel to avoid confusing the V1 demo.
+
+### 13. Platform Documentation Center
+
+Why Yakin would like it:
+He asked for a single place where the complete documentation created so far can be opened and followed step-by-step. This should help him, his team, and future reviewers understand how to use the platform properly without needing to search through separate files.
+
+Current prompt:
+The base prompt includes app screens, but there is no user-facing documentation or help center.
+
+Where to add it:
+- Add a `Documentation` item in the signed-in app sidebar near Settings.
+- Add a small `Docs` or `Help` icon button in the top bar command area.
+- Add a route: `/docs`.
+- Add command menu items:
+  - "Open documentation"
+  - "How to create a campaign"
+  - "How to connect senders"
+  - "How to read analytics"
+
+UI content:
+Create a clean documentation page that uses the same Twenty-style app shell.
+
+Left documentation sidebar:
+- Overview
+- Quick start checklist
+- Onboarding and workspace setup
+- AI business memory
+- Lead lists and imports
+- Google Sheet sync
+- Brilliant Directories sync
+- REST API lead sync
+- Sender accounts and ramp-up
+- Campaign builder
+- AI campaign assistant
+- Templates and variables
+- Unified inbox and reply routing
+- AI reply learning
+- Analytics and event timeline
+- Conversion and signal rules
+- White-label setup
+- Admin and monitoring
+- Roadmap features
+
+Main content area:
+- Page title: "Platform Documentation"
+- Intro line: "Use this guide to understand each workflow before using or reviewing the prototype."
+- "Start here" checklist:
+  1. Set up workspace and business memory.
+  2. Connect sender accounts.
+  3. Create or sync a lead list.
+  4. Build a campaign manually or with AI.
+  5. Review email sequence and launch.
+  6. Manage replies in the unified inbox.
+  7. Review analytics and AI recommendations.
+  8. Use settings/admin for brand, users, senders, and operations.
+- "Documentation created so far" cards:
+  - Product scope and budget report
+  - Clickable prototype master prompt
+  - Standalone prototype build brief
+  - Meeting-driven continuation brief
+  - Source meeting transcripts
+  - System design notes
+- Each card should include short description, status tag, and "Open" button.
+
+Click behavior:
+- Clicking sidebar `Documentation` routes to `/docs`.
+- Clicking top-bar `Docs` opens `/docs`.
+- Clicking any documentation section in the left docs sidebar switches the main content in place.
+- Clicking "Open" on a documentation card opens a modal preview, not a real file download.
+- Clicking "Copy link" on a documentation card shows a copied toast.
+- Clicking "Start walkthrough" opens a checklist drawer with the eight steps above.
+- In the checklist drawer, each step has a "Go to screen" button:
+  - Workspace -> `/settings`
+  - Business memory -> `/settings?tab=ai-memory`
+  - Sender accounts -> `/settings?tab=senders`
+  - Lead lists -> `/leads`
+  - Campaign builder -> `/campaigns/new`
+  - Inbox -> `/inbox`
+  - Analytics -> `/analytics`
+  - Admin -> `/admin`
+
+Prototype state:
+Show the documentation cards with these exact labels:
+- `client_ready_project_scope_budget_report.md` - Client-ready scope, budget, timeline, and support plan.
+- `clickable_prototype_ui_master_prompt.md` - Main UI prototype build prompt.
+- `clickable_prototype_build_prompt_standalone.md` - Clean forward-ready build brief.
+- `clickable_prototype_ui_continuation_meeting_features.md` - Meeting-driven feature continuation brief.
+- `Meeting transcripts/` - Source meeting transcripts used for product decisions.
+- `system_design.excalidraw` - Initial system architecture/source diagram.
+
+Keep the documentation page read-only in the prototype. It should look like a real in-app help center, but every "Open" action only shows a static modal preview.
+
+## Updated Demo Path
+
+Keep the original happy path. Add one optional branch during the demo:
+
+1. Landing -> Signup -> Workspace setup.
+2. New: Business Memory -> add URL -> save.
+3. Sender setup -> configure reply routing -> same sender continues.
+4. Dashboard -> Leads -> New list -> Google Sheet sync -> lead list.
+5. Campaigns -> New campaign -> AI builder.
+6. In AI builder, click "View memory" to show it is using saved business context.
+7. Launch campaign -> Analytics.
+8. Analytics -> AI recommendations -> review one template recommendation.
+9. Inbox -> Anita thread -> AI draft reply -> approve -> see confidence count.
+10. Lead profile -> Event timeline -> view timestamped opens/replies.
+11. Sidebar -> Documentation -> Start walkthrough -> open the campaign builder guide.
+
+## Priority Order For Next UI Pass
+
+Build only these first if time is tight:
+
+1. AI Business Memory.
+2. List-first lead sync.
+3. Global sender pool and per-campaign sender assignment.
+4. Reply routing setup.
+5. AI reply learning/confidence automation.
+6. Timestamped event timeline.
+7. AI campaign improvement panel.
+8. Conversion-aware analytics.
+9. API signal rules.
+10. White-label Super SaaS setup.
+11. Platform documentation center.
+
+## Notes For A2B
+
+- The base prompt is directionally correct and should not be rewritten from scratch.
+- The continuation should be used after the generated UI exists, because these additions are detailed interaction upgrades.
+- The highest-impact visual additions for Yakin's next review are: Business Memory, Reply Routing, AI Reply Confidence, and AI Recommendations. These make the prototype feel closer to the vision he explained in the meetings.
+- Keep WhatsApp, SMS, inland letters, AI calling, and AI reception as roadmap cards unless Yakin explicitly asks to pull them into the active prototype.
+- Keep everything clickable but non-functional, matching the original prototype constraint.
