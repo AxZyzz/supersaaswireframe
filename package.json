@@ -1,26 +1,23 @@
 {
-  "name": "business-lab-outreach-prototype",
+  "name": "supersaas",
   "private": true,
   "version": "0.1.0",
-  "type": "module",
-  "description": "AI Outreach Platform — clickable UI-only prototype (Phase 0). Twenty CRM design language.",
+  "description": "SuperSaaS — AI outreach platform (working title). Monorepo: apps/api (NestJS), apps/web (Next.js), apps/wireframe (Phase 0 prototype), packages/shared.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev:api": "npm run start:dev -w apps/api",
+    "dev:web": "npm run dev -w apps/web",
+    "dev:wireframe": "npm run dev -w apps/wireframe",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down"
   },
-  "dependencies": {
-    "lucide-react": "^0.441.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.26.2",
-    "recharts": "^2.12.7"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.2",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.47",
-    "tailwindcss": "^3.4.13",
-    "vite": "^5.4.8"
+  "engines": {
+    "node": ">=22"
   }
 }

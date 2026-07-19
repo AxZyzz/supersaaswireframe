@@ -1,5 +1,25 @@
+# deps
 node_modules/
-.DS_Store
+
+# builds
 dist/
 build/
+.next/
+out/
+coverage/
+
+# env & secrets — never commit
 .env
+.env.*
+!.env.example
+
+# tooling
+.claude/launch.json
+launch.json
+.turbo/
+*.tsbuildinfo
+
+# os / editor
+.DS_Store
+Thumbs.db
+*.log
