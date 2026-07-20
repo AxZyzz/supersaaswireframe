@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   pgTable,
   pgEnum,
@@ -39,7 +40,10 @@ export const users = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [uniqueIndex('users_email_lower_idx').on(t.email)],
+  // Case-insensitive unique email. NOTE: drizzle-kit can't introspect
+  // expression indexes, so `generate` re-emits an identical DROP/CREATE as
+  // false drift — migrations 0000..0004 are the source of truth, ignore it.
+  (t) => [uniqueIndex('users_email_lower_idx').on(sql`lower(${t.email})`)],
 );
 
 export const memberships = pgTable(

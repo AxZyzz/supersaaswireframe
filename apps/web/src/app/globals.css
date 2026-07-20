@@ -49,6 +49,9 @@
   --radius-md: 6px;
   --radius-lg: 8px;
 
+  /* named container so max-w-shell generates (Tailwind v4 --container-* namespace) */
+  --container-shell: 1440px;
+
   --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 

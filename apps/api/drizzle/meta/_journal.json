@@ -29,6 +29,13 @@
       "when": 1784437509049,
       "tag": "0003_user_memberships_fn",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784573538915,
+      "tag": "0004_email_ci_unique",
+      "breakpoints": true
     }
   ]
 }

@@ -20,6 +20,9 @@ import type {
 
 const BCRYPT_ROUNDS = 12;
 const REFRESH_TTL_DAYS = 30;
+// Valid real hash so unknown-email logins burn a full cost-12 compare —
+// a malformed fallback would short-circuit and leak email existence via timing.
+const DUMMY_HASH = bcrypt.hashSync('supersaas-timing-dummy', BCRYPT_ROUNDS);
 
 export interface MembershipInfo {
   orgId: string;
@@ -134,11 +137,7 @@ export class AuthService {
     ]);
     // Constant-shape failure: hash compare even on unknown email.
     const row = res.rows[0];
-    const ok = await bcrypt.compare(
-      password,
-      row?.password_hash ??
-        '$2b$12$invalidsaltinvalidsaltinvalidsaltinvalidsalt1234567890',
-    );
+    const ok = await bcrypt.compare(password, row?.password_hash ?? DUMMY_HASH);
     if (!row || !ok) throw new UnauthorizedException('Invalid credentials');
 
     const memberships = await this.membershipsOf(row.id);
