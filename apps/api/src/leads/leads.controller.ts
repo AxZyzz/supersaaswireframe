@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   Param,
   ParseUUIDPipe,
@@ -10,6 +11,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import Papa from 'papaparse';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthUser } from '../auth/types';
@@ -39,6 +41,42 @@ export class LeadsController {
   @HttpCode(201)
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateLeadDto) {
     return this.leads.create(user.orgId, dto);
+  }
+
+  // Must precede :id — 'export' is not a UUID and would 400 on that route.
+  @Get('export')
+  @Header('Content-Type', 'text/csv')
+  @Header('Content-Disposition', 'attachment; filename="leads.csv"')
+  async export(@CurrentUser() user: AuthUser, @Query() q: ListLeadsQuery) {
+    const rows = await this.leads.exportRows(user.orgId, q);
+    return Papa.unparse(
+      rows.map((r) => ({
+        email: r.email ?? '',
+        first_name: r.first_name ?? '',
+        last_name: r.last_name ?? '',
+        company: r.company ?? '',
+        title: r.title ?? '',
+        phone: r.phone ?? '',
+        status: r.status,
+        score: r.score ?? '',
+        source: r.source ?? '',
+        created_at: r.created_at.toISOString(),
+      })),
+      {
+        columns: [
+          'email',
+          'first_name',
+          'last_name',
+          'company',
+          'title',
+          'phone',
+          'status',
+          'score',
+          'source',
+          'created_at',
+        ],
+      },
+    );
   }
 
   @Get(':id')

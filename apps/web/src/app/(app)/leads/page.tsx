@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Search, Upload } from "lucide-react";
+import { Download, LayoutGrid, List, Plus, Search, Upload } from "lucide-react";
 import { ImportModal } from "@/components/import-modal";
+import { LeadKanban } from "@/components/lead-kanban";
 import {
   createLead,
+  exportLeads,
   LEAD_STATUSES,
   Lead,
   listLeads,
@@ -13,6 +15,7 @@ import {
 } from "@/lib/leads";
 
 const PAGE = 50;
+const KANBAN_LIMIT = 200;
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -24,20 +27,21 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [view, setView] = useState<"table" | "kanban">("table");
 
   const load = useCallback(async () => {
     setLoading(true);
     const res = await listLeads({
       search: search || undefined,
-      status: status || undefined,
+      status: view === "kanban" ? undefined : status || undefined,
       score: score || undefined,
-      limit: PAGE,
-      offset,
+      limit: view === "kanban" ? KANBAN_LIMIT : PAGE,
+      offset: view === "kanban" ? 0 : offset,
     });
     setLeads(res.data);
     setTotal(res.total);
     setLoading(false);
-  }, [search, status, score, offset]);
+  }, [search, status, score, offset, view]);
 
   useEffect(() => {
     const t = setTimeout(load, 250); // debounce search
@@ -111,6 +115,38 @@ export default function LeadsPage() {
           <option value="cold">Cold</option>
         </select>
         <div className="flex-1" />
+        <div className="flex overflow-hidden rounded border border-line-mid">
+          <button
+            onClick={() => setView("table")}
+            className={`flex items-center gap-1 px-2.5 py-1.5 text-sm ${
+              view === "table" ? "bg-accent-soft text-accent" : "text-muted"
+            }`}
+            title="Table view"
+          >
+            <List size={15} />
+          </button>
+          <button
+            onClick={() => setView("kanban")}
+            className={`flex items-center gap-1 px-2.5 py-1.5 text-sm ${
+              view === "kanban" ? "bg-accent-soft text-accent" : "text-muted"
+            }`}
+            title="Kanban view"
+          >
+            <LayoutGrid size={15} />
+          </button>
+        </div>
+        <button
+          onClick={() =>
+            void exportLeads({
+              search: search || undefined,
+              status: status || undefined,
+              score: score || undefined,
+            })
+          }
+          className="flex items-center gap-1.5 rounded border border-line-mid px-3 py-1.5 text-sm font-medium text-ink hover:bg-hover"
+        >
+          <Download size={15} /> Export
+        </button>
         <button
           onClick={() => setImporting(true)}
           className="flex items-center gap-1.5 rounded border border-line-mid px-3 py-1.5 text-sm font-medium text-ink hover:bg-hover"
@@ -154,6 +190,14 @@ export default function LeadsPage() {
         </form>
       )}
 
+      {view === "kanban" ? (
+        loading ? (
+          <p className="py-10 text-center text-sm text-muted">Loading…</p>
+        ) : (
+          <LeadKanban leads={leads} onChange={() => void load()} />
+        )
+      ) : (
+        <>
       <div className="overflow-hidden rounded-lg border border-line bg-white">
         <table className="w-full text-sm">
           <thead>
@@ -239,6 +283,8 @@ export default function LeadsPage() {
           </button>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

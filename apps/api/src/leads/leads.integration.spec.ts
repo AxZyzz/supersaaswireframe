@@ -180,6 +180,21 @@ describe('Leads integration', () => {
     );
   });
 
+  it('exports leads as CSV with a header row', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/leads/export')
+      .set('Authorization', auth(0))
+      .expect(200);
+    expect(res.headers['content-type']).toMatch(/text\/csv/);
+    expect(res.headers['content-disposition']).toMatch(/leads\.csv/);
+    const lines = res.text.trim().split('\n');
+    expect(lines[0]).toContain('email');
+    expect(lines[0]).toContain('company');
+    // header + the one lead created above
+    expect(lines.length).toBe(2);
+    expect(res.text).toContain('jane@acme.com');
+  });
+
   it('isolates leads between orgs (org 1 cannot see or fetch org 0 lead)', async () => {
     const list = await request(app.getHttpServer())
       .get('/leads')

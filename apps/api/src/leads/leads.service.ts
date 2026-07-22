@@ -113,6 +113,40 @@ export class LeadsService {
     });
   }
 
+  // Same filters as list(), but no pagination — streams every match (capped)
+  // for CSV export.
+  async exportRows(orgId: string, q: ListLeadsQuery): Promise<LeadRow[]> {
+    const where: string[] = [];
+    const params: unknown[] = [];
+    const add = (v: unknown) => {
+      params.push(v);
+      return `$${params.length}`;
+    };
+    if (q.search) {
+      const p = add(`%${q.search}%`);
+      where.push(
+        `(email ILIKE ${p} OR first_name ILIKE ${p} OR last_name ILIKE ${p} OR company ILIKE ${p})`,
+      );
+    }
+    if (q.status) where.push(`status = ${add(q.status)}`);
+    if (q.score) where.push(`score = ${add(q.score)}`);
+    if (q.source) where.push(`source = ${add(q.source)}`);
+    if (q.tagId) {
+      where.push(
+        `id IN (SELECT lead_id FROM lead_tags WHERE tag_id = ${add(q.tagId)})`,
+      );
+    }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    return this.run(orgId, async (c) => {
+      const res = await c.query<LeadRow>(
+        `SELECT ${LEAD_COLS} FROM leads ${whereSql}
+         ORDER BY created_at DESC LIMIT 50000`,
+        params,
+      );
+      return res.rows;
+    });
+  }
+
   async create(orgId: string, dto: CreateLeadDto) {
     return this.run(orgId, async (c) => {
       const res = await c.query<LeadRow>(

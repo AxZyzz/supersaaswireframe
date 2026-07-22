@@ -147,6 +147,31 @@ export async function uploadImport(
 export const getImportStatus = (id: string) =>
   api<ImportJob>(`/leads/import/${id}`);
 
+// Authenticated CSV download — fetch as blob (can't use a plain <a href> since
+// the endpoint needs the bearer token).
+export async function exportLeads(f: LeadFilters): Promise<void> {
+  const token =
+    typeof window === "undefined"
+      ? null
+      : localStorage.getItem("ss.accessToken");
+  const q = new URLSearchParams();
+  if (f.search) q.set("search", f.search);
+  if (f.status) q.set("status", f.status);
+  if (f.score) q.set("score", f.score);
+  if (f.tagId) q.set("tagId", f.tagId);
+  const res = await fetch(`${API_URL}/leads/export?${q.toString()}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new Error(`Export failed (${res.status})`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "leads.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export const LEAD_STATUSES = [
   "new",
   "contacted",
