@@ -97,6 +97,56 @@ export const addNote = (id: string, body: string) =>
 
 export const listTags = () => api<LeadTag[]>("/tags");
 
+export interface ImportJob {
+  id: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  total: number;
+  imported: number;
+  updated: number;
+  skipped: number;
+  errors: { row: number; reason: string }[];
+}
+
+export const IMPORTABLE_FIELDS = [
+  "email",
+  "firstName",
+  "lastName",
+  "company",
+  "title",
+  "phone",
+  "status",
+  "score",
+  "source",
+] as const;
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+// Multipart upload — separate from the JSON api() helper.
+export async function uploadImport(
+  file: File,
+  mapping: Record<string, string>,
+  onDuplicate: "skip" | "update",
+): Promise<{ jobId: string }> {
+  const token =
+    typeof window === "undefined"
+      ? null
+      : localStorage.getItem("ss.accessToken");
+  const form = new FormData();
+  form.append("file", file);
+  form.append("mapping", JSON.stringify(mapping));
+  form.append("onDuplicate", onDuplicate);
+  const res = await fetch(`${API_URL}/leads/import`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (!res.ok) throw new Error(`Import failed (${res.status})`);
+  return res.json() as Promise<{ jobId: string }>;
+}
+
+export const getImportStatus = (id: string) =>
+  api<ImportJob>(`/leads/import/${id}`);
+
 export const LEAD_STATUSES = [
   "new",
   "contacted",

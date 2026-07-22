@@ -9,6 +9,7 @@ import {
   index,
   jsonb,
   primaryKey,
+  integer,
 } from 'drizzle-orm/pg-core';
 
 // Tenant model: users are global (one login, many orgs); everything org-scoped
@@ -190,6 +191,32 @@ export const leadNotes = pgTable(
       .defaultNow(),
   },
   (t) => [index('lead_notes_lead_idx').on(t.leadId)],
+);
+
+// CSV/Sheets import jobs. Row-level outcomes accumulate in `errors`; counters
+// update as the BullMQ worker streams through the file.
+export const importJobs = pgTable(
+  'import_jobs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    source: text('source').notNull().default('csv'),
+    status: text('status').notNull().default('pending'),
+    total: integer('total').notNull().default(0),
+    imported: integer('imported').notNull().default(0),
+    updated: integer('updated').notNull().default(0),
+    skipped: integer('skipped').notNull().default(0),
+    errors: jsonb('errors')
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+  },
+  (t) => [index('import_jobs_org_idx').on(t.orgId, t.createdAt)],
 );
 
 // Append-only activity timeline. Email open/click/reply events append here as

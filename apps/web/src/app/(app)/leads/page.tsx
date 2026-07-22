@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Upload } from "lucide-react";
+import { ImportModal } from "@/components/import-modal";
 import {
   createLead,
   LEAD_STATUSES,
@@ -22,6 +23,7 @@ export default function LeadsPage() {
   const [score, setScore] = useState("");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -110,12 +112,28 @@ export default function LeadsPage() {
         </select>
         <div className="flex-1" />
         <button
+          onClick={() => setImporting(true)}
+          className="flex items-center gap-1.5 rounded border border-line-mid px-3 py-1.5 text-sm font-medium text-ink hover:bg-hover"
+        >
+          <Upload size={15} /> Import CSV
+        </button>
+        <button
           onClick={() => setCreating((v) => !v)}
           className="flex items-center gap-1.5 rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover"
         >
           <Plus size={15} /> New lead
         </button>
       </div>
+
+      {importing && (
+        <ImportModal
+          onClose={() => setImporting(false)}
+          onImported={() => {
+            setOffset(0);
+            void load();
+          }}
+        />
+      )}
 
       {creating && (
         <form
