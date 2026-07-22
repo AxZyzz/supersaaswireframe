@@ -2,8 +2,17 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Download, LayoutGrid, List, Plus, Search, Upload } from "lucide-react";
+import {
+  Copy,
+  Download,
+  LayoutGrid,
+  List,
+  Plus,
+  Search,
+  Upload,
+} from "lucide-react";
 import { ImportModal } from "@/components/import-modal";
+import { DuplicatesModal } from "@/components/duplicates-modal";
 import { LeadKanban } from "@/components/lead-kanban";
 import {
   createLead,
@@ -27,6 +36,7 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [dedup, setDedup] = useState(false);
   const [view, setView] = useState<"table" | "kanban">("table");
 
   const load = useCallback(async () => {
@@ -148,6 +158,12 @@ export default function LeadsPage() {
           <Download size={15} /> Export
         </button>
         <button
+          onClick={() => setDedup(true)}
+          className="flex items-center gap-1.5 rounded border border-line-mid px-3 py-1.5 text-sm font-medium text-ink hover:bg-hover"
+        >
+          <Copy size={15} /> Duplicates
+        </button>
+        <button
           onClick={() => setImporting(true)}
           className="flex items-center gap-1.5 rounded border border-line-mid px-3 py-1.5 text-sm font-medium text-ink hover:bg-hover"
         >
@@ -165,6 +181,16 @@ export default function LeadsPage() {
         <ImportModal
           onClose={() => setImporting(false)}
           onImported={() => {
+            setOffset(0);
+            void load();
+          }}
+        />
+      )}
+
+      {dedup && (
+        <DuplicatesModal
+          onClose={() => setDedup(false)}
+          onMerged={() => {
             setOffset(0);
             void load();
           }}

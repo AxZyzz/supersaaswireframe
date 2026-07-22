@@ -20,6 +20,7 @@ import {
   CreateLeadDto,
   CreateNoteDto,
   ListLeadsQuery,
+  MergeLeadsDto,
   UpdateLeadDto,
 } from './dto/lead.dto';
 import { LeadsService } from './leads.service';
@@ -41,6 +42,19 @@ export class LeadsController {
   @HttpCode(201)
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateLeadDto) {
     return this.leads.create(user.orgId, dto);
+  }
+
+  // Static sub-routes must precede :id — the words aren't UUIDs.
+  @Get('duplicates')
+  duplicates(@CurrentUser() user: AuthUser) {
+    return this.leads.duplicates(user.orgId);
+  }
+
+  @Roles('admin', 'manager')
+  @HttpCode(200)
+  @Post('merge')
+  merge(@CurrentUser() user: AuthUser, @Body() dto: MergeLeadsDto) {
+    return this.leads.merge(user.orgId, dto.primaryId, dto.mergeIds);
   }
 
   // Must precede :id — 'export' is not a UUID and would 400 on that route.

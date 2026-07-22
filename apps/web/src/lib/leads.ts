@@ -97,6 +97,20 @@ export const addNote = (id: string, body: string) =>
 
 export const listTags = () => api<LeadTag[]>("/tags");
 
+export interface DuplicateGroup {
+  count: number;
+  leads: Lead[];
+}
+
+export const findDuplicates = () =>
+  api<DuplicateGroup[]>("/leads/duplicates");
+
+export const mergeLeads = (primaryId: string, mergeIds: string[]) =>
+  api<{ merged: number; primaryId: string }>("/leads/merge", {
+    method: "POST",
+    body: JSON.stringify({ primaryId, mergeIds }),
+  });
+
 export interface ImportJob {
   id: string;
   status: "pending" | "processing" | "completed" | "failed";

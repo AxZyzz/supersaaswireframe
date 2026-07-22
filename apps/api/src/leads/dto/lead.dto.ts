@@ -1,5 +1,7 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayNotEmpty,
+  IsArray,
   IsEmail,
   IsEnum,
   IsIn,
@@ -80,4 +82,13 @@ export class CreateTagDto {
 
 export class AttachTagDto {
   @IsUUID() tagId!: string;
+}
+
+export class MergeLeadsDto {
+  @IsUUID() primaryId!: string;
+
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID('4', { each: true })
+  mergeIds!: string[];
 }

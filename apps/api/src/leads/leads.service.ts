@@ -262,6 +262,110 @@ export class LeadsService {
     });
   }
 
+  // Duplicate groups: leads sharing a normalized (first+last+company) key.
+  // Exact-email dups can't exist (unique index), so this catches the same
+  // person imported under different emails / no email.
+  async duplicates(orgId: string) {
+    return this.run(orgId, async (c) => {
+      const res = await c.query<LeadRow & { dup_key: string }>(
+        `WITH keyed AS (
+           SELECT ${LEAD_COLS},
+             lower(trim(coalesce(first_name,''))) || '·' ||
+             lower(trim(coalesce(last_name,'')))  || '·' ||
+             lower(trim(coalesce(company,'')))     AS dup_key
+           FROM leads
+           WHERE first_name IS NOT NULL AND company IS NOT NULL
+         ),
+         dups AS (
+           SELECT dup_key FROM keyed GROUP BY dup_key HAVING count(*) > 1
+         )
+         SELECT k.* FROM keyed k JOIN dups d ON d.dup_key = k.dup_key
+         ORDER BY k.dup_key, k.created_at`,
+      );
+      const groups = new Map<string, LeadRow[]>();
+      for (const row of res.rows) {
+        const { dup_key, ...lead } = row;
+        const g = groups.get(dup_key) ?? [];
+        g.push(lead);
+        groups.set(dup_key, g);
+      }
+      return Array.from(groups.values()).map((leads) => ({
+        count: leads.length,
+        leads,
+      }));
+    });
+  }
+
+  // Merge secondary leads into a primary: move tags/notes/events, fill the
+  // primary's empty fields from the oldest secondary, delete the secondaries.
+  async merge(orgId: string, primaryId: string, mergeIds: string[]) {
+    const ids = mergeIds.filter((id) => id !== primaryId);
+    if (ids.length === 0) {
+      throw new NotFoundException('Nothing to merge');
+    }
+    return this.run(orgId, async (c) => {
+      const primary = await c.query(`SELECT id FROM leads WHERE id = $1`, [
+        primaryId,
+      ]);
+      if (primary.rowCount === 0)
+        throw new NotFoundException('Primary lead not found');
+      const found = await c.query<{ id: string }>(
+        `SELECT id FROM leads WHERE id = ANY($1::uuid[])`,
+        [ids],
+      );
+      const realIds = found.rows.map((r) => r.id);
+      if (realIds.length === 0)
+        throw new NotFoundException('No leads to merge');
+
+      // Move tags (skip ones the primary already has), notes, events.
+      await c.query(
+        `INSERT INTO lead_tags (org_id, lead_id, tag_id)
+         SELECT org_id, $1, tag_id FROM lead_tags WHERE lead_id = ANY($2::uuid[])
+         ON CONFLICT DO NOTHING`,
+        [primaryId, realIds],
+      );
+      await c.query(`DELETE FROM lead_tags WHERE lead_id = ANY($1::uuid[])`, [
+        realIds,
+      ]);
+      await c.query(
+        `UPDATE lead_notes SET lead_id = $1 WHERE lead_id = ANY($2::uuid[])`,
+        [primaryId, realIds],
+      );
+      await c.query(
+        `UPDATE lead_events SET lead_id = $1 WHERE lead_id = ANY($2::uuid[])`,
+        [primaryId, realIds],
+      );
+
+      // Fill the primary's null fields from the oldest secondary.
+      await c.query(
+        `UPDATE leads p SET
+           email = COALESCE(p.email, m.email),
+           first_name = COALESCE(p.first_name, m.first_name),
+           last_name = COALESCE(p.last_name, m.last_name),
+           company = COALESCE(p.company, m.company),
+           title = COALESCE(p.title, m.title),
+           phone = COALESCE(p.phone, m.phone),
+           score = COALESCE(p.score, m.score),
+           source = COALESCE(p.source, m.source),
+           updated_at = now()
+         FROM (
+           SELECT * FROM leads WHERE id = ANY($2::uuid[])
+           ORDER BY created_at LIMIT 1
+         ) m
+         WHERE p.id = $1`,
+        [primaryId, realIds],
+      );
+
+      await c.query(`DELETE FROM leads WHERE id = ANY($1::uuid[])`, [realIds]);
+      await c.query(
+        `INSERT INTO lead_events (org_id, lead_id, type, data)
+         VALUES ($1, $2, 'merged', $3::jsonb)`,
+        [orgId, primaryId, JSON.stringify({ merged: realIds.length })],
+      );
+      return { merged: realIds.length, primaryId };
+    });
+  }
+
   async addNote(
     orgId: string,
     leadId: string,
