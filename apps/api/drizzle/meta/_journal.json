@@ -36,6 +36,20 @@
       "when": 1784573538915,
       "tag": "0004_email_ci_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784708588890,
+      "tag": "0005_leads",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784708615030,
+      "tag": "0006_leads_rls",
+      "breakpoints": true
     }
   ]
 }
