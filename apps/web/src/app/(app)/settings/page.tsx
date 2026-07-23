@@ -9,6 +9,7 @@ import {
   listApiKeys,
   revokeApiKey,
 } from "@/lib/api-keys";
+import { SendersSection } from "@/components/senders-section";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -60,6 +61,8 @@ export default function SettingsPage() {
           Workspace configuration. More sections arrive with E9.
         </p>
       </div>
+
+      <SendersSection />
 
       <section className="rounded-lg border border-line bg-white p-5">
         <div className="mb-1 flex items-center gap-2">
