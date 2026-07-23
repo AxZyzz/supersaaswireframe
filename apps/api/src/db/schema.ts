@@ -244,6 +244,31 @@ export const segmentMembers = pgTable(
   ],
 );
 
+// Public REST API keys. Only the SHA-256 hash is stored (like refresh tokens);
+// the raw `ssk_...` key is shown once at creation. `prefix` is a short,
+// non-secret identifier for display.
+export const apiKeys = pgTable(
+  'api_keys',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    keyHash: text('key_hash').notNull(),
+    prefix: text('prefix').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex('api_keys_hash_idx').on(t.keyHash),
+    index('api_keys_org_idx').on(t.orgId),
+  ],
+);
+
 // CSV/Sheets import jobs. Row-level outcomes accumulate in `errors`; counters
 // update as the BullMQ worker streams through the file.
 export const importJobs = pgTable(

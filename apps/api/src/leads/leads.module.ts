@@ -4,6 +4,10 @@ import {
   LEAD_IMPORT_QUEUE,
   SEGMENT_REFRESH_QUEUE,
 } from '../queue/queue.module';
+import { ApiKeyGuard } from './api/api-key.guard';
+import { ApiKeysController } from './api/api-keys.controller';
+import { ApiKeysService } from './api/api-keys.service';
+import { PublicLeadsController } from './api/public-leads.controller';
 import { ImportController } from './import/import.controller';
 import { ImportProcessor } from './import/import.processor';
 import { ImportService } from './import/import.service';
@@ -27,6 +31,8 @@ import { TagsService } from './tags.service';
     TagsController,
     ImportController,
     SegmentsController,
+    ApiKeysController,
+    PublicLeadsController,
   ],
   providers: [
     LeadsService,
@@ -35,6 +41,8 @@ import { TagsService } from './tags.service';
     ImportProcessor,
     SegmentsService,
     SegmentRefreshProcessor,
+    ApiKeysService,
+    ApiKeyGuard,
   ],
 })
 export class LeadsModule {}

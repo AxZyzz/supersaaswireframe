@@ -179,6 +179,74 @@ export class LeadsService {
     });
   }
 
+  // Public REST API upsert-by-email. Used by the API-key-guarded /v1 route so
+  // external systems can sync leads idempotently.
+  async apiUpsert(orgId: string, dto: CreateLeadDto) {
+    return this.run(orgId, async (c) => {
+      if (dto.email) {
+        const existing = await c.query<{ id: string }>(
+          `SELECT id FROM leads WHERE lower(email) = lower($1) LIMIT 1`,
+          [dto.email],
+        );
+        if ((existing.rowCount ?? 0) > 0) {
+          const id = existing.rows[0].id;
+          const res = await c.query<LeadRow>(
+            `UPDATE leads SET
+               first_name = COALESCE($2, first_name),
+               last_name  = COALESCE($3, last_name),
+               company    = COALESCE($4, company),
+               title      = COALESCE($5, title),
+               phone      = COALESCE($6, phone),
+               status     = COALESCE($7, status),
+               score      = COALESCE($8, score),
+               source     = COALESCE($9, source),
+               updated_at = now()
+             WHERE id = $1 RETURNING ${LEAD_COLS}`,
+            [
+              id,
+              dto.firstName ?? null,
+              dto.lastName ?? null,
+              dto.company ?? null,
+              dto.title ?? null,
+              dto.phone ?? null,
+              dto.status ?? null,
+              dto.score ?? null,
+              dto.source ?? null,
+            ],
+          );
+          await c.query(
+            `INSERT INTO lead_events (org_id, lead_id, type, data) VALUES ($1,$2,'updated','{}'::jsonb)`,
+            [orgId, id],
+          );
+          return { lead: res.rows[0], created: false };
+        }
+      }
+      const res = await c.query<LeadRow>(
+        `INSERT INTO leads
+           (org_id, email, first_name, last_name, company, title, phone, status, score, source)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,'new'),$9,COALESCE($10,'api'))
+         RETURNING ${LEAD_COLS}`,
+        [
+          orgId,
+          dto.email ?? null,
+          dto.firstName ?? null,
+          dto.lastName ?? null,
+          dto.company ?? null,
+          dto.title ?? null,
+          dto.phone ?? null,
+          dto.status ?? null,
+          dto.score ?? null,
+          dto.source ?? null,
+        ],
+      );
+      await c.query(
+        `INSERT INTO lead_events (org_id, lead_id, type, data) VALUES ($1,$2,'created','{}'::jsonb)`,
+        [orgId, res.rows[0].id],
+      );
+      return { lead: res.rows[0], created: true };
+    });
+  }
+
   async findOne(orgId: string, id: string) {
     return this.run(orgId, async (c) => {
       const lead = await c.query<LeadRow>(
