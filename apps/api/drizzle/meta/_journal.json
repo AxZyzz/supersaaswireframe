@@ -64,6 +64,20 @@
       "when": 1784710506336,
       "tag": "0008_import_jobs_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784743028781,
+      "tag": "0009_segments",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784743036696,
+      "tag": "0010_segments_rls",
+      "breakpoints": true
     }
   ]
 }

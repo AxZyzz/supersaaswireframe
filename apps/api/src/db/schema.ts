@@ -193,6 +193,57 @@ export const leadNotes = pgTable(
   (t) => [index('lead_notes_lead_idx').on(t.leadId)],
 );
 
+// Segments. 'manual' = explicit membership (segment_members rows added by
+// hand). 'smart' = a rule set evaluated to materialize membership on refresh.
+// A tag-based segment is just a smart segment with one has-tag rule.
+export const segments = pgTable(
+  'segments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    type: text('type').notNull().default('smart'),
+    rules: jsonb('rules')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    memberCount: integer('member_count').notNull().default(0),
+    lastRefreshedAt: timestamp('last_refreshed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('segments_org_name_idx').on(t.orgId, sql`lower(${t.name})`),
+  ],
+);
+
+// Materialized segment membership (recomputed for smart segments on refresh,
+// maintained by hand for manual segments).
+export const segmentMembers = pgTable(
+  'segment_members',
+  {
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    segmentId: uuid('segment_id')
+      .notNull()
+      .references(() => segments.id, { onDelete: 'cascade' }),
+    leadId: uuid('lead_id')
+      .notNull()
+      .references(() => leads.id, { onDelete: 'cascade' }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.segmentId, t.leadId] }),
+    index('segment_members_lead_idx').on(t.leadId),
+    index('segment_members_org_idx').on(t.orgId),
+  ],
+);
+
 // CSV/Sheets import jobs. Row-level outcomes accumulate in `errors`; counters
 // update as the BullMQ worker streams through the file.
 export const importJobs = pgTable(
