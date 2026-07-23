@@ -19,6 +19,7 @@ interface Org {
 const TITLES: [string, string][] = [
   ["/leads", "Leads"],
   ["/campaigns", "Campaigns"],
+  ["/segments", "Segments"],
   ["/inbox", "Inbox"],
   ["/templates", "Templates"],
   ["/analytics", "Analytics"],

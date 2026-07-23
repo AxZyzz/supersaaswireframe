@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
   FileText,
+  Filter,
   Inbox,
   LayoutDashboard,
   LogOut,
@@ -17,6 +18,7 @@ import { clearTokens } from "@/lib/api";
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/leads", label: "Leads", icon: Users },
+  { href: "/segments", label: "Segments", icon: Filter },
   { href: "/campaigns", label: "Campaigns", icon: Send },
   { href: "/inbox", label: "Inbox", icon: Inbox },
   { href: "/templates", label: "Templates", icon: FileText },
