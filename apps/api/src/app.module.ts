@@ -7,6 +7,7 @@ import { DbModule } from './db/db.module';
 import { LeadsModule } from './leads/leads.module';
 import { OrgsModule } from './orgs/orgs.module';
 import { QueueModule } from './queue/queue.module';
+import { SendersModule } from './senders/senders.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { QueueModule } from './queue/queue.module';
     AuthModule,
     OrgsModule,
     LeadsModule,
+    SendersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

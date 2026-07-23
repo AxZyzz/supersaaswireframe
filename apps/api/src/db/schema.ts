@@ -244,6 +244,52 @@ export const segmentMembers = pgTable(
   ],
 );
 
+// ── E3: Sender accounts ──────────────────────────────────────────────────
+// A sending identity. provider = ses | gmail | smtp. Secrets (OAuth tokens,
+// SMTP passwords) go in `config` AES-256-encrypted once real sending lands
+// (E3 wiring); for now this is config + verification status. Daily limit and
+// optional send window feed the E5 sending engine.
+export const senderProviderEnum = pgEnum('sender_provider', [
+  'ses',
+  'gmail',
+  'smtp',
+]);
+
+export const senderAccounts = pgTable(
+  'sender_accounts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    provider: senderProviderEnum('provider').notNull(),
+    fromName: text('from_name').notNull(),
+    fromEmail: text('from_email').notNull(),
+    replyTo: text('reply_to'),
+    signature: text('signature'),
+    dailyLimit: integer('daily_limit').notNull().default(50),
+    sendWindowStart: integer('send_window_start'),
+    sendWindowEnd: integer('send_window_end'),
+    status: text('status').notNull().default('unverified'),
+    config: jsonb('config')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('sender_accounts_org_idx').on(t.orgId),
+    uniqueIndex('sender_accounts_org_email_idx').on(
+      t.orgId,
+      sql`lower(${t.fromEmail})`,
+    ),
+  ],
+);
+
 // Public REST API keys. Only the SHA-256 hash is stored (like refresh tokens);
 // the raw `ssk_...` key is shown once at creation. `prefix` is a short,
 // non-secret identifier for display.

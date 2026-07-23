@@ -92,6 +92,20 @@
       "when": 1784805270057,
       "tag": "0012_api_keys_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1784825431240,
+      "tag": "0013_sender_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1784825439417,
+      "tag": "0014_sender_accounts_rls",
+      "breakpoints": true
     }
   ]
 }
