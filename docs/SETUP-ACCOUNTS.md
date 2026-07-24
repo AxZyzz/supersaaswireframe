@@ -1,47 +1,120 @@
-# Account Setup — Aman's Homework (E0: T0.3–T0.6 + Docker)
+# Account Setup — click-by-click (Aman)
 
-These need a human with payment methods / phone verification. Claude cannot create accounts or
-enter credentials — do these yourself, then put values in `.env` (never commit it).
+Three external services power sending + AI. Do them **in this order** (SES has a
+2-week approval wait, so file it first). As you finish each, open `.env` in the
+repo root and paste the value next to its `TODO`, then restart the API.
 
-## 0. Docker Desktop (blocks local dev DB)
-- [ ] Install Docker Desktop for Windows: https://www.docker.com/products/docker-desktop/
-- [ ] Enable WSL2 backend when prompted; restart if asked
-- [ ] Verify: `docker compose version` in a terminal
-- [ ] Then in repo root: `npm run db:up`
+> Claude cannot log into these consoles for you (they're your accounts +
+> credentials). You click through; you paste keys into `.env` (NOT into chat —
+> keep secrets out of chat). Then Claude wires the code.
 
-## 1. AWS account (T0.3)
-- [ ] Create AWS account under A2B (a2b.business.official@gmail.com or dedicated alias)
-- [ ] Enable MFA on root; create IAM admin user for daily use
-- [ ] Set a billing alarm (e.g. alert at $20, $50)
-- [ ] Pick region with SES + SES inbound receiving support — **us-east-1 recommended** (inbound receiving is limited to few regions; us-east-1 safest)
-- [ ] Create IAM user/key for the app: SES send, SNS, S3 — put keys in `.env`
+What Claude needs in `.env` when you're done:
+`ANTHROPIC_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `SES_FROM_DOMAIN`,
+`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
 
-## 2. SES production access (T0.4) — **2-week lead time, do first**
-- [ ] Verify sending domain in SES (needs the product domain — decide D-A name first, or use a temp subdomain of an owned domain)
-- [ ] Enable DKIM (Easy DKIM), add DNS records
-- [ ] Request production access (exit sandbox): SES console → Account dashboard → Request production access. Use case: transactional + marketing outreach platform, describe bounce/complaint handling (SNS webhooks, suppression list — already in the V1 plan)
-- [ ] Request sending-limit increase once out of sandbox
+---
 
-## 3. Google Cloud project (T0.5)
-- [ ] Create project `supersaas` under A2B Google account
-- [ ] Enable APIs: Gmail API, Google Sheets API, Google Drive API (Sheets picker needs it)
-- [ ] OAuth consent screen: External, add scopes `gmail.send`, `spreadsheets.readonly`, `drive.metadata.readonly`; add yourself as test user
-- [ ] Create OAuth client (Web), redirect URL `http://localhost:4000/auth/google/callback` for dev
-- [ ] Put client ID/secret in `.env`
-- **Testing-mode trap:** "Testing" publishing status = 100 test users AND **refresh tokens expire
-  every 7 days** — connected Gmail senders die weekly. Fine for solo dev, NOT for real beta users.
-  Before beta users connect Gmail, publish to "In production" and start Google's restricted-scope
-  (`gmail.send`) verification — lead time is **weeks** (possibly CASA security assessment), so kick
-  it off alongside the SES request, not at public launch.
-- Later (E5/E7): unified inbox needs `gmail.readonly` or `gmail.modify` scope added for reply
-  ingestion from Gmail senders — plan the scope list before filing verification.
+## §1 — AWS + SES (email sending) ⏳ DO FIRST (2-week approval)
 
-## 4. Anthropic API key (T0.6)
-- [ ] Create key at console.anthropic.com under A2B org
-- [ ] Set monthly spend cap (~$200 budgeted for V1)
-- [ ] Put in `.env` as `ANTHROPIC_API_KEY`
+**Why:** SES is what actually sends the campaign emails and reports bounces.
 
-## Later (E10, not now)
-- Production domain + Cloudflare DNS
-- Vercel account for web deploy
-- Sentry account (free tier)
+### 1a. AWS account
+1. Go to https://aws.amazon.com → **Create an AWS Account** (use the A2B email).
+   Needs a card (they charge ~$1 to verify, refunded) + phone verification.
+2. Sign in as **root** → search **IAM** → enable **MFA** on the root user
+   (security; use an authenticator app).
+
+### 1b. IAM user for the app (so we don't use root keys)
+1. IAM → **Users** → **Create user** → name `supersaas-app` → Next.
+2. **Attach policies directly** → for now check **AmazonSESFullAccess**
+   (we'll tighten later) → Create user.
+3. Open the user → **Security credentials** tab → **Create access key** →
+   use case **Application running outside AWS** → Create.
+4. You'll see **Access key** and **Secret access key** ONCE. Paste both into
+   `.env`:
+   ```
+   AWS_ACCESS_KEY_ID=AKIA...
+   AWS_SECRET_ACCESS_KEY=...
+   ```
+   (`AWS_REGION=us-east-1` is already set — keep it; SES inbound receiving needs
+   a supported region and us-east-1 is safest.)
+
+### 1c. Verify a sending domain in SES
+1. Top-right region selector → set to **US East (N. Virginia) us-east-1**.
+2. Search **SES** → **Configuration → Identities** → **Create identity**.
+3. Choose **Domain**, enter the domain you'll send from (e.g. `a2b.com` or a
+   subdomain like `mail.a2b.com`). Leave **Easy DKIM** on.
+4. SES shows a set of **CNAME records** — add them at your domain's DNS (wherever
+   you manage DNS, e.g. Cloudflare/GoDaddy). Verification goes green in minutes-hours.
+5. Put the domain in `.env`: `SES_FROM_DOMAIN=a2b.com`
+
+### 1d. Request production access ⏳ (this is the 2-week part — do it now)
+1. SES → **Account dashboard** → **Request production access**.
+2. Mail type: **Transactional** (+ marketing). Website: your site.
+3. Use-case text (paste something like): *"B2B cold-email outreach platform.
+   We handle bounces and complaints via SNS webhooks, maintain a suppression
+   list, and honor unsubscribes (CAN-SPAM). Sending to opted-in business
+   contacts with per-account daily limits and ramp-up."*
+4. Submit. Until approved you're in **sandbox** (can only email verified
+   addresses) — that's fine for dev; approval unblocks real beta sending.
+
+**S3 (optional, later):** skip for now — CSV import works without it. When
+needed: S3 → create a private bucket → put its name in `S3_BUCKET`.
+
+---
+
+## §2 — Google Cloud OAuth (Gmail sending + Sheets import)
+
+**Why:** one setup unlocks (a) users sending from their own Gmail and (b)
+importing/syncing leads from Google Sheets.
+
+1. Go to https://console.cloud.google.com → top bar **project dropdown** →
+   **New Project** → name `supersaas` → Create, then select it.
+2. **APIs & Services → Library** → enable these three (search each, click
+   Enable): **Gmail API**, **Google Sheets API**, **Google Drive API**.
+3. **APIs & Services → OAuth consent screen**:
+   - User type **External** → Create.
+   - App name `SuperSaaS`, support email = your email, developer email = yours.
+   - **Scopes** → Add: `.../auth/gmail.send`, `.../auth/spreadsheets.readonly`,
+     `.../auth/drive.metadata.readonly`.
+   - **Test users** → add your own Google address.
+   - Save. Leave publishing status **Testing** for now.
+   - ⚠️ **Testing-mode trap:** in Testing, connected Gmail tokens **expire every
+     7 days**. Fine while you build. Before real beta users connect Gmail, hit
+     **Publish app** and start Google's verification for the restricted
+     `gmail.send` scope — that review takes weeks, so kick it off early.
+4. **APIs & Services → Credentials → Create credentials → OAuth client ID**:
+   - Application type **Web application**, name `supersaas-web`.
+   - **Authorized redirect URIs** → add exactly:
+     `http://localhost:4000/auth/google/callback`
+   - Create. Copy **Client ID** and **Client secret** into `.env`:
+     ```
+     GOOGLE_CLIENT_ID=...apps.googleusercontent.com
+     GOOGLE_CLIENT_SECRET=...
+     ```
+
+---
+
+## §3 — Anthropic API key (AI features) ✅ instant
+
+**Why:** powers the AI campaign builder, reply classification, reply drafting.
+
+1. Go to https://console.anthropic.com → sign in (A2B account) → add billing.
+2. **Settings → Limits** → set a monthly **spend cap** (~$200 for V1).
+3. **API Keys → Create Key** → name `supersaas` → copy it.
+4. Paste into `.env`: `ANTHROPIC_API_KEY=sk-ant-...`
+
+---
+
+## When each is done, tell Claude
+
+- **Anthropic key in** → Claude builds the AI layer (E6): AI campaign builder,
+  reply classification.
+- **Google client id/secret in** → Claude wires Gmail sender (T3.3) + Sheets
+  sync (T2.8).
+- **AWS keys + domain verified** → Claude wires the SES sender (T3.2) and, once
+  production access is granted, the real sending engine (E5).
+
+You don't have to wait for all three — hand Claude whichever lands first and it
+wires that piece. **Docker Desktop** must be running for local dev (fixed via
+`wsl --update`; if it ever crashes again, same rename-run-dir trick).
