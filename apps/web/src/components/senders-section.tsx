@@ -1,7 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, Mail, Plus, Search, Trash2, X } from "lucide-react";
+import {
+  Check,
+  Mail,
+  Plus,
+  Search,
+  Send,
+  ShieldCheck,
+  Trash2,
+  X,
+} from "lucide-react";
 import {
   createSender,
   deleteSender,
@@ -9,12 +18,19 @@ import {
   dnsCheck,
   listSenders,
   Sender,
+  testSender,
+  verifySender,
 } from "@/lib/senders";
+
+type Provider = "ses" | "gmail" | "smtp";
 
 export function SendersSection() {
   const [senders, setSenders] = useState<Sender[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [provider, setProvider] = useState<Provider>("ses");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -30,13 +46,51 @@ export function SendersSection() {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     await createSender({
-      provider: String(f.get("provider")) as "ses" | "gmail" | "smtp",
+      provider,
       fromName: String(f.get("fromName")),
       fromEmail: String(f.get("fromEmail")),
       dailyLimit: Number(f.get("dailyLimit")) || undefined,
+      smtp:
+        provider === "smtp"
+          ? {
+              host: String(f.get("host")),
+              port: Number(f.get("port")) || 587,
+              secure: f.get("secure") === "on",
+              user: String(f.get("user")),
+              pass: String(f.get("pass")),
+            }
+          : undefined,
     });
     setAdding(false);
+    setProvider("ses");
     await load();
+  }
+
+  async function verify(id: string) {
+    setBusyId(id);
+    setNote(null);
+    try {
+      const r = await verifySender(id);
+      setNote({ ok: r.ok, text: r.detail });
+    } catch {
+      setNote({ ok: false, text: "Verification request failed." });
+    }
+    setBusyId(null);
+    await load();
+  }
+
+  async function test(id: string) {
+    const to = window.prompt("Send a test email to:");
+    if (!to) return;
+    setBusyId(id);
+    setNote(null);
+    try {
+      const r = await testSender(id, to);
+      setNote({ ok: true, text: `Sent (${r.provider}) — id ${r.messageId}` });
+    } catch {
+      setNote({ ok: false, text: "Test send failed — verify the sender first." });
+    }
+    setBusyId(null);
   }
 
   const field =
@@ -58,43 +112,99 @@ export function SendersSection() {
         </button>
       </div>
       <p className="mb-4 text-sm text-muted">
-        The identities campaigns send from. Provider verification (SES / Gmail /
-        SMTP) connects when those integrations are enabled.
+        The identities campaigns send from. SMTP verifies immediately; SES and
+        Gmail connect once those integrations are enabled.
       </p>
 
       {adding && (
         <form
           onSubmit={add}
-          className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-line bg-panel p-3"
+          className="mb-4 flex flex-col gap-2 rounded-lg border border-line bg-panel p-3"
         >
-          <select name="provider" className={field} defaultValue="ses">
-            <option value="ses">SES</option>
-            <option value="gmail">Gmail</option>
-            <option value="smtp">SMTP</option>
-          </select>
-          <input
-            name="fromName"
-            required
-            placeholder="From name"
-            className={field}
-          />
-          <input
-            name="fromEmail"
-            type="email"
-            required
-            placeholder="from@domain.com"
-            className={field}
-          />
-          <input
-            name="dailyLimit"
-            type="number"
-            placeholder="Daily limit"
-            className={`${field} w-28`}
-          />
-          <button className="rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover">
-            Add
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              name="provider"
+              value={provider}
+              onChange={(e) => setProvider(e.target.value as Provider)}
+              className={field}
+            >
+              <option value="ses">SES</option>
+              <option value="gmail">Gmail</option>
+              <option value="smtp">SMTP</option>
+            </select>
+            <input
+              name="fromName"
+              required
+              placeholder="From name"
+              className={field}
+            />
+            <input
+              name="fromEmail"
+              type="email"
+              required
+              placeholder="from@domain.com"
+              className={field}
+            />
+            <input
+              name="dailyLimit"
+              type="number"
+              placeholder="Daily limit"
+              className={`${field} w-28`}
+            />
+          </div>
+
+          {provider === "smtp" && (
+            <div className="flex flex-wrap items-center gap-2 border-t border-line pt-2">
+              <input
+                name="host"
+                required
+                placeholder="smtp.host.com"
+                className={field}
+              />
+              <input
+                name="port"
+                type="number"
+                defaultValue={587}
+                placeholder="Port"
+                className={`${field} w-24`}
+              />
+              <label className="flex items-center gap-1.5 text-sm text-muted">
+                <input name="secure" type="checkbox" /> TLS
+              </label>
+              <input
+                name="user"
+                required
+                placeholder="SMTP user"
+                className={field}
+              />
+              <input
+                name="pass"
+                type="password"
+                required
+                placeholder="SMTP password"
+                className={field}
+              />
+            </div>
+          )}
+
+          <div>
+            <button className="rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover">
+              Add
+            </button>
+          </div>
         </form>
+      )}
+
+      {note && (
+        <div
+          className={`mb-4 rounded-lg border px-3 py-2 text-sm ${
+            note.ok
+              ? "border-success-text/30 bg-success-bg text-success-text"
+              : "border-danger-text/30 bg-danger-bg text-danger-text"
+          }`}
+        >
+          {note.text}
+        </div>
       )}
 
       <div className="mb-6 overflow-hidden rounded-lg border border-line">
@@ -133,17 +243,40 @@ export function SendersSection() {
                   </td>
                   <td className="px-4 py-2.5 text-muted">{s.daily_limit}</td>
                   <td className="px-4 py-2.5">
-                    <span className="rounded-full bg-warning-bg px-2 py-0.5 text-tiny capitalize text-warning-text">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-tiny capitalize ${
+                        s.status === "verified"
+                          ? "bg-success-bg text-success-text"
+                          : "bg-warning-bg text-warning-text"
+                      }`}
+                    >
                       {s.status}
                     </span>
                   </td>
                   <td className="px-4 py-2.5">
-                    <div className="flex justify-end">
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        onClick={() => void verify(s.id)}
+                        disabled={busyId === s.id}
+                        title="Verify connection"
+                        className="text-faint hover:text-accent disabled:opacity-40"
+                      >
+                        <ShieldCheck size={15} />
+                      </button>
+                      <button
+                        onClick={() => void test(s.id)}
+                        disabled={busyId === s.id}
+                        title="Send test email"
+                        className="text-faint hover:text-accent disabled:opacity-40"
+                      >
+                        <Send size={15} />
+                      </button>
                       <button
                         onClick={async () => {
                           await deleteSender(s.id);
                           await load();
                         }}
+                        title="Delete"
                         className="text-faint hover:text-danger-text"
                       >
                         <Trash2 size={14} />

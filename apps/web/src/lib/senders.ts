@@ -27,6 +27,20 @@ export interface DnsCheckResult {
   dkim: DnsRecordCheck;
 }
 
+export interface SmtpConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
+}
+
+export interface VerifyResult {
+  ok: boolean;
+  status: string;
+  detail: string;
+}
+
 export const listSenders = () => api<Sender[]>("/senders");
 
 export const createSender = (body: {
@@ -35,10 +49,20 @@ export const createSender = (body: {
   fromEmail: string;
   replyTo?: string;
   dailyLimit?: number;
+  smtp?: SmtpConfig;
 }) => api<Sender>("/senders", { method: "POST", body: JSON.stringify(body) });
 
 export const deleteSender = (id: string) =>
   api<{ deleted: boolean }>(`/senders/${id}`, { method: "DELETE" });
+
+export const verifySender = (id: string) =>
+  api<VerifyResult>(`/senders/${id}/verify`, { method: "POST" });
+
+export const testSender = (id: string, to: string) =>
+  api<{ sent: boolean; messageId: string; provider: string }>(
+    `/senders/${id}/test`,
+    { method: "POST", body: JSON.stringify({ to }) },
+  );
 
 export const dnsCheck = (domain: string) =>
   api<DnsCheckResult>(`/senders/dns-check?domain=${encodeURIComponent(domain)}`);

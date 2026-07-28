@@ -15,7 +15,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthUser } from '../auth/types';
 import { DnsCheckService } from './dns-check.service';
-import { CreateSenderDto, UpdateSenderDto } from './sender.dto';
+import { CreateSenderDto, TestSendDto, UpdateSenderDto } from './sender.dto';
 import { SendersService } from './senders.service';
 
 class DnsQueryDto {
@@ -69,5 +69,28 @@ export class SendersController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.senders.remove(user.orgId, id);
+  }
+
+  // Connection/auth check via the provider abstraction; flips status. No send.
+  @Roles('admin', 'manager')
+  @Post(':id/verify')
+  @HttpCode(200)
+  verify(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.senders.verify(user.orgId, id);
+  }
+
+  // Sends a real test email through the sender's provider.
+  @Roles('admin', 'manager')
+  @Post(':id/test')
+  @HttpCode(200)
+  test(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: TestSendDto,
+  ) {
+    return this.senders.testSend(user.orgId, id, dto.to);
   }
 }

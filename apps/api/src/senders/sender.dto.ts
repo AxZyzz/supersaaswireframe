@@ -1,4 +1,6 @@
+import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsEmail,
   IsIn,
   IsInt,
@@ -7,7 +9,16 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
+
+export class SmtpConfigDto {
+  @IsString() @MaxLength(255) host!: string;
+  @IsInt() @Min(1) @Max(65535) port!: number;
+  @IsBoolean() secure!: boolean;
+  @IsString() @MaxLength(255) user!: string;
+  @IsString() @MaxLength(1024) pass!: string;
+}
 
 export class CreateSenderDto {
   @IsIn(['ses', 'gmail', 'smtp'])
@@ -23,6 +34,13 @@ export class CreateSenderDto {
   @IsOptional() @IsInt() @Min(1) @Max(2000) dailyLimit?: number;
   @IsOptional() @IsInt() @Min(0) @Max(23) sendWindowStart?: number;
   @IsOptional() @IsInt() @Min(0) @Max(23) sendWindowEnd?: number;
+
+  // Only read when provider === 'smtp'. The password is AES-256 encrypted
+  // before it touches the database.
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SmtpConfigDto)
+  smtp?: SmtpConfigDto;
 }
 
 export class UpdateSenderDto {
@@ -32,4 +50,8 @@ export class UpdateSenderDto {
   @IsOptional() @IsInt() @Min(1) @Max(2000) dailyLimit?: number;
   @IsOptional() @IsInt() @Min(0) @Max(23) sendWindowStart?: number;
   @IsOptional() @IsInt() @Min(0) @Max(23) sendWindowEnd?: number;
+}
+
+export class TestSendDto {
+  @IsEmail() @MaxLength(320) to!: string;
 }
