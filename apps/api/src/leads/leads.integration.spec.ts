@@ -120,10 +120,11 @@ describe('Leads integration', () => {
   });
 
   it('creates a tag, attaches it, filters by it', async () => {
+    // Use a non-default name — signup seeds starter tags (incl. "Hot Lead").
     const tag = await request(app.getHttpServer())
       .post('/tags')
       .set('Authorization', auth(0))
-      .send({ name: 'Hot Lead', color: '#C62A2F' })
+      .send({ name: 'VIP Prospect', color: '#C62A2F' })
       .expect(201);
     const tagId = tag.body.id;
 
@@ -144,14 +145,14 @@ describe('Leads integration', () => {
       .set('Authorization', auth(0))
       .expect(200);
     expect(detail.body.tags).toHaveLength(1);
-    expect(detail.body.tags[0].name).toBe('Hot Lead');
+    expect(detail.body.tags[0].name).toBe('VIP Prospect');
   });
 
   it('rejects duplicate tag names (case-insensitive)', async () => {
     await request(app.getHttpServer())
       .post('/tags')
       .set('Authorization', auth(0))
-      .send({ name: 'hot lead' })
+      .send({ name: 'vip prospect' })
       .expect(409);
   });
 

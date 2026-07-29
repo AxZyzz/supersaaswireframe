@@ -72,4 +72,43 @@ export class TagsService {
       return { detached: true };
     });
   }
+
+  // Attach/detach one tag across many leads in a single statement. RLS keeps
+  // this scoped to the org's own leads (cross-org lead ids are invisible, so
+  // the INSERT ... SELECT simply matches nothing for them).
+  async bulk(
+    orgId: string,
+    leadIds: string[],
+    tagId: string,
+    action: 'attach' | 'detach',
+  ) {
+    return withOrgContext(this.pool, orgId, async (c) => {
+      const tag = await c.query(`SELECT 1 FROM tags WHERE id = $1`, [tagId]);
+      if (tag.rowCount === 0) throw new NotFoundException('Tag not found');
+      if (action === 'attach') {
+        const res = await c.query(
+          `INSERT INTO lead_tags (org_id, lead_id, tag_id)
+           SELECT $1, l.id, $2 FROM leads l WHERE l.id = ANY($3::uuid[])
+           ON CONFLICT DO NOTHING`,
+          [orgId, tagId, leadIds],
+        );
+        return { attached: res.rowCount ?? 0 };
+      }
+      const res = await c.query(
+        `DELETE FROM lead_tags WHERE tag_id = $1 AND lead_id = ANY($2::uuid[])`,
+        [tagId, leadIds],
+      );
+      return { detached: res.rowCount ?? 0 };
+    });
+  }
+
+  // Delete a tag; lead_tags rows cascade (FK onDelete cascade).
+  async remove(orgId: string, id: string) {
+    const affected = await withOrgContext(this.pool, orgId, async (c) => {
+      const res = await c.query(`DELETE FROM tags WHERE id = $1`, [id]);
+      return res.rowCount ?? 0;
+    });
+    if (affected === 0) throw new NotFoundException('Tag not found');
+    return { deleted: true };
+  }
 }

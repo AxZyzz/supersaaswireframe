@@ -97,6 +97,19 @@ export const addNote = (id: string, body: string) =>
 
 export const listTags = () => api<LeadTag[]>("/tags");
 
+export const bulkTag = (
+  leadIds: string[],
+  tagId: string,
+  action: "attach" | "detach",
+) =>
+  api<{ attached?: number; detached?: number }>("/tags/bulk", {
+    method: "POST",
+    body: JSON.stringify({ leadIds, tagId, action }),
+  });
+
+export const deleteTag = (id: string) =>
+  api<{ deleted: boolean }>(`/tags/${id}`, { method: "DELETE" });
+
 export interface DuplicateGroup {
   count: number;
   leads: Lead[];

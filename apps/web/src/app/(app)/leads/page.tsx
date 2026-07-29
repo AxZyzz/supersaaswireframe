@@ -9,17 +9,21 @@ import {
   List,
   Plus,
   Search,
+  Tag,
   Upload,
 } from "lucide-react";
 import { ImportModal } from "@/components/import-modal";
 import { DuplicatesModal } from "@/components/duplicates-modal";
 import { LeadKanban } from "@/components/lead-kanban";
 import {
+  bulkTag,
   createLead,
   exportLeads,
   LEAD_STATUSES,
   Lead,
+  LeadTag,
   listLeads,
+  listTags,
   SCORE_STYLES,
 } from "@/lib/leads";
 
@@ -38,9 +42,14 @@ export default function LeadsPage() {
   const [importing, setImporting] = useState(false);
   const [dedup, setDedup] = useState(false);
   const [view, setView] = useState<"table" | "kanban">("table");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [tags, setTags] = useState<LeadTag[]>([]);
+  const [bulkTagId, setBulkTagId] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setSelected(new Set());
     const res = await listLeads({
       search: search || undefined,
       status: view === "kanban" ? undefined : status || undefined,
@@ -57,6 +66,31 @@ export default function LeadsPage() {
     const t = setTimeout(load, 250); // debounce search
     return () => clearTimeout(t);
   }, [load]);
+
+  useEffect(() => {
+    void listTags().then(setTags);
+  }, []);
+
+  function toggle(id: string) {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+  function toggleAll() {
+    setSelected((s) =>
+      s.size === leads.length ? new Set() : new Set(leads.map((l) => l.id)),
+    );
+  }
+  async function applyBulk(action: "attach" | "detach") {
+    if (!bulkTagId || selected.size === 0) return;
+    setBulkBusy(true);
+    await bulkTag(Array.from(selected), bulkTagId, action);
+    setBulkBusy(false);
+    await load();
+  }
 
   async function quickCreate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -224,10 +258,58 @@ export default function LeadsPage() {
         )
       ) : (
         <>
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-accent-soft2 bg-accent-soft p-2.5 text-sm">
+          <Tag size={15} className="text-accent" />
+          <span className="font-medium text-ink2">
+            {selected.size} selected
+          </span>
+          <select
+            value={bulkTagId}
+            onChange={(e) => setBulkTagId(e.target.value)}
+            className={field}
+          >
+            <option value="">Choose tag…</option>
+            {tags.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+          <button
+            disabled={!bulkTagId || bulkBusy}
+            onClick={() => void applyBulk("attach")}
+            className="rounded bg-accent px-3 py-1.5 font-medium text-white hover:bg-accent-hover disabled:opacity-40"
+          >
+            Add tag
+          </button>
+          <button
+            disabled={!bulkTagId || bulkBusy}
+            onClick={() => void applyBulk("detach")}
+            className="rounded border border-line-mid px-3 py-1.5 font-medium text-ink disabled:opacity-40"
+          >
+            Remove tag
+          </button>
+          <button
+            onClick={() => setSelected(new Set())}
+            className="text-muted hover:text-ink"
+          >
+            Clear
+          </button>
+        </div>
+      )}
       <div className="overflow-hidden rounded-lg border border-line bg-white">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line bg-panel text-left text-tiny uppercase tracking-wide text-faint">
+              <th className="w-8 px-4 py-2.5">
+                <input
+                  type="checkbox"
+                  aria-label="Select all"
+                  checked={leads.length > 0 && selected.size === leads.length}
+                  onChange={toggleAll}
+                />
+              </th>
               <th className="px-4 py-2.5 font-medium">Name</th>
               <th className="px-4 py-2.5 font-medium">Company</th>
               <th className="px-4 py-2.5 font-medium">Email</th>
@@ -238,13 +320,13 @@ export default function LeadsPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-muted">
+                <td colSpan={6} className="px-4 py-10 text-center text-muted">
                   Loading…
                 </td>
               </tr>
             ) : leads.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-muted">
+                <td colSpan={6} className="px-4 py-10 text-center text-muted">
                   No leads yet. Add one to get started.
                 </td>
               </tr>
@@ -254,6 +336,14 @@ export default function LeadsPage() {
                   key={l.id}
                   className="border-b border-line last:border-0 hover:bg-hover"
                 >
+                  <td className="px-4 py-2.5">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${l.email ?? l.id}`}
+                      checked={selected.has(l.id)}
+                      onChange={() => toggle(l.id)}
+                    />
+                  </td>
                   <td className="px-4 py-2.5">
                     <Link
                       href={`/leads/${l.id}`}

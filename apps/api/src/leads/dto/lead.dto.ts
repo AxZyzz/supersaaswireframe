@@ -84,6 +84,17 @@ export class AttachTagDto {
   @IsUUID() tagId!: string;
 }
 
+export class BulkTagDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID('4', { each: true })
+  leadIds!: string[];
+
+  @IsUUID() tagId!: string;
+
+  @IsIn(['attach', 'detach']) action!: 'attach' | 'detach';
+}
+
 export class MergeLeadsDto {
   @IsUUID() primaryId!: string;
 

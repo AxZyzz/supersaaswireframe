@@ -1,7 +1,17 @@
-import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Post,
+} from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthUser } from '../auth/types';
-import { CreateTagDto } from './dto/lead.dto';
+import { BulkTagDto, CreateTagDto } from './dto/lead.dto';
 import { TagsService } from './tags.service';
 
 @Controller('tags')
@@ -17,5 +27,21 @@ export class TagsController {
   @HttpCode(201)
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateTagDto) {
     return this.tags.create(user.orgId, dto);
+  }
+
+  // Static route — declared before the ':id' param route.
+  @Post('bulk')
+  @HttpCode(200)
+  bulk(@CurrentUser() user: AuthUser, @Body() dto: BulkTagDto) {
+    return this.tags.bulk(user.orgId, dto.leadIds, dto.tagId, dto.action);
+  }
+
+  @Roles('admin', 'manager')
+  @Delete(':id')
+  remove(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.tags.remove(user.orgId, id);
   }
 }

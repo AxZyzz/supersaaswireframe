@@ -11,6 +11,7 @@ import { createHash, randomUUID } from 'crypto';
 import { Pool } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { seedDefaultTags } from '../leads/default-tags';
 import type {
   AccessTokenPayload,
   RefreshTokenPayload,
@@ -116,6 +117,7 @@ export class AuthService {
         `INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, 'admin')`,
         [orgId, userId],
       );
+      await seedDefaultTags(c, orgId);
     });
 
     const tokens = await this.issueTokens(userId, orgId, 'admin');

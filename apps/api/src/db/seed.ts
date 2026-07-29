@@ -8,6 +8,7 @@ import 'dotenv/config';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { Pool } from 'pg';
+import { seedDefaultTags } from '../leads/default-tags';
 import { withOrgContext } from './tenant-context';
 
 const DEMO_EMAIL = 'demo@supersaas.local';
@@ -50,6 +51,7 @@ async function main() {
       `INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, 'admin')`,
       [orgId, userId],
     );
+    await seedDefaultTags(c, orgId);
   });
 
   console.log(
