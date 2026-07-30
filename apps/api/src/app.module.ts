@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { CampaignsModule } from './campaigns/campaigns.module';
 import { CryptoModule } from './crypto/crypto.module';
 import { DbModule } from './db/db.module';
 import { LeadsModule } from './leads/leads.module';
@@ -26,6 +27,7 @@ import { TemplatesModule } from './templates/templates.module';
     LeadsModule,
     SendersModule,
     TemplatesModule,
+    CampaignsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

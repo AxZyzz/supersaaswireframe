@@ -120,6 +120,20 @@
       "when": 1784825510000,
       "tag": "0016_templates_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1784825520000,
+      "tag": "0017_campaigns",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1784825530000,
+      "tag": "0018_campaigns_rls",
+      "breakpoints": true
     }
   ]
 }

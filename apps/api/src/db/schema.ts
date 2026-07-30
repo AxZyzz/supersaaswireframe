@@ -412,3 +412,124 @@ export const templates = pgTable(
   },
   (t) => [index('templates_org_idx').on(t.orgId, t.createdAt)],
 );
+
+// ── E4: Campaigns ────────────────────────────────────────────────────────
+// A campaign is a multi-step sequence sent to an audience (a segment, or all
+// leads) from a rotating set of sender accounts. Steps carry a template, a
+// delay, a send condition, and optional A/B subject variants. campaign_leads
+// is the per-lead state machine the E5 sending engine advances.
+export const campaignStatusEnum = pgEnum('campaign_status', [
+  'draft',
+  'scheduled',
+  'active',
+  'paused',
+  'completed',
+  'archived',
+]);
+
+// Gate for whether a follow-up step sends, evaluated against prior-step events
+// (E5). Step 0 is effectively 'always'.
+export const stepConditionEnum = pgEnum('step_condition', [
+  'always',
+  'opened_no_reply',
+  'not_opened',
+]);
+
+export const campaignLeadStatusEnum = pgEnum('campaign_lead_status', [
+  'active',
+  'completed',
+  'stopped',
+]);
+
+export const campaigns = pgTable(
+  'campaigns',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    status: campaignStatusEnum('status').notNull().default('draft'),
+    // Audience: a segment (null = all org leads at enroll time).
+    segmentId: uuid('segment_id').references(() => segments.id, {
+      onDelete: 'set null',
+    }),
+    // sender_account ids to rotate across (validated at launch).
+    senderIds: jsonb('sender_ids')
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    scheduledAt: timestamp('scheduled_at', { withTimezone: true }),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index('campaigns_org_idx').on(t.orgId, t.createdAt)],
+);
+
+export const campaignSteps = pgTable(
+  'campaign_steps',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    campaignId: uuid('campaign_id')
+      .notNull()
+      .references(() => campaigns.id, { onDelete: 'cascade' }),
+    stepOrder: integer('step_order').notNull(),
+    templateId: uuid('template_id').references(() => templates.id, {
+      onDelete: 'set null',
+    }),
+    // Hours to wait before this step (relative to the previous send / enroll).
+    delayHours: integer('delay_hours').notNull().default(0),
+    condition: stepConditionEnum('condition').notNull().default('always'),
+    // A/B subject variants (strings). Empty = use the template's subject.
+    subjectVariants: jsonb('subject_variants')
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('campaign_steps_order_idx').on(t.campaignId, t.stepOrder),
+    index('campaign_steps_org_idx').on(t.orgId),
+  ],
+);
+
+export const campaignLeads = pgTable(
+  'campaign_leads',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    campaignId: uuid('campaign_id')
+      .notNull()
+      .references(() => campaigns.id, { onDelete: 'cascade' }),
+    leadId: uuid('lead_id')
+      .notNull()
+      .references(() => leads.id, { onDelete: 'cascade' }),
+    // 0-based index of the next step to send.
+    currentStep: integer('current_step').notNull().default(0),
+    status: campaignLeadStatusEnum('status').notNull().default('active'),
+    stopReason: text('stop_reason'),
+    nextSendAt: timestamp('next_send_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('campaign_leads_unique_idx').on(t.campaignId, t.leadId),
+    index('campaign_leads_due_idx').on(t.status, t.nextSendAt),
+    index('campaign_leads_org_idx').on(t.orgId),
+  ],
+);
