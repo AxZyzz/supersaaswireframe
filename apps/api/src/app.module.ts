@@ -9,6 +9,7 @@ import { LeadsModule } from './leads/leads.module';
 import { OrgsModule } from './orgs/orgs.module';
 import { QueueModule } from './queue/queue.module';
 import { SendersModule } from './senders/senders.module';
+import { TemplatesModule } from './templates/templates.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { SendersModule } from './senders/senders.module';
     OrgsModule,
     LeadsModule,
     SendersModule,
+    TemplatesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

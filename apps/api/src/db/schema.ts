@@ -363,3 +363,52 @@ export const leadEvents = pgTable(
   },
   (t) => [index('lead_events_lead_idx').on(t.leadId, t.createdAt)],
 );
+
+// ── E4: Templates ────────────────────────────────────────────────────────
+// Reusable email templates, optionally grouped into folders. Subject + body
+// carry personalization tokens like {first_name} / {company|there} resolved at
+// render time (see templates/render.ts). body_html is the source of truth;
+// body_text is an optional plaintext alternative.
+export const templateFolders = pgTable(
+  'template_folders',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('template_folders_org_name_idx').on(
+      t.orgId,
+      sql`lower(${t.name})`,
+    ),
+  ],
+);
+
+export const templates = pgTable(
+  'templates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    folderId: uuid('folder_id').references(() => templateFolders.id, {
+      onDelete: 'set null',
+    }),
+    name: text('name').notNull(),
+    subject: text('subject').notNull().default(''),
+    bodyHtml: text('body_html').notNull().default(''),
+    bodyText: text('body_text'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index('templates_org_idx').on(t.orgId, t.createdAt)],
+);

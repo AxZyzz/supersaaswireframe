@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { Pool } from 'pg';
 import { seedDefaultTags } from '../leads/default-tags';
+import { seedDefaultTemplates } from '../templates/default-templates';
 import { withOrgContext } from './tenant-context';
 
 const DEMO_EMAIL = 'demo@supersaas.local';
@@ -52,6 +53,7 @@ async function main() {
       [orgId, userId],
     );
     await seedDefaultTags(c, orgId);
+    await seedDefaultTemplates(c, orgId);
   });
 
   console.log(

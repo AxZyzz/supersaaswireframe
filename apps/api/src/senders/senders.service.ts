@@ -175,6 +175,24 @@ export class SendersService {
     return { ok: result.ok, status, detail: result.detail };
   }
 
+  // Render-agnostic send used by other features (templates test-send, and the
+  // E5 sending engine): resolve the sender's provider and deliver a prepared
+  // message. Secrets stay inside the service.
+  async sendMessage(
+    orgId: string,
+    senderId: string,
+    msg: { to: string; subject: string; html?: string; text?: string },
+  ) {
+    const { sender, config } = await this.loadForSend(orgId, senderId);
+    const provider = this.resolver.resolve(sender, config);
+    const res = await provider.send(msg);
+    return {
+      messageId: res.messageId,
+      provider: res.provider,
+      from: sender.from_email,
+    };
+  }
+
   // Sends a real test message through the sender's provider to `to`.
   async testSend(orgId: string, id: string, to: string) {
     const { sender, config } = await this.loadForSend(orgId, id);

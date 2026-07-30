@@ -106,6 +106,20 @@
       "when": 1784825439417,
       "tag": "0014_sender_accounts_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1784825500000,
+      "tag": "0015_templates",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1784825510000,
+      "tag": "0016_templates_rls",
+      "breakpoints": true
     }
   ]
 }

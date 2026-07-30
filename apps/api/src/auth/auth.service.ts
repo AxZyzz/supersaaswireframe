@@ -12,6 +12,7 @@ import { Pool } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { seedDefaultTags } from '../leads/default-tags';
+import { seedDefaultTemplates } from '../templates/default-templates';
 import type {
   AccessTokenPayload,
   RefreshTokenPayload,
@@ -118,6 +119,7 @@ export class AuthService {
         [orgId, userId],
       );
       await seedDefaultTags(c, orgId);
+      await seedDefaultTemplates(c, orgId);
     });
 
     const tokens = await this.issueTokens(userId, orgId, 'admin');

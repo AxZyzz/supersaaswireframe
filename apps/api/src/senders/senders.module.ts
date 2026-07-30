@@ -7,5 +7,6 @@ import { SendersService } from './senders.service';
 @Module({
   controllers: [SendersController],
   providers: [SendersService, DnsCheckService, ProviderResolver],
+  exports: [SendersService],
 })
 export class SendersModule {}
