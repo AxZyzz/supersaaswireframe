@@ -7,6 +7,8 @@ export interface EmailMessage {
   subject: string;
   html?: string;
   text?: string;
+  // Extra SMTP headers (e.g. List-Unsubscribe). Ignored by the mock provider.
+  headers?: Record<string, string>;
 }
 
 export interface SendResult {

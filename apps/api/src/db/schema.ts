@@ -520,6 +520,8 @@ export const campaignLeads = pgTable(
     status: campaignLeadStatusEnum('status').notNull().default('active'),
     stopReason: text('stop_reason'),
     nextSendAt: timestamp('next_send_at', { withTimezone: true }),
+    // Opaque token for the per-recipient unsubscribe link.
+    unsubToken: uuid('unsub_token').notNull().defaultRandom(),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -531,5 +533,104 @@ export const campaignLeads = pgTable(
     uniqueIndex('campaign_leads_unique_idx').on(t.campaignId, t.leadId),
     index('campaign_leads_due_idx').on(t.status, t.nextSendAt),
     index('campaign_leads_org_idx').on(t.orgId),
+  ],
+);
+
+// ── E5: Sending, tracking & suppression ──────────────────────────────────
+// One row per delivered (or attempted) email. tracking_id keys the open-pixel
+// and click-redirect endpoints; variant_index records which A/B subject was used.
+export const sentEmails = pgTable(
+  'sent_emails',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    campaignId: uuid('campaign_id').references(() => campaigns.id, {
+      onDelete: 'set null',
+    }),
+    campaignLeadId: uuid('campaign_lead_id').references(
+      () => campaignLeads.id,
+      {
+        onDelete: 'set null',
+      },
+    ),
+    leadId: uuid('lead_id').references(() => leads.id, {
+      onDelete: 'set null',
+    }),
+    stepId: uuid('step_id').references(() => campaignSteps.id, {
+      onDelete: 'set null',
+    }),
+    senderId: uuid('sender_id').references(() => senderAccounts.id, {
+      onDelete: 'set null',
+    }),
+    toEmail: text('to_email').notNull(),
+    subject: text('subject').notNull().default(''),
+    messageId: text('message_id'),
+    provider: text('provider'),
+    status: text('status').notNull().default('sent'),
+    variantIndex: integer('variant_index').notNull().default(0),
+    trackingId: uuid('tracking_id').notNull().defaultRandom(),
+    error: text('error'),
+    sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('sent_emails_org_idx').on(t.orgId, t.sentAt),
+    index('sent_emails_campaign_idx').on(t.campaignId),
+    index('sent_emails_lead_idx').on(t.leadId),
+    uniqueIndex('sent_emails_tracking_idx').on(t.trackingId),
+    index('sent_emails_sender_day_idx').on(t.senderId, t.sentAt),
+  ],
+);
+
+// Append-only email event log: sent / open / click / reply / bounce /
+// complaint / unsubscribe. Feeds lead timeline + campaign stats.
+export const emailEvents = pgTable(
+  'email_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    sentEmailId: uuid('sent_email_id').references(() => sentEmails.id, {
+      onDelete: 'cascade',
+    }),
+    campaignId: uuid('campaign_id'),
+    leadId: uuid('lead_id'),
+    type: text('type').notNull(),
+    data: jsonb('data')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('email_events_org_idx').on(t.orgId, t.createdAt),
+    index('email_events_sent_idx').on(t.sentEmailId),
+    index('email_events_campaign_idx').on(t.campaignId, t.type),
+  ],
+);
+
+// Do-not-contact list per org (unsubscribes, hard bounces, complaints).
+// Enforced at send time (case-insensitive email match).
+export const suppressionList = pgTable(
+  'suppression_list',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    reason: text('reason').notNull().default('unsubscribed'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('suppression_org_email_idx').on(
+      t.orgId,
+      sql`lower(${t.email})`,
+    ),
   ],
 );

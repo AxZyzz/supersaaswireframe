@@ -79,6 +79,10 @@ export const campaignAudience = (id: string) =>
 export const enrollCampaign = (id: string) =>
   api<{ enrolled: number }>(`/campaigns/${id}/enroll`, { method: "POST" });
 
+// Manually process this org's due sends now (dev; prod runs a scheduler).
+export const runDueSends = () =>
+  api<Record<string, number>>(`/sending/tick`, { method: "POST" });
+
 export const addStep = (
   id: string,
   body: {

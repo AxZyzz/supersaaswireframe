@@ -181,7 +181,13 @@ export class SendersService {
   async sendMessage(
     orgId: string,
     senderId: string,
-    msg: { to: string; subject: string; html?: string; text?: string },
+    msg: {
+      to: string;
+      subject: string;
+      html?: string;
+      text?: string;
+      headers?: Record<string, string>;
+    },
   ) {
     const { sender, config } = await this.loadForSend(orgId, senderId);
     const provider = this.resolver.resolve(sender, config);

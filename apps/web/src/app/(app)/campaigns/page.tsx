@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Archive, Play, Plus, Trash2, Users } from "lucide-react";
+import { Archive, Play, Plus, Send, Trash2, Users } from "lucide-react";
 import {
   addStep,
   archiveCampaign,
@@ -14,6 +14,7 @@ import {
   getCampaign,
   listCampaigns,
   removeStep,
+  runDueSends,
   StepCondition,
 } from "@/lib/campaigns";
 import { listTemplates, Template } from "@/lib/templates";
@@ -110,6 +111,17 @@ export default function CampaignsPage() {
   async function archive() {
     if (!selected) return;
     await archiveCampaign(selected.id);
+    await loadList();
+    await open(selected.id);
+  }
+
+  async function runSends() {
+    if (!selected) return;
+    const c = await runDueSends();
+    setNote({
+      ok: true,
+      text: `Processed: ${c.sent ?? 0} sent, ${c.suppressed ?? 0} suppressed, ${c.completed ?? 0} completed.`,
+    });
     await loadList();
     await open(selected.id);
   }
@@ -220,6 +232,14 @@ export default function CampaignsPage() {
                 className="flex items-center gap-1.5 rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-40"
               >
                 <Play size={14} /> Enroll &amp; activate
+              </button>
+              <button
+                onClick={() => void runSends()}
+                disabled={selected.status !== "active"}
+                title="Process due sends now"
+                className="flex items-center gap-1.5 rounded border border-line-mid px-3 py-1.5 text-sm font-medium text-ink hover:bg-hover disabled:opacity-40"
+              >
+                <Send size={14} /> Run due sends
               </button>
               <button
                 onClick={() => void archive()}

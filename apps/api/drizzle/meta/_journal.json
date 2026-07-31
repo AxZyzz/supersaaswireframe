@@ -134,6 +134,27 @@
       "when": 1784825530000,
       "tag": "0018_campaigns_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1784825540000,
+      "tag": "0019_sending",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1784825550000,
+      "tag": "0020_sending_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1784825560000,
+      "tag": "0021_due_sends_fn",
+      "breakpoints": true
     }
   ]
 }

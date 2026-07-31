@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 
 export const LEAD_IMPORT_QUEUE = 'lead-import';
 export const SEGMENT_REFRESH_QUEUE = 'segment-refresh';
+export const CAMPAIGN_SEND_QUEUE = 'campaign-send';
 
 /**
  * BullMQ infrastructure. One Redis connection shared by every queue; each
