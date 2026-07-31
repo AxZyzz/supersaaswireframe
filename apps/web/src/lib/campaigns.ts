@@ -76,6 +76,24 @@ export const archiveCampaign = (id: string) =>
 export const campaignAudience = (id: string) =>
   api<{ count: number }>(`/campaigns/${id}/audience`);
 
+export interface CampaignStats {
+  leads: { total: number; active: number; completed: number; stopped: number };
+  sent: number;
+  opened: number;
+  clicked: number;
+  unsubscribed: number;
+  bounced: number;
+  variants: {
+    variant_index: number;
+    sent: number;
+    opened: number;
+    clicked: number;
+  }[];
+}
+
+export const campaignStats = (id: string) =>
+  api<CampaignStats>(`/campaigns/${id}/stats`);
+
 export const enrollCampaign = (id: string) =>
   api<{ enrolled: number }>(`/campaigns/${id}/enroll`, { method: "POST" });
 

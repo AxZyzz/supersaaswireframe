@@ -99,6 +99,11 @@ export class CampaignsController {
     return this.campaigns.audience(user.orgId, id);
   }
 
+  @Get(':id/stats')
+  stats(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.campaigns.stats(user.orgId, id);
+  }
+
   @Roles('admin', 'manager')
   @Post(':id/enroll')
   @HttpCode(200)

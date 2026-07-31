@@ -354,7 +354,11 @@ export class SendService {
         subject: email.subject,
         html: email.html,
         text: email.text,
-        headers: { 'List-Unsubscribe': email.listUnsubscribe },
+        headers: {
+          'List-Unsubscribe': email.listUnsubscribe,
+          // RFC 8058 one-click: mail clients POST the unsub URL directly.
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        },
       });
       messageId = res.messageId;
       provider = res.provider;

@@ -8,6 +8,8 @@ import {
   Campaign,
   campaignAudience,
   CampaignDetail,
+  CampaignStats,
+  campaignStats,
   CONDITION_LABELS,
   createCampaign,
   enrollCampaign,
@@ -35,6 +37,7 @@ export default function CampaignsPage() {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [selected, setSelected] = useState<CampaignDetail | null>(null);
   const [audience, setAudience] = useState<number | null>(null);
+  const [stats, setStats] = useState<CampaignStats | null>(null);
   const [creating, setCreating] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -55,12 +58,14 @@ export default function CampaignsPage() {
 
   const open = useCallback(async (id: string) => {
     setNote(null);
-    const [detail, aud] = await Promise.all([
+    const [detail, aud, st] = await Promise.all([
       getCampaign(id),
       campaignAudience(id),
+      campaignStats(id),
     ]);
     setSelected(detail);
     setAudience(aud.count);
+    setStats(st);
   }, []);
 
   async function create(e: React.FormEvent<HTMLFormElement>) {
@@ -128,6 +133,9 @@ export default function CampaignsPage() {
 
   const tplName = (id: string | null) =>
     templates.find((t) => t.id === id)?.name ?? "(no template)";
+
+  const pct = (n: number, d: number) =>
+    d === 0 ? "—" : `${Math.round((n / d) * 100)}%`;
 
   const field =
     "rounded border border-line-mid bg-white px-2.5 py-1.5 text-sm outline-none focus:border-accent";
@@ -260,6 +268,93 @@ export default function CampaignsPage() {
                 }`}
               >
                 {note.text}
+              </div>
+            )}
+
+            {/* stats */}
+            {stats && (
+              <div className="rounded-lg border border-line bg-white p-4">
+                <h3 className="mb-3 text-sm font-semibold text-ink2">
+                  Performance
+                </h3>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+                  {[
+                    { label: "Sent", value: stats.sent, sub: null },
+                    {
+                      label: "Opened",
+                      value: stats.opened,
+                      sub: pct(stats.opened, stats.sent),
+                    },
+                    {
+                      label: "Clicked",
+                      value: stats.clicked,
+                      sub: pct(stats.clicked, stats.sent),
+                    },
+                    {
+                      label: "Unsub",
+                      value: stats.unsubscribed,
+                      sub: pct(stats.unsubscribed, stats.sent),
+                    },
+                    { label: "Bounced", value: stats.bounced, sub: null },
+                    {
+                      label: "Completed",
+                      value: stats.leads.completed,
+                      sub: `${stats.leads.total} total`,
+                    },
+                  ].map((m) => (
+                    <div
+                      key={m.label}
+                      className="rounded border border-line bg-panel px-3 py-2"
+                    >
+                      <div className="text-tiny uppercase tracking-wide text-faint">
+                        {m.label}
+                      </div>
+                      <div className="text-lg font-semibold text-ink">
+                        {m.value}
+                      </div>
+                      {m.sub && (
+                        <div className="text-tiny text-muted">{m.sub}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {stats.variants.length > 1 && (
+                  <div className="mt-4">
+                    <div className="mb-1.5 text-tiny font-medium uppercase tracking-wide text-faint">
+                      A/B subjects
+                    </div>
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-tiny text-faint">
+                          <th className="py-1 font-medium">Variant</th>
+                          <th className="py-1 font-medium">Sent</th>
+                          <th className="py-1 font-medium">Open %</th>
+                          <th className="py-1 font-medium">Click %</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stats.variants.map((v) => (
+                          <tr
+                            key={v.variant_index}
+                            className="border-t border-line"
+                          >
+                            <td className="py-1 text-ink">
+                              {String.fromCharCode(65 + v.variant_index)}
+                            </td>
+                            <td className="py-1 text-muted">{v.sent}</td>
+                            <td className="py-1 text-muted">
+                              {pct(v.opened, v.sent)}
+                            </td>
+                            <td className="py-1 text-muted">
+                              {pct(v.clicked, v.sent)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
 

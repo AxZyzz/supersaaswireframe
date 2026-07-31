@@ -249,6 +249,81 @@ export class CampaignsService {
     return { deleted: true };
   }
 
+  // ── stats ──────────────────────────────────────────────────────────────
+  // Funnel + engagement for one campaign. Opens/clicks are counted by distinct
+  // lead (unique rates); sent counts successful deliveries. Per-variant rows let
+  // the UI compare A/B subject performance.
+  stats(orgId: string, id: string) {
+    return this.run(orgId, async (c) => {
+      const camp = await c.query(`SELECT 1 FROM campaigns WHERE id = $1`, [id]);
+      if (camp.rowCount === 0)
+        throw new NotFoundException('Campaign not found');
+
+      const leads = await c.query<{
+        total: number;
+        active: number;
+        completed: number;
+        stopped: number;
+      }>(
+        `SELECT count(*)::int AS total,
+           count(*) FILTER (WHERE status = 'active')::int AS active,
+           count(*) FILTER (WHERE status = 'completed')::int AS completed,
+           count(*) FILTER (WHERE status = 'stopped')::int AS stopped
+         FROM campaign_leads WHERE campaign_id = $1`,
+        [id],
+      );
+
+      const sent = await c.query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM sent_emails
+         WHERE campaign_id = $1 AND status = 'sent'`,
+        [id],
+      );
+
+      const ev = await c.query<{
+        opened: number;
+        clicked: number;
+        unsubscribed: number;
+        bounced: number;
+      }>(
+        `SELECT
+           count(DISTINCT lead_id) FILTER (WHERE type = 'open')::int AS opened,
+           count(DISTINCT lead_id) FILTER (WHERE type = 'click')::int AS clicked,
+           count(*) FILTER (WHERE type = 'unsubscribe')::int AS unsubscribed,
+           count(*) FILTER (WHERE type IN ('bounce', 'failed'))::int AS bounced
+         FROM email_events WHERE campaign_id = $1`,
+        [id],
+      );
+
+      const variants = await c.query<{
+        variant_index: number;
+        sent: number;
+        opened: number;
+        clicked: number;
+      }>(
+        `SELECT se.variant_index,
+           count(DISTINCT se.id)::int AS sent,
+           count(DISTINCT e.lead_id) FILTER (WHERE e.type = 'open')::int AS opened,
+           count(DISTINCT e.lead_id) FILTER (WHERE e.type = 'click')::int AS clicked
+         FROM sent_emails se
+         LEFT JOIN email_events e ON e.sent_email_id = se.id
+         WHERE se.campaign_id = $1 AND se.status = 'sent'
+         GROUP BY se.variant_index
+         ORDER BY se.variant_index`,
+        [id],
+      );
+
+      return {
+        leads: leads.rows[0],
+        sent: sent.rows[0].n,
+        opened: ev.rows[0].opened,
+        clicked: ev.rows[0].clicked,
+        unsubscribed: ev.rows[0].unsubscribed,
+        bounced: ev.rows[0].bounced,
+        variants: variants.rows,
+      };
+    });
+  }
+
   // ── audience + enrollment ──────────────────────────────────────────────
   // How many leads would enroll: the campaign's segment members, or all org
   // leads if it has no segment.
