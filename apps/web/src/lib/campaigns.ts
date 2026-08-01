@@ -73,6 +73,21 @@ export const deleteCampaign = (id: string) =>
 export const archiveCampaign = (id: string) =>
   api<Campaign>(`/campaigns/${id}/archive`, { method: "POST" });
 
+export const duplicateCampaign = (id: string) =>
+  api<Campaign>(`/campaigns/${id}/duplicate`, { method: "POST" });
+
+export const pauseCampaign = (id: string) =>
+  api<Campaign>(`/campaigns/${id}/pause`, { method: "POST" });
+
+export const resumeCampaign = (id: string) =>
+  api<Campaign>(`/campaigns/${id}/resume`, { method: "POST" });
+
+export const scheduleCampaign = (id: string, scheduledAt: string) =>
+  api<Campaign & { enrolled: number }>(`/campaigns/${id}/schedule`, {
+    method: "POST",
+    body: JSON.stringify({ scheduledAt }),
+  });
+
 export const campaignAudience = (id: string) =>
   api<{ count: number }>(`/campaigns/${id}/audience`);
 

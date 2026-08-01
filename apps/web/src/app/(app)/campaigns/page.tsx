@@ -1,7 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Archive, Play, Plus, Send, Trash2, Users } from "lucide-react";
+import {
+  Archive,
+  Copy,
+  Pause,
+  Play,
+  Plus,
+  Send,
+  Trash2,
+  Users,
+} from "lucide-react";
 import {
   addStep,
   archiveCampaign,
@@ -11,16 +20,20 @@ import {
   CampaignStats,
   campaignStats,
   CONDITION_LABELS,
-  createCampaign,
+  duplicateCampaign,
   enrollCampaign,
   getCampaign,
   listCampaigns,
+  pauseCampaign,
   removeStep,
+  resumeCampaign,
   runDueSends,
   StepCondition,
 } from "@/lib/campaigns";
 import { listTemplates, Template } from "@/lib/templates";
 import { listSegments, Segment } from "@/lib/segments";
+import { listSenders, Sender } from "@/lib/senders";
+import CampaignWizard from "./campaign-wizard";
 
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-neut-bg text-muted",
@@ -35,21 +48,24 @@ export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [senders, setSenders] = useState<Sender[]>([]);
   const [selected, setSelected] = useState<CampaignDetail | null>(null);
   const [audience, setAudience] = useState<number | null>(null);
   const [stats, setStats] = useState<CampaignStats | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
 
   const loadList = useCallback(async () => {
-    const [c, t, s] = await Promise.all([
+    const [c, t, s, sn] = await Promise.all([
       listCampaigns(),
       listTemplates(),
       listSegments(),
+      listSenders(),
     ]);
     setCampaigns(c);
     setTemplates(t);
     setSegments(s);
+    setSenders(sn);
   }, []);
 
   useEffect(() => {
@@ -68,19 +84,26 @@ export default function CampaignsPage() {
     setStats(st);
   }, []);
 
-  async function create(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const f = new FormData(e.currentTarget);
-    const name = String(f.get("name") || "").trim();
-    if (!name) return;
-    const segmentId = String(f.get("segmentId") || "");
-    const c = await createCampaign({
-      name,
-      segmentId: segmentId || undefined,
-    });
-    setCreating(false);
+  async function wizardDone(id: string) {
+    setWizardOpen(false);
+    await loadList();
+    await open(id);
+  }
+
+  async function duplicate() {
+    if (!selected) return;
+    const c = await duplicateCampaign(selected.id);
     await loadList();
     await open(c.id);
+    setNote({ ok: true, text: "Duplicated as a new draft." });
+  }
+
+  async function togglePause() {
+    if (!selected) return;
+    if (selected.status === "paused") await resumeCampaign(selected.id);
+    else await pauseCampaign(selected.id);
+    await loadList();
+    await open(selected.id);
   }
 
   async function addStepTo(e: React.FormEvent<HTMLFormElement>) {
@@ -145,35 +168,11 @@ export default function CampaignsPage() {
       {/* list */}
       <aside className="w-72 shrink-0 space-y-2">
         <button
-          onClick={() => setCreating((v) => !v)}
+          onClick={() => setWizardOpen(true)}
           className="flex w-full items-center justify-center gap-1.5 rounded bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover"
         >
           <Plus size={15} /> New campaign
         </button>
-        {creating && (
-          <form
-            onSubmit={create}
-            className="space-y-2 rounded-lg border border-line bg-panel p-3"
-          >
-            <input
-              name="name"
-              required
-              placeholder="Campaign name"
-              className={`${field} w-full`}
-            />
-            <select name="segmentId" className={`${field} w-full`}>
-              <option value="">All leads (no segment)</option>
-              {segments.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.member_count})
-                </option>
-              ))}
-            </select>
-            <button className="w-full rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover">
-              Create
-            </button>
-          </form>
-        )}
         <div className="overflow-hidden rounded-lg border border-line bg-white">
           {campaigns.length === 0 ? (
             <p className="px-3 py-6 text-center text-sm text-muted">
@@ -248,6 +247,27 @@ export default function CampaignsPage() {
                 className="flex items-center gap-1.5 rounded border border-line-mid px-3 py-1.5 text-sm font-medium text-ink hover:bg-hover disabled:opacity-40"
               >
                 <Send size={14} /> Run due sends
+              </button>
+              <button
+                onClick={() => void togglePause()}
+                disabled={
+                  !["active", "scheduled", "paused"].includes(selected.status)
+                }
+                title={selected.status === "paused" ? "Resume" : "Pause"}
+                className="rounded border border-line-mid p-1.5 text-faint hover:text-ink disabled:opacity-40"
+              >
+                {selected.status === "paused" ? (
+                  <Play size={15} />
+                ) : (
+                  <Pause size={15} />
+                )}
+              </button>
+              <button
+                onClick={() => void duplicate()}
+                title="Duplicate"
+                className="rounded border border-line-mid p-1.5 text-faint hover:text-ink"
+              >
+                <Copy size={15} />
               </button>
               <button
                 onClick={() => void archive()}
@@ -451,6 +471,16 @@ export default function CampaignsPage() {
           </div>
         )}
       </div>
+
+      {wizardOpen && (
+        <CampaignWizard
+          templates={templates}
+          segments={segments}
+          senders={senders}
+          onClose={() => setWizardOpen(false)}
+          onDone={wizardDone}
+        />
+      )}
     </div>
   );
 }

@@ -169,6 +169,130 @@ export class CampaignsService {
     });
   }
 
+  // Clone a campaign + its sequence into a fresh draft (no leads, no history).
+  duplicate(orgId: string, id: string) {
+    return this.run(orgId, async (c) => {
+      const src = await c.query<CampaignRow>(
+        `SELECT ${CAMPAIGN_COLS} FROM campaigns WHERE id = $1`,
+        [id],
+      );
+      if (src.rowCount === 0) throw new NotFoundException('Campaign not found');
+      const s = src.rows[0];
+      const dup = await c.query<CampaignRow>(
+        `INSERT INTO campaigns (org_id, name, segment_id, sender_ids, status)
+         VALUES ($1, $2, $3, $4::jsonb, 'draft')
+         RETURNING ${CAMPAIGN_COLS}`,
+        [
+          orgId,
+          `${s.name} (copy)`,
+          s.segment_id,
+          JSON.stringify(s.sender_ids ?? []),
+        ],
+      );
+      await c.query(
+        `INSERT INTO campaign_steps
+           (org_id, campaign_id, step_order, template_id, delay_hours, condition, subject_variants)
+         SELECT org_id, $2, step_order, template_id, delay_hours, condition, subject_variants
+         FROM campaign_steps WHERE campaign_id = $1`,
+        [id, dup.rows[0].id],
+      );
+      return dup.rows[0];
+    });
+  }
+
+  // Status transitions. The send worker only touches 'active' campaigns, so a
+  // pause immediately halts delivery; resume puts it back in the due scan.
+  private setStatus(
+    orgId: string,
+    id: string,
+    to: string,
+    allowedFrom: string[],
+  ) {
+    return this.run(orgId, async (c) => {
+      const cur = await c.query<{ status: string }>(
+        `SELECT status FROM campaigns WHERE id = $1`,
+        [id],
+      );
+      if (cur.rowCount === 0) throw new NotFoundException('Campaign not found');
+      if (!allowedFrom.includes(cur.rows[0].status)) {
+        throw new BadRequestException(
+          `Cannot ${to === 'active' ? 'resume' : to} a ${cur.rows[0].status} campaign`,
+        );
+      }
+      const res = await c.query<CampaignRow>(
+        `UPDATE campaigns SET status = $2::campaign_status, updated_at = now()
+         WHERE id = $1 RETURNING ${CAMPAIGN_COLS}`,
+        [id, to],
+      );
+      return res.rows[0];
+    });
+  }
+
+  pause(orgId: string, id: string) {
+    return this.setStatus(orgId, id, 'paused', ['active', 'scheduled']);
+  }
+
+  resume(orgId: string, id: string) {
+    return this.setStatus(orgId, id, 'active', ['paused']);
+  }
+
+  // Schedule a future start: materialize the audience now with each lead's first
+  // send pinned to the scheduled time, and mark the campaign 'scheduled'. The
+  // send worker promotes it to 'active' when the first send comes due.
+  async schedule(orgId: string, id: string, scheduledAt: string) {
+    const when = new Date(scheduledAt);
+    if (Number.isNaN(when.getTime())) {
+      throw new BadRequestException('Invalid schedule date');
+    }
+    if (when.getTime() <= Date.now()) {
+      throw new BadRequestException('Schedule time must be in the future');
+    }
+    return this.run(orgId, async (c) => {
+      const camp = await c.query<{ segment_id: string | null; status: string }>(
+        `SELECT segment_id, status FROM campaigns WHERE id = $1`,
+        [id],
+      );
+      if (camp.rowCount === 0)
+        throw new NotFoundException('Campaign not found');
+      if (camp.rows[0].status === 'archived') {
+        throw new BadRequestException('Campaign is archived');
+      }
+      const first = await c.query<{ delay_hours: number }>(
+        `SELECT delay_hours FROM campaign_steps WHERE campaign_id = $1
+         ORDER BY step_order LIMIT 1`,
+        [id],
+      );
+      if (first.rowCount === 0) {
+        throw new BadRequestException(
+          'Add at least one step before scheduling',
+        );
+      }
+      const ins = await c.query(
+        `INSERT INTO campaign_leads
+           (org_id, campaign_id, lead_id, current_step, status, next_send_at)
+         SELECT $1, $2, l.id, 0, 'active',
+                $5::timestamptz + make_interval(hours => $3)
+         FROM leads l
+         WHERE ($4::uuid IS NULL
+                OR l.id IN (SELECT lead_id FROM segment_members WHERE segment_id = $4))
+         ON CONFLICT (campaign_id, lead_id) DO NOTHING`,
+        [
+          orgId,
+          id,
+          first.rows[0].delay_hours,
+          camp.rows[0].segment_id,
+          when.toISOString(),
+        ],
+      );
+      const res = await c.query<CampaignRow>(
+        `UPDATE campaigns SET status = 'scheduled', scheduled_at = $2,
+           updated_at = now() WHERE id = $1 RETURNING ${CAMPAIGN_COLS}`,
+        [id, when.toISOString()],
+      );
+      return { ...res.rows[0], enrolled: ins.rowCount ?? 0 };
+    });
+  }
+
   // ── steps ────────────────────────────────────────────────────────────
   async addStep(orgId: string, campaignId: string, dto: CreateStepDto) {
     return this.run(orgId, async (c) => {

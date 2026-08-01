@@ -81,6 +81,8 @@
       "ts"
     ],
     "rootDir": "src",
+    "//maxWorkers": "Integration specs each open a pg Pool against one shared Postgres; running suites in parallel exhausts max_connections. Serialize them.",
+    "maxWorkers": 1,
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"

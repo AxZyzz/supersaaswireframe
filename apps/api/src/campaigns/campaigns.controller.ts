@@ -15,6 +15,7 @@ import type { AuthUser } from '../auth/types';
 import {
   CreateCampaignDto,
   CreateStepDto,
+  ScheduleDto,
   UpdateCampaignDto,
   UpdateStepDto,
 } from './campaign.dto';
@@ -89,6 +90,44 @@ export class CampaignsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.campaigns.archive(user.orgId, id);
+  }
+
+  @Roles('admin', 'manager')
+  @Post(':id/duplicate')
+  @HttpCode(201)
+  duplicate(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.campaigns.duplicate(user.orgId, id);
+  }
+
+  @Roles('admin', 'manager')
+  @Post(':id/pause')
+  @HttpCode(200)
+  pause(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.campaigns.pause(user.orgId, id);
+  }
+
+  @Roles('admin', 'manager')
+  @Post(':id/resume')
+  @HttpCode(200)
+  resume(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.campaigns.resume(user.orgId, id);
+  }
+
+  @Roles('admin', 'manager')
+  @Post(':id/schedule')
+  @HttpCode(200)
+  schedule(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ScheduleDto,
+  ) {
+    return this.campaigns.schedule(user.orgId, id, dto.scheduledAt);
   }
 
   @Get(':id/audience')

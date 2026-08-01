@@ -52,6 +52,10 @@ export class UpdateCampaignDto {
   scheduledAt?: string | null;
 }
 
+export class ScheduleDto {
+  @IsDateString() scheduledAt!: string;
+}
+
 export class CreateStepDto {
   @IsOptional() @IsUUID() templateId?: string;
   @IsOptional() @IsInt() @Min(0) @Max(8760) delayHours?: number;

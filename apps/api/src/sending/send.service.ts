@@ -174,8 +174,19 @@ export class SendService {
         `SELECT sender_ids, status FROM campaigns WHERE id = $1`,
         [cl.campaign_id],
       );
-      if (campRes.rowCount === 0 || campRes.rows[0].status !== 'active') {
+      if (campRes.rowCount === 0) return { outcome: 'skipped' as Outcome };
+      const campStatus = campRes.rows[0].status;
+      if (campStatus !== 'active' && campStatus !== 'scheduled') {
         return { outcome: 'skipped' as Outcome };
+      }
+      // A scheduled campaign whose first send is now due becomes active.
+      if (campStatus === 'scheduled') {
+        await c.query(
+          `UPDATE campaigns SET status = 'active',
+             started_at = COALESCE(started_at, now()), updated_at = now()
+           WHERE id = $1`,
+          [cl.campaign_id],
+        );
       }
       const senderIds = campRes.rows[0].sender_ids ?? [];
 
