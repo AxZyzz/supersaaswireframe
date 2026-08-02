@@ -10,6 +10,7 @@ import {
   revokeApiKey,
 } from "@/lib/api-keys";
 import { SendersSection } from "@/components/senders-section";
+import { KnowledgeSection } from "@/components/knowledge-section";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -63,6 +64,8 @@ export default function SettingsPage() {
       </div>
 
       <SendersSection />
+
+      <KnowledgeSection />
 
       <section className="rounded-lg border border-line bg-white p-5">
         <div className="mb-1 flex items-center gap-2">

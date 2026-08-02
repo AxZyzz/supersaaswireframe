@@ -8,6 +8,7 @@ import {
   Play,
   Plus,
   Send,
+  Sparkles,
   Trash2,
   Users,
 } from "lucide-react";
@@ -34,6 +35,7 @@ import { listTemplates, Template } from "@/lib/templates";
 import { listSegments, Segment } from "@/lib/segments";
 import { listSenders, Sender } from "@/lib/senders";
 import CampaignWizard from "./campaign-wizard";
+import AiBuilder from "./ai-builder";
 
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-neut-bg text-muted",
@@ -53,6 +55,7 @@ export default function CampaignsPage() {
   const [audience, setAudience] = useState<number | null>(null);
   const [stats, setStats] = useState<CampaignStats | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
 
   const loadList = useCallback(async () => {
@@ -86,6 +89,7 @@ export default function CampaignsPage() {
 
   async function wizardDone(id: string) {
     setWizardOpen(false);
+    setAiOpen(false);
     await loadList();
     await open(id);
   }
@@ -172,6 +176,12 @@ export default function CampaignsPage() {
           className="flex w-full items-center justify-center gap-1.5 rounded bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover"
         >
           <Plus size={15} /> New campaign
+        </button>
+        <button
+          onClick={() => setAiOpen(true)}
+          className="flex w-full items-center justify-center gap-1.5 rounded border border-accent-soft2 bg-accent-soft px-3 py-2 text-sm font-medium text-accent hover:bg-accent-soft2"
+        >
+          <Sparkles size={15} /> AI draft
         </button>
         <div className="overflow-hidden rounded-lg border border-line bg-white">
           {campaigns.length === 0 ? (
@@ -478,6 +488,14 @@ export default function CampaignsPage() {
           segments={segments}
           senders={senders}
           onClose={() => setWizardOpen(false)}
+          onDone={wizardDone}
+        />
+      )}
+
+      {aiOpen && (
+        <AiBuilder
+          segments={segments}
+          onClose={() => setAiOpen(false)}
           onDone={wizardDone}
         />
       )}

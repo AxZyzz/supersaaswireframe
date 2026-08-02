@@ -1,13 +1,23 @@
 import { Module } from '@nestjs/common';
+import { AiContentService } from './ai-content.service';
+import { AiController } from './ai.controller';
 import { AiService } from './ai.service';
 import { BedrockAIProvider } from './providers/bedrock.provider';
 import { MockAIProvider } from './providers/mock.provider';
 import { AIProviderResolver } from './providers/provider.resolver';
 
-// AI backbone (E6). Exports AiService so feature modules (campaign builder,
-// reply classification) can generate without touching providers directly.
+// AI backbone (E6). AiService is the low-level provider wrapper; AiContentService
+// adds the Knowledge Base + campaign generation on top. Exports AiService so
+// other feature modules (e.g. reply classification) can generate directly.
 @Module({
-  providers: [MockAIProvider, BedrockAIProvider, AIProviderResolver, AiService],
+  controllers: [AiController],
+  providers: [
+    MockAIProvider,
+    BedrockAIProvider,
+    AIProviderResolver,
+    AiService,
+    AiContentService,
+  ],
   exports: [AiService],
 })
 export class AiModule {}
