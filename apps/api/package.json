@@ -23,6 +23,7 @@
     "db:seed": "ts-node src/db/seed.ts"
   },
   "dependencies": {
+    "@anthropic-ai/bedrock-sdk": "^0.32.0",
     "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
@@ -81,7 +82,6 @@
       "ts"
     ],
     "rootDir": "src",
-    "//maxWorkers": "Integration specs each open a pg Pool against one shared Postgres; running suites in parallel exhausts max_connections. Serialize them.",
     "maxWorkers": 1,
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {

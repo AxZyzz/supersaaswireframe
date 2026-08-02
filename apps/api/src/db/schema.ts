@@ -612,6 +612,46 @@ export const emailEvents = pgTable(
   ],
 );
 
+// ── E6: AI layer ─────────────────────────────────────────────────────────
+// Per-org token usage log for every AI call (feature + model + token counts).
+// Feeds usage metering + cost dashboards; append-only.
+export const aiUsage = pgTable(
+  'ai_usage',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    feature: text('feature').notNull(),
+    provider: text('provider').notNull(),
+    model: text('model').notNull(),
+    inputTokens: integer('input_tokens').notNull().default(0),
+    outputTokens: integer('output_tokens').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index('ai_usage_org_idx').on(t.orgId, t.createdAt)],
+);
+
+// Business Knowledge Base — one row per org, injected into every generative
+// prompt so AI output is grounded in the org's real offer/audience/voice.
+export const orgKnowledge = pgTable('org_knowledge', {
+  orgId: uuid('org_id')
+    .primaryKey()
+    .references(() => orgs.id, { onDelete: 'cascade' }),
+  description: text('description'),
+  audience: text('audience'),
+  offer: text('offer'),
+  painPoints: text('pain_points'),
+  usps: text('usps'),
+  competitors: text('competitors'),
+  testimonials: text('testimonials'),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 // Do-not-contact list per org (unsubscribes, hard bounces, complaints).
 // Enforced at send time (case-insensitive email match).
 export const suppressionList = pgTable(

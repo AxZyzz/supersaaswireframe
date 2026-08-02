@@ -169,6 +169,20 @@
       "when": 1784825580000,
       "tag": "0023_due_includes_scheduled",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1784825590000,
+      "tag": "0024_ai",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1784825600000,
+      "tag": "0025_ai_rls",
+      "breakpoints": true
     }
   ]
 }
