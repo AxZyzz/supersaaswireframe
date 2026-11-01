@@ -10,6 +10,8 @@ import {
   jsonb,
   primaryKey,
   integer,
+  boolean,
+  real,
 } from 'drizzle-orm/pg-core';
 
 // Tenant model: users are global (one login, many orgs); everything org-scoped
@@ -672,5 +674,75 @@ export const suppressionList = pgTable(
       t.orgId,
       sql`lower(${t.email})`,
     ),
+  ],
+);
+
+// ── E7: Unified inbox ────────────────────────────────────────────────────
+// A conversation is a reply thread with one lead, usually tied to the
+// campaign enrollment whose email they answered. Outbound emails already live
+// in sent_emails; only inbound replies are stored as conversation_messages.
+export const conversations = pgTable(
+  'conversations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    leadId: uuid('lead_id')
+      .notNull()
+      .references(() => leads.id, { onDelete: 'cascade' }),
+    campaignId: uuid('campaign_id').references(() => campaigns.id, {
+      onDelete: 'set null',
+    }),
+    campaignLeadId: uuid('campaign_lead_id').references(
+      () => campaignLeads.id,
+      { onDelete: 'set null' },
+    ),
+    senderId: uuid('sender_id').references(() => senderAccounts.id, {
+      onDelete: 'set null',
+    }),
+    subject: text('subject').notNull().default(''),
+    status: text('status').notNull().default('open'),
+    unread: boolean('unread').notNull().default(true),
+    classification: text('classification'),
+    confidence: real('confidence'),
+    lastMessageAt: timestamp('last_message_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('conversations_org_idx').on(t.orgId, t.lastMessageAt),
+    index('conversations_lead_idx').on(t.leadId),
+  ],
+);
+
+export const conversationMessages = pgTable(
+  'conversation_messages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => conversations.id, { onDelete: 'cascade' }),
+    direction: text('direction').notNull().default('inbound'),
+    fromEmail: text('from_email').notNull(),
+    toEmail: text('to_email'),
+    subject: text('subject').notNull().default(''),
+    bodyText: text('body_text').notNull().default(''),
+    messageId: text('message_id'),
+    inReplyTo: text('in_reply_to'),
+    classification: text('classification'),
+    confidence: real('confidence'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('conversation_messages_conv_idx').on(t.conversationId, t.createdAt),
   ],
 );

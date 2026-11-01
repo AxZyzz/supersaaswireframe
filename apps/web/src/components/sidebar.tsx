@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   BarChart3,
   FileText,
@@ -14,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import { clearTokens } from "@/lib/api";
+import { unreadCount } from "@/lib/inbox";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -34,6 +36,23 @@ export function Sidebar({ orgName }: { orgName: string }) {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+
+  // Unread inbox badge — polled (and refreshed on navigation) until the live
+  // socket gateway (T7.2) lands.
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    let live = true;
+    const tick = () =>
+      unreadCount()
+        .then((r) => live && setUnread(r.unread))
+        .catch(() => undefined);
+    void tick();
+    const t = setInterval(tick, 30_000);
+    return () => {
+      live = false;
+      clearInterval(t);
+    };
+  }, [pathname]);
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-sidebar">
@@ -68,6 +87,11 @@ export function Sidebar({ orgName }: { orgName: string }) {
               )}
               <Icon size={17} strokeWidth={1.9} className="shrink-0" />
               <span className="flex-1">{item.label}</span>
+              {item.href === "/inbox" && unread > 0 && (
+                <span className="rounded-full bg-accent px-1.5 text-micro font-medium text-white">
+                  {unread > 99 ? "99+" : unread}
+                </span>
+              )}
             </Link>
           );
         })}

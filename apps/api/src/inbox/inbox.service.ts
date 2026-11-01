@@ -1,0 +1,492 @@
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Pool } from 'pg';
+import { AiService } from '../ai/ai.service';
+import {
+  classifyReply,
+  OrgKnowledge,
+  REPLY_CLASSES,
+  ReplyClass,
+} from '../ai/prompts';
+import { PG_POOL } from '../db/db.module';
+import { withOrgContext } from '../db/tenant-context';
+
+export interface IngestReplyInput {
+  fromEmail: string;
+  subject?: string;
+  body: string;
+  messageId?: string;
+  inReplyTo?: string; // Message-ID of the email being answered, when known
+  // Caller-supplied classification (manual tools / tests). When absent the
+  // reply is classified by the AI layer.
+  classification?: ReplyClass;
+}
+
+export type ReplyAction = 'stopped' | 'rescheduled' | 'none';
+
+export interface IngestResult {
+  conversationId: string;
+  classification: ReplyClass;
+  confidence: number;
+  action: ReplyAction;
+}
+
+export interface InboxFilter {
+  filter?: string; // 'all' | 'unread' | a reply class
+  status?: string; // 'open' | 'closed'
+  q?: string;
+}
+
+export interface ConversationListRow {
+  id: string;
+  subject: string;
+  status: string;
+  unread: boolean;
+  classification: string | null;
+  confidence: number | null;
+  last_message_at: Date;
+  lead_id: string;
+  lead_email: string;
+  lead_company: string | null;
+  lead_name: string | null;
+  campaign_name: string | null;
+  snippet: string | null;
+}
+
+export interface ThreadRow {
+  direction: 'inbound' | 'outbound';
+  subject: string;
+  body_text: string | null;
+  from_email: string | null;
+  to_email: string | null;
+  created_at: Date;
+  classification: string | null;
+  confidence: number | null;
+}
+
+interface MatchedSend {
+  sent_email_id: string | null;
+  campaign_id: string | null;
+  campaign_lead_id: string | null;
+  sender_id: string | null;
+  lead_id: string;
+  subject: string;
+}
+
+// Unified inbox (E7). `ingestReply` is the single entry point for inbound
+// replies: the creds-gated SES-inbound / Gmail pollers (E5 chunk 3) call it,
+// and so does the dev simulate endpoint. It threads the reply, classifies it,
+// and applies the sequence automations (stop-on-reply, out-of-office
+// reschedule, not-interested tagging).
+@Injectable()
+export class InboxService {
+  private readonly logger = new Logger(InboxService.name);
+
+  constructor(
+    @Inject(PG_POOL) private readonly pool: Pool,
+    private readonly ai: AiService,
+  ) {}
+
+  async ingestReply(
+    orgId: string,
+    input: IngestReplyInput,
+  ): Promise<IngestResult> {
+    // Phase 1: match the reply to the email it answers + load KB (short tx).
+    const { match, kb } = await withOrgContext(this.pool, orgId, async (c) => {
+      let m: MatchedSend | undefined;
+      const cols = `id AS sent_email_id, campaign_id, campaign_lead_id,
+        sender_id, lead_id, subject`;
+      if (input.inReplyTo) {
+        const r = await c.query<MatchedSend>(
+          `SELECT ${cols} FROM sent_emails
+           WHERE message_id = $1 AND lead_id IS NOT NULL LIMIT 1`,
+          [input.inReplyTo],
+        );
+        m = r.rows[0];
+      }
+      if (!m) {
+        const r = await c.query<MatchedSend>(
+          `SELECT ${cols} FROM sent_emails
+           WHERE lower(to_email) = lower($1) AND lead_id IS NOT NULL
+           ORDER BY sent_at DESC LIMIT 1`,
+          [input.fromEmail],
+        );
+        m = r.rows[0];
+      }
+      if (!m) {
+        // No prior send — still thread it if the sender is a known lead.
+        const l = await c.query<{ id: string }>(
+          `SELECT id FROM leads WHERE lower(email) = lower($1) LIMIT 1`,
+          [input.fromEmail],
+        );
+        if (l.rowCount === 0) {
+          throw new NotFoundException('Reply sender is not a known lead');
+        }
+        m = {
+          sent_email_id: null,
+          campaign_id: null,
+          campaign_lead_id: null,
+          sender_id: null,
+          lead_id: l.rows[0].id,
+          subject: input.subject ?? '',
+        };
+      }
+      const k = await c.query<OrgKnowledge>(
+        `SELECT description, audience, offer, pain_points AS "painPoints",
+           usps, competitors, testimonials
+         FROM org_knowledge WHERE org_id = $1`,
+        [orgId],
+      );
+      return { match: m, kb: k.rows[0] ?? null };
+    });
+
+    // Phase 2: classify outside any transaction (may be a network call).
+    const { classification, confidence } = input.classification
+      ? { classification: input.classification, confidence: 1 }
+      : await this.classify(orgId, input, kb);
+
+    // Phase 3: thread + record + automations.
+    return withOrgContext(this.pool, orgId, async (c) => {
+      const existing = await c.query<{ id: string }>(
+        `SELECT id FROM conversations
+         WHERE lead_id = $1 AND campaign_id IS NOT DISTINCT FROM $2
+         ORDER BY created_at LIMIT 1`,
+        [match.lead_id, match.campaign_id],
+      );
+      let conversationId = existing.rows[0]?.id;
+      if (!conversationId) {
+        const created = await c.query<{ id: string }>(
+          `INSERT INTO conversations
+             (org_id, lead_id, campaign_id, campaign_lead_id, sender_id, subject)
+           VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+          [
+            orgId,
+            match.lead_id,
+            match.campaign_id,
+            match.campaign_lead_id,
+            match.sender_id,
+            input.subject || match.subject,
+          ],
+        );
+        conversationId = created.rows[0].id;
+      }
+
+      await c.query(
+        `INSERT INTO conversation_messages
+           (org_id, conversation_id, direction, from_email, subject, body_text,
+            message_id, in_reply_to, classification, confidence)
+         VALUES ($1,$2,'inbound',$3,$4,$5,$6,$7,$8,$9)`,
+        [
+          orgId,
+          conversationId,
+          input.fromEmail,
+          input.subject ?? '',
+          input.body,
+          input.messageId ?? null,
+          input.inReplyTo ?? null,
+          classification,
+          confidence,
+        ],
+      );
+      await c.query(
+        `UPDATE conversations
+         SET unread = true, status = 'open', classification = $2,
+             confidence = $3, last_message_at = now()
+         WHERE id = $1`,
+        [conversationId, classification, confidence],
+      );
+
+      await c.query(
+        `INSERT INTO email_events (org_id, sent_email_id, campaign_id, lead_id, type, data)
+         VALUES ($1,$2,$3,$4,'reply',$5::jsonb)`,
+        [
+          orgId,
+          match.sent_email_id,
+          match.campaign_id,
+          match.lead_id,
+          JSON.stringify({ classification }),
+        ],
+      );
+      await c.query(
+        `INSERT INTO lead_events (org_id, lead_id, type, data)
+         VALUES ($1,$2,'email_replied',$3::jsonb)`,
+        [orgId, match.lead_id, JSON.stringify({ classification })],
+      );
+
+      const action = await this.applyAutomations(
+        c,
+        orgId,
+        match,
+        classification,
+      );
+      return { conversationId, classification, confidence, action };
+    });
+  }
+
+  private async classify(
+    orgId: string,
+    input: IngestReplyInput,
+    kb: OrgKnowledge | null,
+  ): Promise<{ classification: ReplyClass; confidence: number }> {
+    try {
+      const res = await this.ai.generate(
+        orgId,
+        'reply-classify',
+        classifyReply({ replyBody: input.body, subject: input.subject, kb }),
+      );
+      const parsed = JSON.parse(res.text) as {
+        classification?: string;
+        confidence?: number;
+      };
+      const cls = REPLY_CLASSES.find((k) => k === parsed.classification);
+      if (!cls) return { classification: 'manual_review', confidence: 0 };
+      const conf =
+        typeof parsed.confidence === 'number'
+          ? Math.min(1, Math.max(0, parsed.confidence))
+          : 0;
+      return { classification: cls, confidence: conf };
+    } catch (err) {
+      this.logger.warn(
+        `reply classification failed; routing to manual review: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return { classification: 'manual_review', confidence: 0 };
+    }
+  }
+
+  // Sequence automations (T5.8 + T6.5). Out-of-office keeps the lead enrolled
+  // and pushes the next step out 3 days; any other reply stops the sequence.
+  // Not-interested replies also get a "Not interested" tag.
+  private async applyAutomations(
+    c: import('pg').PoolClient,
+    orgId: string,
+    match: MatchedSend,
+    classification: ReplyClass,
+  ): Promise<ReplyAction> {
+    if (classification === 'not_interested') {
+      const tag = await c.query<{ id: string }>(
+        `INSERT INTO tags (org_id, name, color) VALUES ($1, 'Not interested', '#6b7280')
+         ON CONFLICT (org_id, lower(name)) DO UPDATE SET name = tags.name
+         RETURNING id`,
+        [orgId],
+      );
+      await c.query(
+        `INSERT INTO lead_tags (org_id, lead_id, tag_id) VALUES ($1,$2,$3)
+         ON CONFLICT DO NOTHING`,
+        [orgId, match.lead_id, tag.rows[0].id],
+      );
+    }
+
+    if (!match.campaign_lead_id) return 'none';
+
+    if (classification === 'out_of_office') {
+      const r = await c.query(
+        `UPDATE campaign_leads
+         SET next_send_at = now() + interval '3 days', updated_at = now()
+         WHERE id = $1 AND status = 'active'`,
+        [match.campaign_lead_id],
+      );
+      return (r.rowCount ?? 0) > 0 ? 'rescheduled' : 'none';
+    }
+
+    const r = await c.query(
+      `UPDATE campaign_leads
+       SET status = 'stopped', stop_reason = 'replied', next_send_at = NULL,
+           updated_at = now()
+       WHERE id = $1 AND status = 'active'`,
+      [match.campaign_lead_id],
+    );
+    return (r.rowCount ?? 0) > 0 ? 'stopped' : 'none';
+  }
+
+  // ── read side ────────────────────────────────────────────────────────
+  list(orgId: string, f: InboxFilter) {
+    const where: string[] = [];
+    const params: unknown[] = [];
+    const add = (sql: string, v: unknown) => {
+      params.push(v);
+      where.push(sql.replace('?', `$${params.length}`));
+    };
+    if (f.status === 'open' || f.status === 'closed')
+      add('c.status = ?', f.status);
+    if (f.filter === 'unread') where.push('c.unread');
+    else if (
+      f.filter &&
+      (REPLY_CLASSES as readonly string[]).includes(f.filter)
+    ) {
+      add('c.classification = ?', f.filter);
+    }
+    if (f.q?.trim()) {
+      add(
+        `(l.email ILIKE ? OR l.first_name ILIKE $${params.length + 1}
+          OR l.last_name ILIKE $${params.length + 1} OR l.company ILIKE $${params.length + 1}
+          OR c.subject ILIKE $${params.length + 1})`,
+        `%${f.q.trim()}%`,
+      );
+    }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+    return withOrgContext(this.pool, orgId, async (c) => {
+      const res = await c.query<ConversationListRow>(
+        `SELECT c.id, c.subject, c.status, c.unread, c.classification,
+           c.confidence, c.last_message_at,
+           l.id AS lead_id, l.email AS lead_email, l.company AS lead_company,
+           NULLIF(trim(concat_ws(' ', l.first_name, l.last_name)), '') AS lead_name,
+           cp.name AS campaign_name,
+           (SELECT left(m.body_text, 140) FROM conversation_messages m
+             WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS snippet
+         FROM conversations c
+         JOIN leads l ON l.id = c.lead_id
+         LEFT JOIN campaigns cp ON cp.id = c.campaign_id
+         ${whereSql}
+         ORDER BY c.last_message_at DESC
+         LIMIT 200`,
+        params,
+      );
+      return res.rows;
+    });
+  }
+
+  unreadCount(orgId: string) {
+    return withOrgContext(this.pool, orgId, async (c) => {
+      const r = await c.query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM conversations
+         WHERE unread AND status = 'open'`,
+      );
+      return { unread: r.rows[0].n };
+    });
+  }
+
+  // Conversation + merged thread (outbound from sent_emails, inbound from
+  // conversation_messages) + lead context for the side panel.
+  get(orgId: string, id: string) {
+    return withOrgContext(this.pool, orgId, async (c) => {
+      const conv = await c.query<{
+        id: string;
+        lead_id: string;
+        campaign_id: string | null;
+        campaign_lead_id: string | null;
+      }>(
+        `SELECT c.*, cp.name AS campaign_name, s.from_email AS sender_email
+         FROM conversations c
+         LEFT JOIN campaigns cp ON cp.id = c.campaign_id
+         LEFT JOIN sender_accounts s ON s.id = c.sender_id
+         WHERE c.id = $1`,
+        [id],
+      );
+      if (conv.rowCount === 0) {
+        throw new NotFoundException('Conversation not found');
+      }
+      const cv = conv.rows[0];
+
+      const outbound = await c.query<ThreadRow>(
+        `SELECT 'outbound' AS direction, se.subject, NULL AS body_text,
+           s.from_email, se.to_email, se.sent_at AS created_at,
+           NULL AS classification, NULL::real AS confidence
+         FROM sent_emails se
+         LEFT JOIN sender_accounts s ON s.id = se.sender_id
+         WHERE se.lead_id = $1 AND se.campaign_id IS NOT DISTINCT FROM $2
+           AND se.status = 'sent'`,
+        [cv.lead_id, cv.campaign_id],
+      );
+      const inbound = await c.query<ThreadRow>(
+        `SELECT direction, subject, body_text, from_email, to_email, created_at,
+           classification, confidence
+         FROM conversation_messages WHERE conversation_id = $1`,
+        [id],
+      );
+      const thread = [...outbound.rows, ...inbound.rows].sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      );
+
+      const lead = await c.query<{
+        id: string;
+        email: string;
+        first_name: string | null;
+        last_name: string | null;
+        company: string | null;
+        title: string | null;
+        phone: string | null;
+        status: string;
+        score: string | null;
+      }>(
+        `SELECT id, email, first_name, last_name, company, title, phone,
+           status, score
+         FROM leads WHERE id = $1`,
+        [cv.lead_id],
+      );
+      const tags = await c.query<{ name: string; color: string }>(
+        `SELECT t.name, t.color FROM lead_tags lt JOIN tags t ON t.id = lt.tag_id
+         WHERE lt.lead_id = $1 ORDER BY t.name`,
+        [cv.lead_id],
+      );
+      const enrollment = cv.campaign_lead_id
+        ? await c.query<{
+            status: string;
+            stop_reason: string | null;
+            current_step: number;
+            next_send_at: Date | null;
+          }>(
+            `SELECT status, stop_reason, current_step, next_send_at
+             FROM campaign_leads WHERE id = $1`,
+            [cv.campaign_lead_id],
+          )
+        : null;
+
+      return {
+        ...cv,
+        thread,
+        lead: lead.rows[0] ?? null,
+        tags: tags.rows,
+        enrollment: enrollment?.rows[0] ?? null,
+      };
+    });
+  }
+
+  update(
+    orgId: string,
+    id: string,
+    patch: { unread?: boolean; status?: string; classification?: string },
+  ) {
+    const sets: string[] = [];
+    const params: unknown[] = [];
+    const add = (col: string, v: unknown) => {
+      params.push(v);
+      sets.push(`${col} = $${params.length}`);
+    };
+    if (patch.unread !== undefined) add('unread', patch.unread);
+    if (patch.status !== undefined) add('status', patch.status);
+    if (patch.classification !== undefined) {
+      add('classification', patch.classification);
+      sets.push('confidence = 1'); // a human override is certain
+    }
+    return withOrgContext(this.pool, orgId, async (c) => {
+      if (sets.length > 0) {
+        params.push(id);
+        const r = await c.query(
+          `UPDATE conversations SET ${sets.join(', ')}
+           WHERE id = $${params.length}`,
+          params,
+        );
+        if (r.rowCount === 0) {
+          throw new NotFoundException('Conversation not found');
+        }
+      }
+      const res = await c.query<{
+        id: string;
+        status: string;
+        unread: boolean;
+        classification: string | null;
+        confidence: number | null;
+      }>(
+        `SELECT id, status, unread, classification, confidence
+         FROM conversations WHERE id = $1`,
+        [id],
+      );
+      if (res.rowCount === 0)
+        throw new NotFoundException('Conversation not found');
+      return res.rows[0];
+    });
+  }
+}

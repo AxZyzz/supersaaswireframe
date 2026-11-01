@@ -72,9 +72,9 @@ export default function DashboardPage() {
       icon: Mail,
     },
     {
-      label: "Open rate",
-      value: pct(ov.engagement.opened, ov.sent.total),
-      sub: `Click rate ${pct(ov.engagement.clicked, ov.sent.total)}`,
+      label: "Reply rate",
+      value: pct(ov.engagement.replied, ov.sent.total),
+      sub: `Open ${pct(ov.engagement.opened, ov.sent.total)} · Click ${pct(ov.engagement.clicked, ov.sent.total)}`,
       icon: Inbox,
     },
   ];

@@ -183,6 +183,20 @@
       "when": 1784825600000,
       "tag": "0025_ai_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1784825610000,
+      "tag": "0026_inbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1784825620000,
+      "tag": "0027_inbox_rls",
+      "breakpoints": true
     }
   ]
 }
