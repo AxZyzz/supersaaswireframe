@@ -266,4 +266,101 @@ describe('Inbox integration', () => {
     expect(reclass.body.classification).toBe('question');
     expect(reclass.body.confidence).toBe(1);
   });
+
+  it('replies advance lead status and notify the team', async () => {
+    await withOrgContext(pool, orgId, async (c) => {
+      const r = await c.query(
+        `SELECT email, status FROM leads WHERE email IN ('amy@ib.local','nope@ib.local','oof@ib.local')`,
+      );
+      const by = Object.fromEntries(
+        r.rows.map((x: { email: string; status: string }) => [
+          x.email,
+          x.status,
+        ]),
+      );
+      expect(by['amy@ib.local']).toBe('interested');
+      expect(by['nope@ib.local']).toBe('lost');
+      expect(by['oof@ib.local']).toBe('replied');
+    });
+
+    const n = await http()
+      .get('/notifications')
+      .set('Authorization', auth())
+      .expect(200);
+    // 4 replies ingested (amy x2, oof, nope) -> 4 reply notifications
+    expect(
+      n.body.filter((x: { type: string }) => x.type === 'reply'),
+    ).toHaveLength(4);
+    expect(n.body[0].link).toMatch(/^\/inbox\?c=/);
+
+    let count = await http()
+      .get('/notifications/unread-count')
+      .set('Authorization', auth());
+    expect(count.body.unread).toBe(4);
+    await http()
+      .post(`/notifications/${n.body[0].id}/read`)
+      .set('Authorization', auth())
+      .expect(200);
+    count = await http()
+      .get('/notifications/unread-count')
+      .set('Authorization', auth());
+    expect(count.body.unread).toBe(3);
+    await http()
+      .post('/notifications/read-all')
+      .set('Authorization', auth())
+      .expect(200);
+    count = await http()
+      .get('/notifications/unread-count')
+      .set('Authorization', auth());
+    expect(count.body.unread).toBe(0);
+  });
+
+  it('notes, assignment and conversion', async () => {
+    await http()
+      .post(`/inbox/${conversationId}/notes`)
+      .set('Authorization', auth())
+      .send({ body: 'Warm lead — book a call Tuesday.' })
+      .expect(201);
+
+    // assign to self (a member) works; a random user id is rejected
+    const asg = await http()
+      .patch(`/inbox/${conversationId}`)
+      .set('Authorization', auth())
+      .send({ assignedUserId: userId })
+      .expect(200);
+    expect(asg.body.assigned_user_id).toBe(userId);
+    await http()
+      .patch(`/inbox/${conversationId}`)
+      .set('Authorization', auth())
+      .send({ assignedUserId: randomUUID() })
+      .expect(400);
+
+    // convert the out-of-office lead's conversation: still mid-sequence, so
+    // conversion must stop it
+    const list = await http().get('/inbox?q=otto').set('Authorization', auth());
+    const oofConv = list.body[0].id;
+    const conv = await http()
+      .patch(`/inbox/${oofConv}`)
+      .set('Authorization', auth())
+      .send({ converted: true })
+      .expect(200);
+    expect(conv.body.converted_at).toBeTruthy();
+    const e = await enrollmentOf('oof@ib.local');
+    expect(e.status).toBe('stopped');
+    expect(e.stop_reason).toBe('converted');
+
+    const detail = await http()
+      .get(`/inbox/${conversationId}`)
+      .set('Authorization', auth())
+      .expect(200);
+    expect(detail.body.notes).toHaveLength(1);
+    expect(detail.body.notes[0].author_name).toBe('Ib T');
+    expect(detail.body.assigned_user_id).toBe(userId);
+    await withOrgContext(pool, orgId, async (c) => {
+      const r = await c.query(
+        `SELECT status FROM leads WHERE email = 'oof@ib.local'`,
+      );
+      expect(r.rows[0].status).toBe('converted');
+    });
+  });
 });

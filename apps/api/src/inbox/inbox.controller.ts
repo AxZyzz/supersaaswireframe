@@ -14,7 +14,11 @@ import { ConfigService } from '@nestjs/config';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthUser } from '../auth/types';
-import { SimulateReplyDto, UpdateConversationDto } from './inbox.dto';
+import {
+  AddNoteDto,
+  SimulateReplyDto,
+  UpdateConversationDto,
+} from './inbox.dto';
 import { InboxService } from './inbox.service';
 
 @Controller('inbox')
@@ -51,7 +55,17 @@ export class InboxController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateConversationDto,
   ) {
-    return this.inbox.update(user.orgId, id, dto);
+    return this.inbox.update(user.orgId, id, dto, user.userId);
+  }
+
+  @Post(':id/notes')
+  @HttpCode(201)
+  addNote(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AddNoteDto,
+  ) {
+    return this.inbox.addNote(user.orgId, user.userId, id, dto.body);
   }
 
   // Disabled in production unless INBOX_SIMULATE=on.

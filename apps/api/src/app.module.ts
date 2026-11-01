@@ -10,6 +10,7 @@ import { CryptoModule } from './crypto/crypto.module';
 import { DbModule } from './db/db.module';
 import { InboxModule } from './inbox/inbox.module';
 import { LeadsModule } from './leads/leads.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { OrgsModule } from './orgs/orgs.module';
 import { QueueModule } from './queue/queue.module';
 import { SendersModule } from './senders/senders.module';
@@ -36,6 +37,7 @@ import { TemplatesModule } from './templates/templates.module';
     AiModule,
     AnalyticsModule,
     InboxModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

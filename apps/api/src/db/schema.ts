@@ -706,6 +706,10 @@ export const conversations = pgTable(
     unread: boolean('unread').notNull().default(true),
     classification: text('classification'),
     confidence: real('confidence'),
+    assignedUserId: uuid('assigned_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    convertedAt: timestamp('converted_at', { withTimezone: true }),
     lastMessageAt: timestamp('last_message_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -745,4 +749,52 @@ export const conversationMessages = pgTable(
   (t) => [
     index('conversation_messages_conv_idx').on(t.conversationId, t.createdAt),
   ],
+);
+
+// Internal team notes on a conversation (never sent to the lead).
+export const conversationNotes = pgTable(
+  'conversation_notes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => conversations.id, { onDelete: 'cascade' }),
+    authorUserId: uuid('author_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    body: text('body').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('conversation_notes_conv_idx').on(t.conversationId, t.createdAt),
+  ],
+);
+
+// In-app notifications, fanned out one row per recipient so read state is
+// per user.
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(),
+    title: text('title').notNull(),
+    body: text('body').notNull().default(''),
+    link: text('link'),
+    readAt: timestamp('read_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index('notifications_user_idx').on(t.userId, t.createdAt)],
 );

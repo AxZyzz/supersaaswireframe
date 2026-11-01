@@ -4,7 +4,10 @@ import {
   IsIn,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
+  MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { REPLY_CLASSES } from '../ai/prompts';
 
@@ -12,6 +15,16 @@ export class UpdateConversationDto {
   @IsOptional() @IsBoolean() unread?: boolean;
   @IsOptional() @IsIn(['open', 'closed']) status?: 'open' | 'closed';
   @IsOptional() @IsIn([...REPLY_CLASSES]) classification?: string;
+  // null unassigns
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsUUID()
+  assignedUserId?: string | null;
+  @IsOptional() @IsBoolean() converted?: boolean;
+}
+
+export class AddNoteDto {
+  @IsString() @MinLength(1) @MaxLength(5000) body!: string;
 }
 
 // Dev/test seam: inject an inbound reply as if it had been received. The real

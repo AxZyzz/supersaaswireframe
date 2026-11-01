@@ -1,9 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Archive,
   ArchiveRestore,
+  BadgeCheck,
+  StickyNote,
   FlaskConical,
   Mail,
   MailOpen,
@@ -11,8 +14,12 @@ import {
   X,
 } from "lucide-react";
 import {
+  addNote,
   CLASS_META,
   ConversationDetail,
+  ConversationPatch,
+  listMembers,
+  Member,
   ConversationRow,
   getConversation,
   listConversations,
@@ -44,13 +51,32 @@ function ClassBadge({ c }: { c: ReplyClass | null }) {
 const leadLabel = (r: { lead_name: string | null; lead_email: string }) =>
   r.lead_name || r.lead_email;
 
+// useSearchParams needs a Suspense boundary in the app router.
 export default function InboxPage() {
+  return (
+    <Suspense fallback={null}>
+      <Inbox />
+    </Suspense>
+  );
+}
+
+function Inbox() {
+  const params = useSearchParams();
+  const deepLink = params.get("c");
   const [filter, setFilter] = useState("all");
   const [status, setStatus] = useState<"open" | "closed">("open");
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<ConversationRow[]>([]);
   const [selected, setSelected] = useState<ConversationDetail | null>(null);
   const [simOpen, setSimOpen] = useState(false);
+  const [members, setMembers] = useState<Member[] | null>(null);
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    listMembers()
+      .then(setMembers)
+      .catch(() => setMembers(null)); // agents can't list members
+  }, []);
 
   const load = useCallback(async () => {
     setRows(await listConversations({ filter, status, q: q.trim() || undefined }));
@@ -70,9 +96,19 @@ export default function InboxPage() {
     }
   }
 
-  async function patch(
-    body: Partial<{ unread: boolean; status: "open" | "closed"; classification: ReplyClass }>,
-  ) {
+  // Open a conversation linked from a notification (/inbox?c=<id>).
+  useEffect(() => {
+    if (deepLink) void open(deepLink);
+  }, [deepLink]);
+
+  async function saveNote() {
+    if (!selected || !note.trim()) return;
+    await addNote(selected.id, note.trim());
+    setNote("");
+    setSelected(await getConversation(selected.id));
+  }
+
+  async function patch(body: ConversationPatch) {
     if (!selected) return;
     await updateConversation(selected.id, body);
     await load();
@@ -192,6 +228,38 @@ export default function InboxPage() {
                   {selected.sender_email ? ` · via ${selected.sender_email}` : ""}
                 </p>
               </div>
+              {members && (
+                <select
+                  value={selected.assigned_user_id ?? ""}
+                  onChange={(e) => void patch({ assignedUserId: e.target.value || null })}
+                  title="Assign"
+                  className={`${field} max-w-36 py-1 text-tiny`}
+                >
+                  <option value="">Unassigned</option>
+                  {members.map((m) => (
+                    <option key={m.user_id} value={m.user_id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {selected.converted_at ? (
+                <button
+                  onClick={() => void patch({ converted: false })}
+                  title="Undo converted"
+                  className="flex items-center gap-1 rounded bg-success-bg px-2 py-1 text-tiny font-medium text-success-text"
+                >
+                  <BadgeCheck size={13} /> Converted
+                </button>
+              ) : (
+                <button
+                  onClick={() => void patch({ converted: true })}
+                  title="Mark converted — stops the sequence and sets the lead to converted"
+                  className="flex items-center gap-1 rounded border border-line-mid px-2 py-1 text-tiny text-ink hover:bg-hover"
+                >
+                  <BadgeCheck size={13} /> Convert
+                </button>
+              )}
               <select
                 value={selected.classification ?? ""}
                 onChange={(e) => void patch({ classification: e.target.value as ReplyClass })}
@@ -246,9 +314,39 @@ export default function InboxPage() {
                   )}
                 </div>
               ))}
+              {selected.notes.map((n) => (
+                <div
+                  key={n.id}
+                  className="mx-auto max-w-[85%] rounded-lg border border-warning-text/20 bg-warning-bg px-3 py-2 text-sm"
+                >
+                  <div className="mb-1 flex items-center gap-1.5 text-tiny text-warning-text">
+                    <StickyNote size={12} /> Internal note · {n.author_name ?? "Someone"} ·{" "}
+                    {new Date(n.created_at).toLocaleString()}
+                  </div>
+                  <p className="whitespace-pre-wrap text-ink">{n.body}</p>
+                </div>
+              ))}
             </div>
-            <div className="border-t border-line px-4 py-2.5 text-tiny text-muted">
-              Replying from the inbox arrives once a sending inbox (Gmail/SES) is connected.
+            <div className="space-y-1.5 border-t border-line px-4 py-2.5">
+              <div className="flex gap-2">
+                <input
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && void saveNote()}
+                  placeholder="Add an internal note (only your team sees it)"
+                  className={`${field} flex-1`}
+                />
+                <button
+                  onClick={() => void saveNote()}
+                  disabled={!note.trim()}
+                  className="rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+                >
+                  Add note
+                </button>
+              </div>
+              <p className="text-tiny text-faint">
+                Replying to the lead from here arrives once a sending inbox (Gmail/SES) is connected.
+              </p>
             </div>
           </>
         )}

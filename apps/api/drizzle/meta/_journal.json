@@ -197,6 +197,20 @@
       "when": 1784825620000,
       "tag": "0027_inbox_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1784825630000,
+      "tag": "0028_inbox_collab",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1784825640000,
+      "tag": "0029_inbox_collab_rls",
+      "breakpoints": true
     }
   ]
 }

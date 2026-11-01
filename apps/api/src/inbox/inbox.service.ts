@@ -1,5 +1,12 @@
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { Pool } from 'pg';
+import { NotificationsService } from '../notifications/notifications.service';
 import { AiService } from '../ai/ai.service';
 import {
   classifyReply,
@@ -22,6 +29,23 @@ export interface IngestReplyInput {
 }
 
 export type ReplyAction = 'stopped' | 'rescheduled' | 'none';
+
+const CLASS_LABELS: Record<ReplyClass, string> = {
+  interested: 'Interested',
+  not_interested: 'Not interested',
+  question: 'Question',
+  out_of_office: 'Out of office',
+  wrong_person: 'Wrong person',
+  manual_review: 'Needs review',
+};
+
+export interface ConversationPatch {
+  unread?: boolean;
+  status?: string;
+  classification?: string;
+  assignedUserId?: string | null;
+  converted?: boolean;
+}
 
 export interface IngestResult {
   conversationId: string;
@@ -84,6 +108,7 @@ export class InboxService {
   constructor(
     @Inject(PG_POOL) private readonly pool: Pool,
     private readonly ai: AiService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async ingestReply(
@@ -218,6 +243,31 @@ export class InboxService {
         match,
         classification,
       );
+
+      // Advance the lead's pipeline status, but never overwrite a later stage
+      // (interested/converted/lost) with an earlier one.
+      const nextStatus =
+        classification === 'interested'
+          ? 'interested'
+          : classification === 'not_interested'
+            ? 'lost'
+            : 'replied';
+      const lead = await c.query<{ label: string }>(
+        `UPDATE leads SET status = CASE
+             WHEN status IN ('new','contacted','replied') THEN $2 ELSE status END,
+           updated_at = now()
+         WHERE id = $1
+         RETURNING COALESCE(NULLIF(trim(concat_ws(' ', first_name, last_name)), ''), email) AS label`,
+        [match.lead_id, nextStatus],
+      );
+
+      await this.notifications.notifyOrg(c, orgId, {
+        type: 'reply',
+        title: `${lead.rows[0]?.label ?? input.fromEmail} replied`,
+        body: `${CLASS_LABELS[classification]} · ${input.body.slice(0, 120)}`,
+        link: `/inbox?c=${conversationId}`,
+      });
+
       return { conversationId, classification, confidence, action };
     });
   }
@@ -433,10 +483,22 @@ export class InboxService {
             [cv.campaign_lead_id],
           )
         : null;
+      const notes = await c.query<{
+        id: string;
+        body: string;
+        created_at: Date;
+        author_name: string | null;
+      }>(
+        `SELECT n.id, n.body, n.created_at, u.name AS author_name
+         FROM conversation_notes n LEFT JOIN users u ON u.id = n.author_user_id
+         WHERE n.conversation_id = $1 ORDER BY n.created_at`,
+        [id],
+      );
 
       return {
         ...cv,
         thread,
+        notes: notes.rows,
         lead: lead.rows[0] ?? null,
         tags: tags.rows,
         enrollment: enrollment?.rows[0] ?? null,
@@ -444,11 +506,108 @@ export class InboxService {
     });
   }
 
-  update(
+  // Internal team note (never sent to the lead).
+  addNote(orgId: string, userId: string, id: string, body: string) {
+    return withOrgContext(this.pool, orgId, async (c) => {
+      const conv = await c.query(`SELECT 1 FROM conversations WHERE id = $1`, [
+        id,
+      ]);
+      if (conv.rowCount === 0) {
+        throw new NotFoundException('Conversation not found');
+      }
+      const r = await c.query<{ id: string; body: string; created_at: Date }>(
+        `INSERT INTO conversation_notes (org_id, conversation_id, author_user_id, body)
+         VALUES ($1,$2,$3,$4) RETURNING id, body, created_at`,
+        [orgId, id, userId, body.trim()],
+      );
+      return r.rows[0];
+    });
+  }
+
+  async update(
     orgId: string,
     id: string,
-    patch: { unread?: boolean; status?: string; classification?: string },
+    patch: ConversationPatch,
+    actorUserId?: string,
   ) {
+    // Assignment + conversion have side effects; handle them in one tx first.
+    if (patch.assignedUserId !== undefined || patch.converted !== undefined) {
+      await withOrgContext(this.pool, orgId, async (c) => {
+        const conv = await c.query<{
+          lead_id: string;
+          campaign_lead_id: string | null;
+          subject: string;
+        }>(
+          `SELECT lead_id, campaign_lead_id, subject FROM conversations WHERE id = $1`,
+          [id],
+        );
+        if (conv.rowCount === 0) {
+          throw new NotFoundException('Conversation not found');
+        }
+        const cv = conv.rows[0];
+
+        if (patch.assignedUserId !== undefined) {
+          if (patch.assignedUserId) {
+            // membership rows are RLS-scoped, so this proves same-org
+            const m = await c.query(
+              `SELECT 1 FROM memberships WHERE user_id = $1`,
+              [patch.assignedUserId],
+            );
+            if (m.rowCount === 0) {
+              throw new BadRequestException('Assignee is not a member');
+            }
+          }
+          await c.query(
+            `UPDATE conversations SET assigned_user_id = $2 WHERE id = $1`,
+            [id, patch.assignedUserId],
+          );
+          if (patch.assignedUserId && patch.assignedUserId !== actorUserId) {
+            await this.notifications.notifyUser(
+              c,
+              orgId,
+              patch.assignedUserId,
+              {
+                type: 'assigned',
+                title: 'A conversation was assigned to you',
+                body: cv.subject,
+                link: `/inbox?c=${id}`,
+              },
+            );
+          }
+        }
+
+        if (patch.converted !== undefined) {
+          await c.query(
+            `UPDATE conversations SET converted_at = CASE WHEN $2 THEN now() ELSE NULL END
+             WHERE id = $1`,
+            [id, patch.converted],
+          );
+          if (patch.converted) {
+            await c.query(
+              `UPDATE leads SET status = 'converted', updated_at = now() WHERE id = $1`,
+              [cv.lead_id],
+            );
+            if (cv.campaign_lead_id) {
+              await c.query(
+                `UPDATE campaign_leads SET status = 'stopped', stop_reason = 'converted',
+                   next_send_at = NULL, updated_at = now()
+                 WHERE id = $1 AND status = 'active'`,
+                [cv.campaign_lead_id],
+              );
+            }
+            await c.query(
+              `INSERT INTO lead_events (org_id, lead_id, type, data)
+               VALUES ($1,$2,'converted',$3::jsonb)`,
+              [orgId, cv.lead_id, JSON.stringify({ conversation_id: id })],
+            );
+          }
+        }
+      });
+    }
+    return this.updateFields(orgId, id, patch);
+  }
+
+  private updateFields(orgId: string, id: string, patch: ConversationPatch) {
     const sets: string[] = [];
     const params: unknown[] = [];
     const add = (col: string, v: unknown) => {
@@ -479,8 +638,11 @@ export class InboxService {
         unread: boolean;
         classification: string | null;
         confidence: number | null;
+        assigned_user_id: string | null;
+        converted_at: Date | null;
       }>(
-        `SELECT id, status, unread, classification, confidence
+        `SELECT id, status, unread, classification, confidence,
+           assigned_user_id, converted_at
          FROM conversations WHERE id = $1`,
         [id],
       );

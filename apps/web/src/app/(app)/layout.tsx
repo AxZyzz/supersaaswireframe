@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/sidebar";
+import { NotificationBell } from "@/components/notification-bell";
 import { api, getAccessToken } from "@/lib/api";
 
 interface Me {
@@ -66,6 +67,7 @@ export default function AppLayout({
         <header className="flex h-12 shrink-0 items-center justify-between border-b border-line bg-white px-5">
           <h1 className="text-base font-semibold text-ink2">{title}</h1>
           <div className="flex items-center gap-3">
+            <NotificationBell />
             <span className="rounded-full bg-accent-soft px-2 py-0.5 text-micro font-medium capitalize text-accent">
               {me.role}
             </span>

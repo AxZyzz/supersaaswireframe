@@ -53,7 +53,10 @@ export interface ConversationDetail {
   confidence: number | null;
   campaign_name: string | null;
   sender_email: string | null;
+  assigned_user_id: string | null;
+  converted_at: string | null;
   thread: ThreadMessage[];
+  notes: { id: string; body: string; created_at: string; author_name: string | null }[];
   lead: {
     id: string;
     email: string;
@@ -90,10 +93,15 @@ export const listConversations = (p: {
 export const getConversation = (id: string) =>
   api<ConversationDetail>(`/inbox/${id}`);
 
-export const updateConversation = (
-  id: string,
-  body: Partial<{ unread: boolean; status: "open" | "closed"; classification: ReplyClass }>,
-) =>
+export type ConversationPatch = Partial<{
+  unread: boolean;
+  status: "open" | "closed";
+  classification: ReplyClass;
+  assignedUserId: string | null;
+  converted: boolean;
+}>;
+
+export const updateConversation = (id: string, body: ConversationPatch) =>
   api<{ id: string }>(`/inbox/${id}`, {
     method: "PATCH",
     body: JSON.stringify(body),
@@ -110,3 +118,19 @@ export const simulateReply = (body: {
     "/inbox/simulate-reply",
     { method: "POST", body: JSON.stringify(body) },
   );
+
+export const addNote = (id: string, body: string) =>
+  api<{ id: string }>(`/inbox/${id}/notes`, {
+    method: "POST",
+    body: JSON.stringify({ body }),
+  });
+
+export interface Member {
+  user_id: string;
+  role: string;
+  name: string;
+  email: string;
+}
+
+// Admin/manager only — agents get a 403, in which case assignment is hidden.
+export const listMembers = () => api<Member[]>("/orgs/members");
