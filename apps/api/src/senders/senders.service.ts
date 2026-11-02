@@ -13,6 +13,7 @@ import {
   ProviderResolver,
 } from './providers/provider.resolver';
 import type { CreateSenderDto, UpdateSenderDto } from './sender.dto';
+import { UsageService } from '../usage/usage.service';
 
 const COLS = `id, provider, from_name, from_email, reply_to, signature,
   daily_limit, send_window_start, send_window_end, status, created_at, updated_at`;
@@ -50,6 +51,7 @@ export class SendersService {
     @Inject(PG_POOL) private readonly pool: Pool,
     private readonly crypto: CryptoService,
     private readonly resolver: ProviderResolver,
+    private readonly usage: UsageService,
   ) {}
 
   list(orgId: string) {
@@ -76,6 +78,7 @@ export class SendersService {
       ? JSON.stringify(config)
       : null;
     return withOrgContext(this.pool, orgId, async (c) => {
+      await this.usage.assertCanAdd(c, orgId, 'senders');
       try {
         const res = await c.query<SenderRow>(
           `INSERT INTO sender_accounts

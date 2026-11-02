@@ -31,6 +31,8 @@ export const orgs = pgTable('orgs', {
   brandColor: text('brand_color'),
   logoData: text('logo_data'),
   onboardedAt: timestamp('onboarded_at', { withTimezone: true }),
+  // Usage plan; limits per plan live in src/usage/plan-limits.ts.
+  plan: text('plan').notNull().default('beta'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),

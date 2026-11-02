@@ -15,6 +15,7 @@ import type { Role } from '../auth/types';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { NotificationsService } from '../notifications/notifications.service';
+import { LimitReachedException, UsageService } from '../usage/usage.service';
 
 const INVITE_TTL_DAYS = 7;
 const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
@@ -62,6 +63,7 @@ export class TeamService {
     private readonly auth: AuthService,
     private readonly memberships: MembershipCache,
     private readonly notifications: NotificationsService,
+    private readonly usage: UsageService,
   ) {}
 
   // ── Members ────────────────────────────────────────────────────────────
@@ -157,11 +159,12 @@ export class TeamService {
       if (member.rowCount) {
         throw new ConflictException('Already a member of this workspace');
       }
-      // re-inviting replaces the old pending link
+      // re-inviting replaces the old pending link (freeing its seat first)
       await c.query(
         `DELETE FROM invites WHERE lower(email) = $1 AND accepted_at IS NULL`,
         [normalized],
       );
+      await this.usage.assertCanAdd(c, orgId, 'members');
       const r = await c.query<InviteRow>(
         `INSERT INTO invites (org_id, email, role, token_hash, invited_by, expires_at)
          VALUES ($1, $2, $3, $4, $5, now() + make_interval(days => $6))
@@ -269,6 +272,17 @@ export class TeamService {
       );
       if (!r.rows[0]) throw new NotFoundException('Invite not found');
       this.assertUsable({ ...inv, ...r.rows[0] });
+      // The pending invite already holds a seat, so joining is seat-neutral —
+      // unless the plan shrank meanwhile; then members alone must fit.
+      const limit = (await this.usage.limits(c, inv.org_id)).members;
+      if (limit !== null) {
+        const m = await c.query<{ n: number }>(
+          `SELECT count(*)::int AS n FROM memberships`,
+        );
+        if (m.rows[0].n >= limit) {
+          throw new LimitReachedException('members', limit);
+        }
+      }
       // tell the existing team — before the insert, so the newcomer isn't
       // notified about themselves
       await this.notifications.notifyOrg(c, inv.org_id, {

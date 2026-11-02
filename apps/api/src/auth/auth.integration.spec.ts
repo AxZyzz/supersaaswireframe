@@ -108,7 +108,24 @@ describe('Auth integration', () => {
     const rotated = first.body.refreshToken;
     expect(rotated).not.toBe(refreshToken);
 
-    // Reusing the OLD (rotated-out) token must fail and revoke the family.
+    // Re-presenting it seconds later (parallel requests / two tabs racing)
+    // is refused but NOT treated as theft — the rotated token keeps working.
+    await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .send({ refreshToken })
+      .expect(401);
+    const again = await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .send({ refreshToken: rotated })
+      .expect(200);
+    const newest = again.body.refreshToken;
+
+    // Replaying a token rotated out long ago IS theft: the family is revoked.
+    await pool.query(
+      `UPDATE refresh_tokens SET revoked_at = now() - interval '5 minutes'
+       WHERE user_id = $1 AND revoked_at IS NOT NULL`,
+      [userId],
+    );
     await request(app.getHttpServer())
       .post('/auth/refresh')
       .send({ refreshToken })
@@ -117,7 +134,7 @@ describe('Auth integration', () => {
     // Family revoked → even the newest token is now dead.
     await request(app.getHttpServer())
       .post('/auth/refresh')
-      .send({ refreshToken: rotated })
+      .send({ refreshToken: newest })
       .expect(401);
 
     // Fresh login recovers.

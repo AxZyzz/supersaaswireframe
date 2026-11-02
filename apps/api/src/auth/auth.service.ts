@@ -22,6 +22,9 @@ import type {
 
 const BCRYPT_ROUNDS = 12;
 const REFRESH_TTL_DAYS = 30;
+// Window in which re-presenting a just-rotated refresh token is treated as a
+// concurrent-refresh race rather than token theft.
+const REUSE_GRACE_MS = 30_000;
 // Valid real hash so unknown-email logins burn a full cost-12 compare —
 // a malformed fallback would short-circuit and leak email existence via timing.
 const DUMMY_HASH = bcrypt.hashSync('supersaas-timing-dummy', BCRYPT_ROUNDS);
@@ -201,8 +204,14 @@ export class AuthService {
       row.expires_at.getTime() > Date.now() &&
       row.token_hash === this.hashToken(rawToken);
     if (!valid) {
-      // Reuse of a rotated/revoked token → revoke the whole family for safety.
-      if (row) {
+      // A token rotated seconds ago is a benign race (two tabs, or parallel
+      // requests refreshing at once): reject it, but don't treat it as theft.
+      const justRotated =
+        row?.revoked_at &&
+        Date.now() - row.revoked_at.getTime() < REUSE_GRACE_MS &&
+        row.token_hash === this.hashToken(rawToken);
+      // Otherwise reuse of a rotated/revoked token → revoke the whole family.
+      if (row && !justRotated) {
         await this.pool.query(
           `UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`,
           [row.user_id],

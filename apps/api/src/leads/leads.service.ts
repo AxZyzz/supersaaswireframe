@@ -2,6 +2,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, PoolClient } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { UsageService } from '../usage/usage.service';
 import type {
   CreateLeadDto,
   CreateNoteDto,
@@ -55,7 +56,10 @@ const SORT_COLUMN: Record<string, string> = {
 
 @Injectable()
 export class LeadsService {
-  constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
+  constructor(
+    @Inject(PG_POOL) private readonly pool: Pool,
+    private readonly usage: UsageService,
+  ) {}
 
   private run<T>(orgId: string, fn: (c: PoolClient) => Promise<T>) {
     return withOrgContext(this.pool, orgId, fn);
@@ -149,6 +153,7 @@ export class LeadsService {
 
   async create(orgId: string, dto: CreateLeadDto) {
     return this.run(orgId, async (c) => {
+      await this.usage.assertCanAdd(c, orgId, 'leads');
       const res = await c.query<LeadRow>(
         `INSERT INTO leads
            (org_id, email, first_name, last_name, company, title, phone,
@@ -221,6 +226,7 @@ export class LeadsService {
           return { lead: res.rows[0], created: false };
         }
       }
+      await this.usage.assertCanAdd(c, orgId, 'leads');
       const res = await c.query<LeadRow>(
         `INSERT INTO leads
            (org_id, email, first_name, last_name, company, title, phone, status, score, source)

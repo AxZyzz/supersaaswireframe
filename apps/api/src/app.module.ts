@@ -18,6 +18,7 @@ import { CAMPAIGN_SEND_QUEUE, QueueModule } from './queue/queue.module';
 import { SendersModule } from './senders/senders.module';
 import { SendingModule } from './sending/sending.module';
 import { TemplatesModule } from './templates/templates.module';
+import { UsageModule } from './usage/usage.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { TemplatesModule } from './templates/templates.module';
     DbModule,
     CryptoModule,
     QueueModule,
+    UsageModule,
     // readiness probe pings Redis through this queue's connection
     BullModule.registerQueue({ name: CAMPAIGN_SEND_QUEUE }),
     AuthModule,

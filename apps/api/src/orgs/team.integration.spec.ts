@@ -66,6 +66,11 @@ describe('Team integration', () => {
     admin = a.accessToken;
     orgId = a.org.id;
     adminId = a.user.id;
+    // this suite needs more seats than the beta plan's 3 (limits have their
+    // own suite in usage.integration.spec)
+    await withOrgContext(pool, orgId, (c) =>
+      c.query(`UPDATE orgs SET plan = 'internal' WHERE id = $1`, [orgId]),
+    );
   });
 
   afterAll(async () => {

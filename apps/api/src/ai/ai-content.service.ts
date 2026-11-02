@@ -14,6 +14,7 @@ import type {
   UpsertKnowledgeDto,
 } from './ai.dto';
 import { OrgKnowledge, sequencePrompt } from './prompts';
+import { UsageService } from '../usage/usage.service';
 
 const KB_COLS = `description, audience, offer, pain_points AS "painPoints",
   usps, competitors, testimonials`;
@@ -31,6 +32,7 @@ export class AiContentService {
   constructor(
     @Inject(PG_POOL) private readonly pool: Pool,
     private readonly ai: AiService,
+    private readonly usage: UsageService,
   ) {}
 
   // ── Knowledge base (T6.2) ────────────────────────────────────────────
@@ -89,6 +91,11 @@ export class AiContentService {
     model: string;
     usage: { inputTokens: number; outputTokens: number };
   }> {
+    // Checked before the (paid, slow) model call. Concurrent requests can
+    // overshoot by a call or two; usage is logged after each generation.
+    await withOrgContext(this.pool, orgId, (c) =>
+      this.usage.assertCanAdd(c, orgId, 'aiGenerationsPerMonth'),
+    );
     const kb = await this.getKnowledge(orgId);
     const opts = sequencePrompt({ ...dto, kb });
     const result = await this.ai.generate(orgId, 'sequence-gen', opts);
@@ -136,6 +143,7 @@ export class AiContentService {
       if (seg.rowCount === 0) throw new BadRequestException('Unknown segment');
     }
     return withOrgContext(this.pool, orgId, async (c) => {
+      await this.usage.assertSteps(c, orgId, dto.steps.length);
       const camp = await c.query<{ id: string; name: string; status: string }>(
         `INSERT INTO campaigns (org_id, name, segment_id, status)
          VALUES ($1, $2, $3, 'draft')

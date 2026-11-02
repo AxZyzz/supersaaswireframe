@@ -7,6 +7,7 @@ import { withOrgContext } from '../db/tenant-context';
 import { SendersService } from '../senders/senders.service';
 import { varsFromLead } from '../templates/render';
 import { buildEmail } from './send-render';
+import { UsageService } from '../usage/usage.service';
 
 type Outcome =
   'sent' | 'failed' | 'skipped' | 'deferred' | 'completed' | 'suppressed';
@@ -36,6 +37,7 @@ export class SendService {
     @Inject(PG_POOL) private readonly pool: Pool,
     private readonly senders: SendersService,
     private readonly config: ConfigService,
+    private readonly usage: UsageService,
   ) {}
 
   private get baseUrl(): string {
@@ -259,6 +261,12 @@ export class SendService {
           await this.advance(c, cl.id, cl.current_step + 1, steps);
           return { outcome: 'skipped' as Outcome };
         }
+      }
+
+      // Plan email caps (per day / per month): defer, don't drop — the lead
+      // stays due and goes out once the window resets.
+      if (await this.usage.emailCapReached(c, orgId)) {
+        return { outcome: 'deferred' as Outcome };
       }
 
       // Choose a sender: eligible = campaign's sender_ids (or all org senders),

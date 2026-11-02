@@ -2,6 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Pool } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { RESOURCE_LABELS } from '../usage/plan-limits';
+import { UsageService } from '../usage/usage.service';
 
 // Org-wide analytics, computed live from the E2/E4/E5 tables (leads, campaigns,
 // sent_emails, email_events, lead_events). Beta data volumes are small, so
@@ -27,7 +29,7 @@ export interface Overview {
   }[];
   // Actionable warnings surfaced on the dashboard.
   alerts: {
-    kind: 'sender_unverified' | 'sender_near_limit';
+    kind: 'sender_unverified' | 'sender_near_limit' | 'usage_near_limit';
     message: string;
   }[];
 }
@@ -45,7 +47,10 @@ export interface CampaignAnalyticsRow {
 
 @Injectable()
 export class AnalyticsService {
-  constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
+  constructor(
+    @Inject(PG_POOL) private readonly pool: Pool,
+    private readonly usage: UsageService,
+  ) {}
 
   overview(orgId: string): Promise<Overview> {
     return withOrgContext(this.pool, orgId, async (c) => {
@@ -117,6 +122,28 @@ export class AnalyticsService {
           alerts.push({
             kind: 'sender_near_limit',
             message: `${s.from_email} near daily limit (${s.sent_today}/${s.daily_limit})`,
+          });
+        }
+      }
+
+      // Plan limits at 80%+ — warn before something gets blocked or deferred.
+      const limits = await this.usage.limits(c, orgId);
+      for (const key of [
+        'leads',
+        'activeCampaigns',
+        'senders',
+        'members',
+        'emailsPerDay',
+        'emailsPerMonth',
+        'aiGenerationsPerMonth',
+      ] as const) {
+        const limit = limits[key];
+        if (limit === null) continue;
+        const used = await this.usage.count(c, key);
+        if (used >= limit * 0.8) {
+          alerts.push({
+            kind: 'usage_near_limit',
+            message: `${used >= limit ? 'At' : 'Near'} plan limit: ${used.toLocaleString('en-US')}/${limit.toLocaleString('en-US')} ${RESOURCE_LABELS[key]}`,
           });
         }
       }

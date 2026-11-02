@@ -59,7 +59,19 @@ async function rawRequest(
   return fetch(`${API_URL}${path}`, { ...init, headers });
 }
 
-async function tryRefresh(): Promise<boolean> {
+// Refresh tokens rotate on use, and presenting an already-rotated one looks
+// like theft to the server. So concurrent 401s share ONE in-flight refresh
+// instead of each spending the same token.
+let refreshing: Promise<boolean> | null = null;
+
+function tryRefresh(): Promise<boolean> {
+  refreshing ??= doRefresh().finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
+}
+
+async function doRefresh(): Promise<boolean> {
   const refresh =
     typeof window === "undefined" ? null : localStorage.getItem(REFRESH_KEY);
   if (!refresh) return false;
@@ -68,6 +80,8 @@ async function tryRefresh(): Promise<boolean> {
     body: JSON.stringify({ refreshToken: refresh }),
   });
   if (!res.ok) {
+    // Another tab (same localStorage) may have rotated it first — use theirs.
+    if (localStorage.getItem(REFRESH_KEY) !== refresh) return true;
     clearTokens();
     return false;
   }

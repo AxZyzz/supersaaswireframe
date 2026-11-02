@@ -7,6 +7,7 @@ import {
 import { Pool, PoolClient } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { UsageService } from '../usage/usage.service';
 import type {
   CreateCampaignDto,
   CreateStepDto,
@@ -45,7 +46,10 @@ export interface StepRow {
 
 @Injectable()
 export class CampaignsService {
-  constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
+  constructor(
+    @Inject(PG_POOL) private readonly pool: Pool,
+    private readonly usage: UsageService,
+  ) {}
 
   private run<T>(orgId: string, fn: (c: PoolClient) => Promise<T>) {
     return withOrgContext(this.pool, orgId, fn);
@@ -219,6 +223,9 @@ export class CampaignsService {
           `Cannot ${to === 'active' ? 'resume' : to} a ${cur.rows[0].status} campaign`,
         );
       }
+      if (to === 'active') {
+        await this.usage.assertCanAdd(c, orgId, 'activeCampaigns');
+      }
       const res = await c.query<CampaignRow>(
         `UPDATE campaigns SET status = $2::campaign_status, updated_at = now()
          WHERE id = $1 RETURNING ${CAMPAIGN_COLS}`,
@@ -256,6 +263,9 @@ export class CampaignsService {
         throw new NotFoundException('Campaign not found');
       if (camp.rows[0].status === 'archived') {
         throw new BadRequestException('Campaign is archived');
+      }
+      if (!['active', 'scheduled'].includes(camp.rows[0].status)) {
+        await this.usage.assertCanAdd(c, orgId, 'activeCampaigns');
       }
       const first = await c.query<{ delay_hours: number }>(
         `SELECT delay_hours FROM campaign_steps WHERE campaign_id = $1
@@ -301,6 +311,11 @@ export class CampaignsService {
       ]);
       if (camp.rowCount === 0)
         throw new NotFoundException('Campaign not found');
+      const steps = await c.query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM campaign_steps WHERE campaign_id = $1`,
+        [campaignId],
+      );
+      await this.usage.assertSteps(c, orgId, steps.rows[0].n + 1);
       const next = await c.query<{ next: number }>(
         `SELECT COALESCE(max(step_order) + 1, 0) AS next
          FROM campaign_steps WHERE campaign_id = $1`,
@@ -481,6 +496,9 @@ export class CampaignsService {
         throw new NotFoundException('Campaign not found');
       if (camp.rows[0].status === 'archived') {
         throw new BadRequestException('Campaign is archived');
+      }
+      if (!['active', 'scheduled'].includes(camp.rows[0].status)) {
+        await this.usage.assertCanAdd(c, orgId, 'activeCampaigns');
       }
       const first = await c.query<{ delay_hours: number }>(
         `SELECT delay_hours FROM campaign_steps WHERE campaign_id = $1

@@ -183,6 +183,21 @@ Reclassify anything with one click. Assign conversations to teammates, leave int
 Role changes and removals apply immediately. A workspace always keeps at least one admin.`,
   },
   {
+    slug: "plan-limits",
+    section: "Workspace",
+    title: "Plan limits",
+    summary: "What the free beta includes and what happens at a limit.",
+    body: `Every workspace is on a plan. During the public beta that's free, with fair-use limits: 2,000 leads, 5 active (or scheduled) campaigns, 5 steps per campaign, 3 sender accounts, 3 team members, 100 emails a day and 1,000 a month, and 30 AI sequence generations a month.
+
+See live usage in Settings → **Plan & usage**. The dashboard warns you at 80%.
+
+## At a limit
+- Creating more of that thing is blocked with a clear message — nothing existing is changed.
+- **CSV imports** add rows until the lead limit, then report the rest as skipped.
+- **Pending invites** count as seats until accepted, revoked or expired.
+- **Emails** over the daily or monthly cap are not dropped: they wait and go out once the cap resets (daily at midnight UTC, monthly on the 1st).`,
+  },
+  {
     slug: "branding",
     section: "Workspace",
     title: "Branding",

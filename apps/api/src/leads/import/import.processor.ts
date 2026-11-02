@@ -3,6 +3,7 @@ import { Inject, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import Papa from 'papaparse';
 import { Pool, PoolClient } from 'pg';
+import { UsageService } from '../../usage/usage.service';
 import { PG_POOL } from '../../db/db.module';
 import { withOrgContext } from '../../db/tenant-context';
 import { LEAD_IMPORT_QUEUE } from '../../queue/queue.module';
@@ -20,7 +21,10 @@ interface RowError {
 export class ImportProcessor extends WorkerHost {
   private readonly logger = new Logger(ImportProcessor.name);
 
-  constructor(@Inject(PG_POOL) private readonly pool: Pool) {
+  constructor(
+    @Inject(PG_POOL) private readonly pool: Pool,
+    private readonly usage: UsageService,
+  ) {
     super();
   }
 
@@ -72,6 +76,8 @@ export class ImportProcessor extends WorkerHost {
         `UPDATE import_jobs SET status = 'processing', total = $2 WHERE id = $1`,
         [jobId, rows.length],
       );
+      // New leads draw down the plan's lead budget; updates are free.
+      const budget = { left: await this.usage.remaining(c, orgId, 'leads') };
 
       for (let i = 0; i < rows.length; i++) {
         const src = rows[i];
@@ -92,11 +98,25 @@ export class ImportProcessor extends WorkerHost {
 
         await c.query('SAVEPOINT row_sp');
         try {
-          const outcome = await this.upsertRow(c, orgId, lead, onDuplicate);
+          const outcome = await this.upsertRow(
+            c,
+            orgId,
+            lead,
+            onDuplicate,
+            budget,
+          );
           await c.query('RELEASE SAVEPOINT row_sp');
           if (outcome === 'imported') imported++;
           else if (outcome === 'updated') updated++;
-          else skipped++;
+          else {
+            skipped++;
+            if (outcome === 'limit') {
+              errors.push({
+                row: i + 2,
+                reason: 'Lead limit reached for your plan',
+              });
+            }
+          }
         } catch (err) {
           await c.query('ROLLBACK TO SAVEPOINT row_sp');
           skipped++;
@@ -128,7 +148,8 @@ export class ImportProcessor extends WorkerHost {
     orgId: string,
     lead: Record<string, string | null>,
     onDuplicate: 'skip' | 'update',
-  ): Promise<'imported' | 'updated' | 'skipped'> {
+    budget: { left: number },
+  ): Promise<'imported' | 'updated' | 'skipped' | 'limit'> {
     if (lead.email) {
       const existing = await c.query<{ id: string }>(
         `SELECT id FROM leads WHERE lower(email) = lower($1) LIMIT 1`,
@@ -166,6 +187,8 @@ export class ImportProcessor extends WorkerHost {
       }
     }
 
+    if (budget.left <= 0) return 'limit';
+    budget.left--;
     const res = await c.query<{ id: string }>(
       `INSERT INTO leads
          (org_id, email, first_name, last_name, company, title, phone, status, score, source)
