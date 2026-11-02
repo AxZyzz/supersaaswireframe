@@ -1,16 +1,18 @@
 # Account Setup — click-by-click (Aman)
 
-Three external services power sending + AI. Do them **in this order** (SES has a
-2-week approval wait, so file it first). As you finish each, open `.env` in the
+Two accounts power everything still gated: **AWS** (SES sending + bounces +
+inbound replies, Bedrock for Claude, optional S3) and **Google Cloud** (Gmail +
+Sheets). Do AWS first — SES production access has a ~2-week wait. As you finish each, open `.env` in the
 repo root and paste the value next to its `TODO`, then restart the API.
 
 > Claude cannot log into these consoles for you (they're your accounts +
 > credentials). You click through; you paste keys into `.env` (NOT into chat —
 > keep secrets out of chat). Then Claude wires the code.
 
-What Claude needs in `.env` when you're done:
-`ANTHROPIC_API_KEY`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `SES_FROM_DOMAIN`,
-`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+What Claude needs in `.env` when you're done (updated 2026-11-02):
+`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `SES_FROM_DOMAIN`,
+`AI_DRIVER=bedrock`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (+ optional `S3_BUCKET`).
+**No Anthropic console key** — Claude runs through AWS Bedrock on the same AWS keys.
 
 ---
 
@@ -26,8 +28,9 @@ What Claude needs in `.env` when you're done:
 
 ### 1b. IAM user for the app (so we don't use root keys)
 1. IAM → **Users** → **Create user** → name `supersaas-app` → Next.
-2. **Attach policies directly** → for now check **AmazonSESFullAccess**
-   (we'll tighten later) → Create user.
+2. **Attach policies directly** → for now check **AmazonSESFullAccess**,
+   **AmazonSNSFullAccess** and **AmazonBedrockFullAccess** (+ **AmazonS3FullAccess**
+   if you want S3) — we tighten to least-privilege before launch → Create user.
 3. Open the user → **Security credentials** tab → **Create access key** →
    use case **Application running outside AWS** → Create.
 4. You'll see **Access key** and **Secret access key** ONCE. Paste both into
@@ -95,26 +98,55 @@ importing/syncing leads from Google Sheets.
 
 ---
 
-## §3 — Anthropic API key (AI features) ✅ instant
+## §3 — Claude via AWS Bedrock (AI features) ✅ same-day
 
-**Why:** powers the AI campaign builder, reply classification, reply drafting.
+**Why:** real AI for the sequence builder and reply classification (today it runs
+on a deterministic mock). Uses the AWS keys from §1 — nothing new to paste except
+one switch.
 
-1. Go to https://console.anthropic.com → sign in (A2B account) → add billing.
-2. **Settings → Limits** → set a monthly **spend cap** (~$200 for V1).
-3. **API Keys → Create Key** → name `supersaas` → copy it.
-4. Paste into `.env`: `ANTHROPIC_API_KEY=sk-ant-...`
+1. AWS console → region **us-east-1** → search **Amazon Bedrock**.
+2. **Model access** (left nav) → **Modify model access** → tick the Anthropic
+   models: **Claude Haiku 4.5**, **Claude Sonnet 5**, **Claude Opus 5** → fill
+   the short Anthropic use-case form → Submit. Usually granted within minutes.
+3. **Billing → Budgets** → create a monthly cost budget with an email alert
+   (~$200 for V1) so AI spend can't run away.
+4. In `.env`: `AI_DRIVER=bedrock` (model IDs are already preset in `.env.example`).
+
+## §4 — Reply ingestion + bounces (after §1 is verified)
+
+**Why:** replies landing in the inbox automatically, and bounces/complaints
+feeding the suppression list. Claude can't wire these until SES is verified.
+
+- **Inbound replies (SES):** add an **MX record** for a reply subdomain (e.g.
+  `reply.yourdomain.com` → `inbound-smtp.us-east-1.amazonaws.com`). Claude then
+  creates the SES receipt rule → SNS topic → webhook config with you.
+- **Bounces/complaints:** nothing extra to click — Claude sets up the SNS topic
+  subscriptions once the keys are in.
+- **Gmail senders' replies:** come from the same Google setup in §2, but need the
+  `gmail.readonly` scope, which Google treats as *restricted* (security
+  assessment). Plan on SES-based reply handling first.
+
+## §5 — Production launch (E10, not needed yet)
+
+- **Hosting (decision D-C):** API + worker host, managed Postgres 16, Redis.
+  Web is already on Vercel.
+- **Product name + domain (decision D-A):** needed for DNS, SES domain and
+  public pages (`apps/web/src/lib/marketing.ts` holds the name).
+- **Sentry** (free tier): one DSN for error monitoring (T10.5).
+- **Stripe:** not in V1 — beta is free.
 
 ---
 
 ## When each is done, tell Claude
 
-- **Anthropic key in** → Claude builds the AI layer (E6): AI campaign builder,
-  reply classification.
+- **Bedrock model access granted** → Claude flips AI to real Claude and tunes
+  prompts against live output (the E6 code is already built on a mock).
 - **Google client id/secret in** → Claude wires Gmail sender (T3.3) + Sheets
   sync (T2.8).
-- **AWS keys + domain verified** → Claude wires the SES sender (T3.2) and, once
-  production access is granted, the real sending engine (E5).
+- **AWS keys + domain verified** → Claude wires the SES sender (T3.2), SNS
+  bounces, and inbound reply ingestion (§4). Production access unblocks real
+  beta sending (the send engine itself is built and tested).
 
-You don't have to wait for all three — hand Claude whichever lands first and it
+You don't have to wait for all of them — hand Claude whichever lands first and it
 wires that piece. **Docker Desktop** must be running for local dev (fixed via
 `wsl --update`; if it ever crashes again, same rename-run-dir trick).
