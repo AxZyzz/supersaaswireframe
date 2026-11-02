@@ -5,6 +5,15 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api, ApiError, setTokens } from "@/lib/api";
 
+/** Same-origin path from ?next= (e.g. back to an invite link). Anything that
+ *  could leave the site (//host, /\host, absolute URLs) falls back. */
+function safeNext(): string {
+  const next = new URLSearchParams(window.location.search).get("next");
+  return next && next.startsWith("/") && !/^\/[/\\]/.test(next)
+    ? next
+    : "/dashboard";
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -22,7 +31,7 @@ export default function LoginPage() {
         { method: "POST", body: JSON.stringify({ email, password }) },
       );
       setTokens(res.accessToken, res.refreshToken);
-      router.replace("/dashboard");
+      router.replace(safeNext());
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 401

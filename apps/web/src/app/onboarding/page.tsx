@@ -11,7 +11,7 @@ import {
   Send,
   XCircle,
 } from "lucide-react";
-import { api, getAccessToken } from "@/lib/api";
+import { api, errorMessage, getAccessToken } from "@/lib/api";
 import { getKnowledge, OrgKnowledge, saveKnowledge } from "@/lib/ai";
 import { applyBrand } from "@/lib/branding";
 import {
@@ -211,7 +211,7 @@ function WorkspaceStep({ org, onSaved }: { org: Org; onSaved: (o: Org) => void }
     try {
       onSaved(await updateOrg(d));
     } catch (e) {
-      setErr((e as Error).message);
+      setErr(errorMessage(e));
       setBusy(false);
     }
   }
@@ -400,7 +400,7 @@ function DomainStep() {
     try {
       setRes(await dnsCheck(domain.trim()));
     } catch (e) {
-      setErr((e as Error).message);
+      setErr(errorMessage(e));
     } finally {
       setBusy(false);
     }

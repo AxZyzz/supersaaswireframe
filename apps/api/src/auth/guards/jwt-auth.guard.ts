@@ -8,6 +8,7 @@ import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { MembershipCache } from '../membership-cache.service';
 import type { AccessTokenPayload, AuthUser } from '../types';
 
 @Injectable()
@@ -15,6 +16,7 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwt: JwtService,
     private readonly reflector: Reflector,
+    private readonly memberships: MembershipCache,
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
@@ -39,10 +41,17 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Wrong token type');
     }
 
+    // The token's role is a snapshot; authorize on the live membership so
+    // removals and role changes take effect without waiting for expiry.
+    const role = await this.memberships.role(payload.sub, payload.orgId);
+    if (!role) {
+      throw new UnauthorizedException('No longer a member of this workspace');
+    }
+
     req.user = {
       userId: payload.sub,
       orgId: payload.orgId,
-      role: payload.role,
+      role,
     };
     return true;
   }

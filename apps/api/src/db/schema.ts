@@ -84,6 +84,36 @@ export const memberships = pgTable(
   ],
 );
 
+// Team invites (E9). Link carries a random token; only its sha256 is stored.
+// One pending invite per (org, lower(email)) — see 0031 partial index.
+export const invites = pgTable(
+  'invites',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    role: roleEnum('role').notNull().default('agent'),
+    tokenHash: text('token_hash').notNull(),
+    invitedBy: uuid('invited_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    acceptedBy: uuid('accepted_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('invites_token_hash_idx').on(t.tokenHash),
+    index('invites_org_idx').on(t.orgId),
+  ],
+);
+
 export const refreshTokens = pgTable(
   'refresh_tokens',
   {

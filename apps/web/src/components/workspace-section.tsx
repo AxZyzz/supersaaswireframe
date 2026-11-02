@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Building2, Check, ImagePlus, Palette, RotateCcw } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, errorMessage } from "@/lib/api";
 import { applyBrand, DEFAULT_ACCENT, logoToDataUrl } from "@/lib/branding";
 import {
   getOrg,
@@ -175,7 +175,7 @@ export function WorkspaceSection() {
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
     } catch (e) {
-      setErr((e as Error).message);
+      setErr(errorMessage(e));
     } finally {
       setSaving(false);
     }

@@ -5,6 +5,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { MembershipCache } from './membership-cache.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 
@@ -25,11 +26,12 @@ import { RolesGuard } from './guards/roles.guard';
   controllers: [AuthController],
   providers: [
     AuthService,
+    MembershipCache,
     // Order matters: throttle → authn → authz.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
-  exports: [AuthService],
+  exports: [AuthService, MembershipCache],
 })
 export class AuthModule {}

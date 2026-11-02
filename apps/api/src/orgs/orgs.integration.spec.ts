@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto';
 import { Pool } from 'pg';
 import request from 'supertest';
 import { AppModule } from '../app.module';
+import { MembershipCache } from '../auth/membership-cache.service';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 
@@ -200,6 +201,8 @@ describe('Org profile integration', () => {
         [accounts[1].userId],
       );
     });
+    // out-of-band SQL change: drop the cached live role
+    app.get(MembershipCache).invalidate(accounts[1].userId);
     const r = await pool.query<{ email: string }>(
       `SELECT email FROM users WHERE id = $1`,
       [accounts[1].userId],

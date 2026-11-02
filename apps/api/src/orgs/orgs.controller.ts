@@ -1,26 +1,27 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
-  Inject,
+  Param,
+  ParseUUIDPipe,
   Patch,
   Post,
 } from '@nestjs/common';
-import { Pool } from 'pg';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthUser } from '../auth/types';
-import { PG_POOL } from '../db/db.module';
-import { withOrgContext } from '../db/tenant-context';
 import { UpdateOrgDto } from './orgs.dto';
 import { OrgsService } from './orgs.service';
+import { ChangeRoleDto, CreateInviteDto } from './team.dto';
+import { TeamService } from './team.service';
 
 @Controller('orgs')
 export class OrgsController {
   constructor(
-    @Inject(PG_POOL) private readonly pool: Pool,
     private readonly orgs: OrgsService,
+    private readonly team: TeamService,
   ) {}
 
   @Get('me')
@@ -46,23 +47,52 @@ export class OrgsController {
     return this.orgs.completeOnboarding(user.orgId);
   }
 
+  // ── Team ───────────────────────────────────────────────────────────────
+
   @Roles('admin', 'manager')
   @Get('members')
   members(@CurrentUser() user: AuthUser) {
-    return withOrgContext(this.pool, user.orgId, async (c) => {
-      const res = await c.query<{
-        user_id: string;
-        role: string;
-        name: string;
-        email: string;
-      }>(
-        // users is a global table; membership rows are RLS-scoped to this org,
-        // so the join can only ever surface this org's members.
-        `SELECT m.user_id, m.role, u.name, u.email
-         FROM memberships m JOIN users u ON u.id = m.user_id
-         ORDER BY m.created_at`,
-      );
-      return res.rows;
-    });
+    return this.team.members(user.orgId);
+  }
+
+  @Roles('admin')
+  @Patch('members/:userId')
+  changeRole(
+    @CurrentUser() user: AuthUser,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() dto: ChangeRoleDto,
+  ) {
+    return this.team.changeRole(user.orgId, userId, dto.role);
+  }
+
+  @Roles('admin')
+  @Delete('members/:userId')
+  removeMember(
+    @CurrentUser() user: AuthUser,
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ) {
+    return this.team.removeMember(user.orgId, userId);
+  }
+
+  @Roles('admin')
+  @Get('invites')
+  invites(@CurrentUser() user: AuthUser) {
+    return this.team.invites(user.orgId);
+  }
+
+  @Roles('admin')
+  @Post('invites')
+  @HttpCode(201)
+  invite(@CurrentUser() user: AuthUser, @Body() dto: CreateInviteDto) {
+    return this.team.createInvite(user.orgId, user.userId, dto.email, dto.role);
+  }
+
+  @Roles('admin')
+  @Delete('invites/:id')
+  revokeInvite(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.team.revokeInvite(user.orgId, id);
   }
 }

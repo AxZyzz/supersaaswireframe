@@ -35,6 +35,17 @@ export class ApiError extends Error {
   }
 }
 
+/** Human-readable message from a failed call: Nest's `message` (string or
+ *  validation array) when present, else a generic fallback. */
+export function errorMessage(e: unknown, fallback = "Something went wrong."): string {
+  if (e instanceof ApiError) {
+    const m = (e.body as { message?: unknown } | null)?.message;
+    if (typeof m === "string") return m;
+    if (Array.isArray(m) && typeof m[0] === "string") return m[0];
+  }
+  return fallback;
+}
+
 async function rawRequest(
   path: string,
   init: RequestInit = {},

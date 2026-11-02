@@ -88,23 +88,7 @@ export class AuthService {
     name: string;
     orgName: string;
   }) {
-    const email = input.email.trim().toLowerCase();
-    const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
-
-    const existing = await this.pool.query(
-      `SELECT id FROM users WHERE email = $1`,
-      [email],
-    );
-    if ((existing.rowCount ?? 0) > 0) {
-      throw new ConflictException('Email already registered');
-    }
-
-    const userRes = await this.pool.query<{ id: string }>(
-      `INSERT INTO users (email, password_hash, name)
-       VALUES ($1, $2, $3) RETURNING id`,
-      [email, passwordHash, input.name.trim()],
-    );
-    const userId = userRes.rows[0].id;
+    const { id: userId, email } = await this.createUser(input);
 
     const orgId = randomUUID();
     const slug = this.slugify(input.orgName, orgId);
@@ -128,6 +112,31 @@ export class AuthService {
       org: { id: orgId, name: input.orgName.trim(), slug },
       ...tokens,
     };
+  }
+
+  /** Insert a user (no membership). Shared by signup and invite registration. */
+  async createUser(input: {
+    email: string;
+    password: string;
+    name: string;
+  }): Promise<{ id: string; email: string; name: string }> {
+    const email = input.email.trim().toLowerCase();
+    const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+
+    const existing = await this.pool.query(
+      `SELECT id FROM users WHERE email = $1`,
+      [email],
+    );
+    if ((existing.rowCount ?? 0) > 0) {
+      throw new ConflictException('Email already registered');
+    }
+
+    const userRes = await this.pool.query<{ id: string }>(
+      `INSERT INTO users (email, password_hash, name)
+       VALUES ($1, $2, $3) RETURNING id`,
+      [email, passwordHash, input.name.trim()],
+    );
+    return { id: userRes.rows[0].id, email, name: input.name.trim() };
   }
 
   async login(email: string, password: string) {
