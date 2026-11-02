@@ -87,3 +87,16 @@ export const FAQ: { q: string; a: string }[] = [
     a: "Every email carries a one-click unsubscribe link. Unsubscribed addresses go on a suppression list that is checked before every send.",
   },
 ];
+
+/**
+ * Legal pages config. `reviewed` stays false until a lawyer has signed off;
+ * while false, /privacy and /terms show a "draft" banner. Fill the company
+ * details before public launch.
+ */
+export const LEGAL = {
+  reviewed: false,
+  company: "A2B AI Technologies",
+  contactEmail: null as string | null, // e.g. privacy@<product-domain> (decision D-A)
+  postalAddress: null as string | null,
+  lastUpdated: "2 November 2026",
+};

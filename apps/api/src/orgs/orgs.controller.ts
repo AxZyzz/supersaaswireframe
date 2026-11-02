@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   Param,
   ParseUUIDPipe,
@@ -12,7 +13,7 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthUser } from '../auth/types';
-import { UpdateOrgDto } from './orgs.dto';
+import { DeleteWorkspaceDto, UpdateOrgDto } from './orgs.dto';
 import { OrgsService } from './orgs.service';
 import { ChangeRoleDto, CreateInviteDto } from './team.dto';
 import { TeamService } from './team.service';
@@ -38,6 +39,24 @@ export class OrgsController {
   @Get('me/setup')
   setup(@CurrentUser() user: AuthUser) {
     return this.orgs.setup(user.orgId);
+  }
+
+  /** GDPR export: everything the workspace holds, as a JSON download. */
+  @Roles('admin')
+  @Get('me/export')
+  @Header('Content-Disposition', 'attachment; filename="workspace-export.json"')
+  export(@CurrentUser() user: AuthUser) {
+    return this.orgs.exportData(user.orgId);
+  }
+
+  /** Permanently delete the workspace (typed-name confirmation). */
+  @Roles('admin')
+  @Delete('me')
+  deleteWorkspace(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: DeleteWorkspaceDto,
+  ) {
+    return this.orgs.deleteWorkspace(user.orgId, dto.confirmName);
   }
 
   @Roles('admin')

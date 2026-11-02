@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Trash2, UserX } from "lucide-react";
+import { canManage, useRole } from "@/lib/me";
+import { toast } from "@/components/feedback";
 import {
   addNote,
+  deleteLead,
   getLead,
   LEAD_STATUSES,
   LeadDetail,
@@ -14,6 +17,8 @@ import {
 
 export default function LeadProfilePage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const role = useRole();
   const [lead, setLead] = useState<LeadDetail | null>(null);
   const [note, setNote] = useState("");
   const [notFound, setNotFound] = useState(false);
@@ -76,7 +81,42 @@ export default function LeadProfilePage() {
         </Link>
 
         <div className="rounded-lg border border-line bg-white p-5">
-          <h1 className="text-title font-semibold text-ink2">{name}</h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-title font-semibold text-ink2">{name}</h1>
+            {canManage(role) && (
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  onClick={async () => {
+                    if (!window.confirm(`Delete ${name}?`)) return;
+                    await deleteLead(id);
+                    toast("Lead deleted.");
+                    router.replace("/leads");
+                  }}
+                  title="Delete lead"
+                  className="rounded p-1.5 text-faint hover:bg-hover hover:text-danger-text"
+                >
+                  <Trash2 size={15} />
+                </button>
+                <button
+                  onClick={async () => {
+                    if (
+                      !window.confirm(
+                        `Forget ${name}? Their data is deleted and their address is suppressed so they're never emailed again. Use this for erasure requests.`,
+                      )
+                    )
+                      return;
+                    await deleteLead(id, true);
+                    toast("Lead forgotten and suppressed.");
+                    router.replace("/leads");
+                  }}
+                  title="Forget (GDPR erasure): delete + never email again"
+                  className="flex items-center gap-1 rounded px-2 py-1 text-tiny text-faint hover:bg-hover hover:text-danger-text"
+                >
+                  <UserX size={14} /> Forget
+                </button>
+              </div>
+            )}
+          </div>
           <p className="text-sm text-muted">
             {[lead.title, lead.company].filter(Boolean).join(" · ") || "—"}
           </p>

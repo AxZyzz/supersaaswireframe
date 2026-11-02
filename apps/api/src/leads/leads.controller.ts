@@ -116,8 +116,9 @@ export class LeadsController {
   remove(
     @CurrentUser() user: AuthUser,
     @Param('id', ParseUUIDPipe) id: string,
+    @Query('forget') forget?: string,
   ) {
-    return this.leads.remove(user.orgId, id);
+    return this.leads.remove(user.orgId, id, forget === 'true');
   }
 
   @Post(':id/notes')

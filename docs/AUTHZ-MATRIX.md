@@ -19,6 +19,7 @@
 | `DELETE /api-keys/:id` | login | ✅ | ✅ | ⛔ |
 | `POST /auth/login` | public | — | — | — |
 | `POST /auth/logout` | public | — | — | — |
+| `DELETE /auth/me` | login | ✅ | ✅ | ✅ |
 | `GET /auth/me` | login | ✅ | ✅ | ✅ |
 | `POST /auth/refresh` | public | — | — | — |
 | `POST /auth/signup` | public | — | — | — |
@@ -69,8 +70,10 @@
 | `GET /orgs/invites` | login | ✅ | ⛔ | ⛔ |
 | `POST /orgs/invites` | login | ✅ | ⛔ | ⛔ |
 | `DELETE /orgs/invites/:id` | login | ✅ | ⛔ | ⛔ |
+| `DELETE /orgs/me` | login | ✅ | ⛔ | ⛔ |
 | `GET /orgs/me` | login | ✅ | ✅ | ✅ |
 | `PATCH /orgs/me` | login | ✅ | ⛔ | ⛔ |
+| `GET /orgs/me/export` | login | ✅ | ⛔ | ⛔ |
 | `POST /orgs/me/onboarding/complete` | login | ✅ | ⛔ | ⛔ |
 | `GET /orgs/me/setup` | login | ✅ | ✅ | ✅ |
 | `GET /orgs/members` | login | ✅ | ✅ | ⛔ |

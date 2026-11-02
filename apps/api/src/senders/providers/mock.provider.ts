@@ -13,6 +13,8 @@ import {
  * sender with EMAIL_DRIVER=mock.
  */
 export class MockProvider implements EmailProvider {
+  /** Last messages "sent" (newest last, capped) — for tests and dev checks. */
+  static readonly outbox: EmailMessage[] = [];
   private readonly logger = new Logger(MockProvider.name);
 
   constructor(readonly provider: string = 'mock') {}
@@ -23,6 +25,8 @@ export class MockProvider implements EmailProvider {
 
   send(msg: EmailMessage): Promise<SendResult> {
     const messageId = `mock-${randomUUID()}`;
+    MockProvider.outbox.push(msg);
+    if (MockProvider.outbox.length > 50) MockProvider.outbox.shift();
     this.logger.log(
       `[mock:${this.provider}] → ${msg.to} :: ${msg.subject} (${messageId})`,
     );

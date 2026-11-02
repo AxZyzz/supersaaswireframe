@@ -198,6 +198,7 @@ function WorkspaceStep({ org, onSaved }: { org: Org; onSaved: (o: Org) => void }
         : org.timezone,
     brandColor: org.brand_color,
     logoData: org.logo_data,
+    postalAddress: org.postal_address,
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -241,6 +242,18 @@ function WorkspaceStep({ org, onSaved }: { org: Org; onSaved: (o: Org) => void }
             value={d.website ?? ""}
             onChange={(e) => set({ website: e.target.value || null })}
           />
+        </label>
+        <label className="block space-y-1">
+          <span className={label}>Business postal address</span>
+          <input
+            className={field}
+            placeholder="Street, city, postcode, country"
+            value={d.postalAddress ?? ""}
+            onChange={(e) => set({ postalAddress: e.target.value || null })}
+          />
+          <span className="text-tiny text-faint">
+            Required by anti-spam law; shown in your campaign email footers.
+          </span>
         </label>
         <div className="grid grid-cols-2 gap-4">
           <label className="block space-y-1">

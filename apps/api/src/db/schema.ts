@@ -33,6 +33,8 @@ export const orgs = pgTable('orgs', {
   onboardedAt: timestamp('onboarded_at', { withTimezone: true }),
   // Usage plan; limits per plan live in src/usage/plan-limits.ts.
   plan: text('plan').notNull().default('beta'),
+  // CAN-SPAM postal address, printed in every campaign email footer.
+  postalAddress: text('postal_address'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),

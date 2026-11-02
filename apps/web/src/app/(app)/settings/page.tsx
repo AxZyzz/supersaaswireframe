@@ -15,6 +15,7 @@ import { KnowledgeSection } from "@/components/knowledge-section";
 import { WorkspaceSection } from "@/components/workspace-section";
 import { TeamSection } from "@/components/team-section";
 import { UsageSection } from "@/components/usage-section";
+import { PrivacySection } from "@/components/privacy-section";
 import { HelpLink } from "@/components/help-link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -203,6 +204,8 @@ export default function SettingsPage() {
         </div>
       </section>
       )}
+
+      <PrivacySection />
     </div>
   );
 }

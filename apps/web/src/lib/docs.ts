@@ -198,6 +198,26 @@ See live usage in Settings → **Plan & usage**. The dashboard warns you at 80%.
 - **Emails** over the daily or monthly cap are not dropped: they wait and go out once the cap resets (daily at midnight UTC, monthly on the 1st).`,
   },
   {
+    slug: "privacy-data",
+    section: "Workspace",
+    title: "Privacy, export and deletion",
+    summary: "Postal address, erasure requests, exporting and deleting data.",
+    body: `## Postal address (CAN-SPAM)
+Add your business postal address in Settings → Workspace. It's printed with your workspace name in the footer of every campaign email, next to the one-click unsubscribe link. The dashboard reminds you until it's set.
+
+## When a person asks to be forgotten
+Open the lead and choose **Forget**. Their record, notes and history are deleted, and their email address goes on your suppression list so no campaign ever emails them again. (Plain **Delete** removes the lead without suppressing it.)
+
+## Export
+Admins can download everything in the workspace as JSON from Settings → **Data & privacy**: leads, campaigns, templates, conversations, members and the suppression list. Sender passwords and tokens are never included.
+
+## Deleting
+- **Delete workspace** (admins) permanently removes the workspace for everyone. Type its name to confirm. Members with no other workspace lose their accounts too.
+- **Delete my account** (anyone) needs your password. Workspaces where you're the only member go with it. If you're the only admin of a shared workspace, make someone else admin first.
+
+Deletion is immediate and cannot be undone.`,
+  },
+  {
     slug: "branding",
     section: "Workspace",
     title: "Branding",

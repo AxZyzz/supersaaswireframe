@@ -213,3 +213,9 @@ export const SCORE_STYLES: Record<string, string> = {
   warm: "bg-warning-bg text-warning-text",
   cold: "bg-info-bg text-info-text",
 };
+
+/** forget = GDPR erasure: delete the lead, keep the address suppressed. */
+export const deleteLead = (id: string, forget = false) =>
+  api<{ deleted: boolean }>(`/leads/${id}${forget ? "?forget=true" : ""}`, {
+    method: "DELETE",
+  });

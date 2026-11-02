@@ -11,6 +11,7 @@ export interface Org {
   brand_color: string | null;
   logo_data: string | null;
   onboarded_at: string | null;
+  postal_address: string | null;
 }
 
 export interface SetupStatus {
@@ -31,6 +32,7 @@ export type OrgPatch = Partial<{
   timezone: string;
   brandColor: string | null;
   logoData: string | null;
+  postalAddress: string | null;
 }>;
 
 export const TEAM_SIZES = [
@@ -70,3 +72,17 @@ export function timezones(): string[] {
     return ["UTC", "America/New_York", "Europe/London", "Asia/Kolkata"];
   }
 }
+
+export const exportWorkspace = () => api<unknown>("/orgs/me/export");
+
+export const deleteWorkspace = (confirmName: string) =>
+  api<{ deleted: boolean; accountsRemoved: number }>("/orgs/me", {
+    method: "DELETE",
+    body: JSON.stringify({ confirmName }),
+  });
+
+export const deleteAccount = (password: string) =>
+  api<{ deleted: boolean; workspacesDeleted: number }>("/auth/me", {
+    method: "DELETE",
+    body: JSON.stringify({ password }),
+  });

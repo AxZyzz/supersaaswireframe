@@ -41,4 +41,20 @@ describe('buildEmail', () => {
     });
     expect(out.subject).toBe('Hi there');
   });
+
+  it('prints the CAN-SPAM identity (escaped) above the unsubscribe link', () => {
+    const e = buildEmail({
+      subject: 'Hi',
+      bodyHtml: '<p>Body</p>',
+      vars: {},
+      baseUrl: 'https://api.example.com',
+      trackingId: 't1',
+      unsubToken: 'u1',
+      sender: { name: 'Acme <Inc>', postalAddress: '1 Main St, Springfield' },
+    });
+    expect(e.html).toContain('Acme &lt;Inc&gt; · 1 Main St, Springfield<br>');
+    expect(e.text).toContain(
+      'Acme <Inc> · 1 Main St, Springfield\nUnsubscribe:',
+    );
+  });
 });

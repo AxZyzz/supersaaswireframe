@@ -16,6 +16,13 @@ const LOGO_RE = /^data:image\/(png|jpeg|webp|svg\+xml);base64,[A-Za-z0-9+/=]+$/;
 export const LOGO_MAX = 90_000;
 
 export class UpdateOrgDto {
+  // CAN-SPAM physical postal address for email footers.
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsString()
+  @MaxLength(300)
+  postalAddress?: string | null;
+
   @IsOptional() @IsString() @MinLength(1) @MaxLength(80) name?: string;
 
   @IsOptional()
@@ -50,4 +57,9 @@ export class UpdateOrgDto {
   @MaxLength(LOGO_MAX)
   @Matches(LOGO_RE, { message: 'logo must be a base64 image data URL' })
   logoData?: string | null;
+}
+
+export class DeleteWorkspaceDto {
+  /** Must equal the workspace name exactly — a typed confirmation. */
+  @IsString() @MaxLength(80) confirmName!: string;
 }

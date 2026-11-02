@@ -1,9 +1,15 @@
-import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
-import { LoginDto, RefreshDto, SignupDto, SwitchOrgDto } from './dto/auth.dto';
+import {
+  DeleteAccountDto,
+  LoginDto,
+  RefreshDto,
+  SignupDto,
+  SwitchOrgDto,
+} from './dto/auth.dto';
 import type { AuthUser } from './types';
 
 @Controller('auth')
@@ -49,5 +55,12 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() user: AuthUser) {
     return user;
+  }
+
+  /** Permanently delete your own account (password re-check). */
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Delete('me')
+  deleteMe(@CurrentUser() user: AuthUser, @Body() dto: DeleteAccountDto) {
+    return this.auth.deleteAccount(user.userId, dto.password);
   }
 }

@@ -14,7 +14,16 @@ interface BuildArgs {
   baseUrl: string;
   trackingId: string;
   unsubToken: string;
+  // CAN-SPAM sender identity for the footer (workspace name + postal address).
+  sender?: { name: string; postalAddress: string | null };
 }
+
+const escapeHtml = (s: string) =>
+  s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 
 // Turns a template body into the final send-ready email:
 //  - substitutes personalization tokens
@@ -23,7 +32,11 @@ interface BuildArgs {
 //  - appends an unsubscribe footer + returns the List-Unsubscribe value
 // The /t/o, /t/c and /u endpoints are served in E5 chunk 2.
 export function buildEmail(args: BuildArgs): BuiltEmail {
-  const { subject, bodyHtml, vars, baseUrl, trackingId, unsubToken } = args;
+  const { subject, bodyHtml, vars, baseUrl, trackingId, unsubToken, sender } =
+    args;
+  const identity = sender
+    ? [sender.name, sender.postalAddress].filter(Boolean).join(' · ')
+    : '';
   const unsubUrl = `${baseUrl}/u/${unsubToken}`;
 
   let html = renderTemplate(bodyHtml, vars);
@@ -36,14 +49,16 @@ export function buildEmail(args: BuildArgs): BuiltEmail {
   );
 
   const pixel = `<img src="${baseUrl}/t/o/${trackingId}" width="1" height="1" alt="" style="display:none" />`;
-  const footer = `<p style="font-size:12px;color:#888;margin-top:24px">Don't want these emails? <a href="${unsubUrl}">Unsubscribe</a>.</p>`;
+  const footer = `<p style="font-size:12px;color:#888;margin-top:24px">${
+    identity ? `${escapeHtml(identity)}<br>` : ''
+  }Don't want these emails? <a href="${unsubUrl}">Unsubscribe</a>.</p>`;
   html = `${html}${footer}${pixel}`;
 
   const bodyText = renderTemplate(bodyHtml, vars)
     .replace(/<[^>]+>/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
-  const text = `${bodyText}\n\nUnsubscribe: ${unsubUrl}`;
+  const text = `${bodyText}\n\n${identity ? `${identity}\n` : ''}Unsubscribe: ${unsubUrl}`;
 
   return {
     subject: renderTemplate(subject, vars),

@@ -49,3 +49,10 @@ export class SwitchOrgDto {
   @IsUUID()
   orgId!: string;
 }
+
+export class DeleteAccountDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(128)
+  password!: string;
+}

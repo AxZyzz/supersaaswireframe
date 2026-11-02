@@ -328,6 +328,11 @@ export class SendService {
         ...varsFromLead(lead),
         sender_name: chosen.from_name,
       };
+      // CAN-SPAM footer identity: workspace name + postal address.
+      const org = await c.query<{
+        name: string;
+        postal_address: string | null;
+      }>(`SELECT name, postal_address FROM orgs WHERE id = $1`, [orgId]);
 
       return {
         outcome: 'sent' as Outcome, // provisional; finalized in phase 3
@@ -345,6 +350,10 @@ export class SendService {
           variantIndex,
           trackingId: randomUUID(),
           unsubToken: cl.unsub_token,
+          sender: {
+            name: org.rows[0]?.name ?? '',
+            postalAddress: org.rows[0]?.postal_address ?? null,
+          },
         },
       };
     });
@@ -362,6 +371,7 @@ export class SendService {
       baseUrl: this.baseUrl,
       trackingId: p.trackingId,
       unsubToken: p.unsubToken,
+      sender: p.sender,
     });
 
     let messageId: string | null = null;

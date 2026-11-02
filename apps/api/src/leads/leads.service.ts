@@ -328,8 +328,19 @@ export class LeadsService {
     });
   }
 
-  async remove(orgId: string, id: string) {
+  /** forget = GDPR erasure: delete the person's data but keep their address
+   *  on the suppression list, so they're never contacted again. */
+  async remove(orgId: string, id: string, forget = false) {
     return this.run(orgId, async (c) => {
+      if (forget) {
+        await c.query(
+          `INSERT INTO suppression_list (org_id, email, reason)
+           SELECT org_id, email, 'erasure' FROM leads
+           WHERE id = $1 AND email IS NOT NULL
+           ON CONFLICT (org_id, lower(email)) DO NOTHING`,
+          [id],
+        );
+      }
       const res = await c.query(`DELETE FROM leads WHERE id = $1`, [id]);
       if (res.rowCount === 0) throw new NotFoundException('Lead not found');
       return { deleted: true };

@@ -130,6 +130,17 @@ export default function SignupPage() {
           >
             {busy ? "Creating…" : "Create workspace"}
           </button>
+          <p className="text-tiny text-muted">
+            By creating a workspace you agree to the{" "}
+            <Link href="/terms" className="text-accent hover:underline">
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="text-accent hover:underline">
+              Privacy policy
+            </Link>
+            .
+          </p>
         </form>
 
         <p className="mt-6 text-sm text-muted">

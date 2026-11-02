@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -11,6 +12,7 @@ import { createHash, randomUUID } from 'crypto';
 import { Pool } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { MembershipCache } from './membership-cache.service';
 import { seedDefaultTags } from '../leads/default-tags';
 import { seedDefaultTemplates } from '../templates/default-templates';
 import type {
@@ -41,6 +43,7 @@ export class AuthService {
     @Inject(PG_POOL) private readonly pool: Pool,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly memberships: MembershipCache,
   ) {}
 
   private hashToken(raw: string): string {
@@ -258,6 +261,50 @@ export class AuthService {
     const target = memberships.find((m) => m.orgId === orgId);
     if (!target) throw new UnauthorizedException('Not a member of that org');
     return this.issueTokens(userId, target.orgId, target.role);
+  }
+
+  /**
+   * GDPR erasure of the caller's own account (password re-check). Refused
+   * while they're the only admin of a workspace that has other members —
+   * hand over admin or delete the workspace first. Workspaces where they're
+   * the sole member are deleted with them.
+   */
+  async deleteAccount(userId: string, password: string) {
+    const u = await this.pool.query<{ password_hash: string }>(
+      `SELECT password_hash FROM users WHERE id = $1`,
+      [userId],
+    );
+    const ok = await bcrypt.compare(
+      password,
+      u.rows[0]?.password_hash ?? DUMMY_HASH,
+    );
+    if (!u.rows[0] || !ok) throw new UnauthorizedException('Wrong password');
+
+    const soloOrgs: string[] = [];
+    for (const m of await this.membershipsOf(userId)) {
+      const counts = await withOrgContext(this.pool, m.orgId, async (c) => {
+        const r = await c.query<{ members: number; admins: number }>(
+          `SELECT count(*)::int AS members,
+                  count(*) FILTER (WHERE role = 'admin')::int AS admins
+           FROM memberships`,
+        );
+        return r.rows[0];
+      });
+      if (counts.members === 1) soloOrgs.push(m.orgId);
+      else if (m.role === 'admin' && counts.admins === 1) {
+        throw new BadRequestException(
+          `You're the only admin of "${m.orgName}". Make someone else admin or delete that workspace first.`,
+        );
+      }
+    }
+    for (const orgId of soloOrgs) {
+      await withOrgContext(this.pool, orgId, (c) =>
+        c.query(`DELETE FROM orgs WHERE id = $1`, [orgId]),
+      );
+    }
+    await this.pool.query(`DELETE FROM users WHERE id = $1`, [userId]);
+    this.memberships.invalidate(userId); // live tokens stop working now
+    return { deleted: true, workspacesDeleted: soloOrgs.length };
   }
 
   async membershipsOf(userId: string): Promise<MembershipInfo[]> {

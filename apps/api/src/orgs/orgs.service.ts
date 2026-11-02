@@ -1,4 +1,10 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { MembershipCache } from '../auth/membership-cache.service';
 import { Pool } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
@@ -15,6 +21,7 @@ export interface OrgProfile {
   brand_color: string | null;
   logo_data: string | null;
   onboarded_at: string | null;
+  postal_address: string | null;
 }
 
 /** "Start here" progress — drives the onboarding Done step and the
@@ -30,7 +37,7 @@ export interface SetupStatus {
 }
 
 const COLUMNS = `id, name, slug, website, industry, team_size, timezone,
-  brand_color, logo_data, onboarded_at`;
+  brand_color, logo_data, onboarded_at, postal_address`;
 
 // DTO key -> column. A whitelist, so SET clauses are never built from input.
 const FIELDS: Record<string, string> = {
@@ -41,6 +48,7 @@ const FIELDS: Record<string, string> = {
   timezone: 'timezone',
   brandColor: 'brand_color',
   logoData: 'logo_data',
+  postalAddress: 'postal_address',
 };
 
 // DateTimeFormat accepts every IANA name incl. aliases (Asia/Kolkata), which
@@ -56,7 +64,10 @@ const isTimeZone = (tz: string) => {
 
 @Injectable()
 export class OrgsService {
-  constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
+  constructor(
+    @Inject(PG_POOL) private readonly pool: Pool,
+    private readonly memberships: MembershipCache,
+  ) {}
 
   get(orgId: string) {
     return withOrgContext(this.pool, orgId, async (c) => {
@@ -126,6 +137,101 @@ export class OrgsService {
         [orgId],
       );
       return r.rows[0];
+    });
+  }
+
+  /**
+   * Permanently deletes the workspace and everything in it (FK cascades).
+   * Members whose only workspace this was lose their now-empty accounts too —
+   * an account without a workspace can't sign in or be used for anything.
+   */
+  async deleteWorkspace(orgId: string, confirmName: string) {
+    const members = await withOrgContext(this.pool, orgId, async (c) => {
+      const org = await c.query<{ name: string }>(
+        `SELECT name FROM orgs WHERE id = $1`,
+        [orgId],
+      );
+      if (!org.rows[0]) throw new NotFoundException('Workspace not found');
+      if (confirmName.trim() !== org.rows[0].name) {
+        throw new BadRequestException(
+          'Type the workspace name exactly to confirm deletion',
+        );
+      }
+      const m = await c.query<{ user_id: string }>(
+        `SELECT user_id FROM memberships`,
+      );
+      await c.query(`DELETE FROM orgs WHERE id = $1`, [orgId]);
+      return m.rows.map((r) => r.user_id);
+    });
+
+    let accountsRemoved = 0;
+    for (const userId of members) {
+      this.memberships.invalidate(userId);
+      const left = await this.pool.query(
+        `SELECT 1 FROM user_memberships($1) LIMIT 1`,
+        [userId],
+      );
+      if (!left.rowCount) {
+        await this.pool.query(`DELETE FROM users WHERE id = $1`, [userId]);
+        accountsRemoved++;
+      }
+    }
+    return { deleted: true, accountsRemoved };
+  }
+
+  /** GDPR access/portability: everything the workspace holds, as JSON. */
+  exportData(orgId: string) {
+    return withOrgContext(this.pool, orgId, async (c) => {
+      type Row = Record<string, unknown>;
+      const q = async (sql: string) => (await c.query<Row>(sql)).rows;
+      return {
+        exportedAt: new Date().toISOString(),
+        workspace: (
+          await c.query<Row>(
+            `SELECT ${COLUMNS}, plan, created_at FROM orgs WHERE id = $1`,
+            [orgId],
+          )
+        ).rows[0],
+        members: await q(
+          `SELECT u.name, u.email, m.role, m.created_at
+           FROM memberships m JOIN users u ON u.id = m.user_id ORDER BY m.created_at`,
+        ),
+        knowledge: await q(`SELECT * FROM org_knowledge`),
+        leads: await q(`SELECT * FROM leads ORDER BY created_at`),
+        tags: await q(`SELECT * FROM tags ORDER BY name`),
+        leadTags: await q(`SELECT lead_id, tag_id FROM lead_tags`),
+        leadNotes: await q(`SELECT * FROM lead_notes ORDER BY created_at`),
+        segments: await q(`SELECT * FROM segments ORDER BY created_at`),
+        templates: await q(`SELECT * FROM templates ORDER BY created_at`),
+        campaigns: await q(`SELECT * FROM campaigns ORDER BY created_at`),
+        campaignSteps: await q(
+          `SELECT * FROM campaign_steps ORDER BY campaign_id, step_order`,
+        ),
+        sentEmails: await q(
+          `SELECT id, campaign_id, lead_id, to_email, subject, status, sent_at
+           FROM sent_emails ORDER BY sent_at`,
+        ),
+        emailEvents: await q(
+          `SELECT type, sent_email_id, created_at FROM email_events ORDER BY created_at`,
+        ),
+        conversations: await q(
+          `SELECT * FROM conversations ORDER BY created_at`,
+        ),
+        conversationMessages: await q(
+          `SELECT * FROM conversation_messages ORDER BY created_at`,
+        ),
+        conversationNotes: await q(
+          `SELECT * FROM conversation_notes ORDER BY created_at`,
+        ),
+        suppressionList: await q(
+          `SELECT email, reason, created_at FROM suppression_list`,
+        ),
+        // Sender credentials are encrypted secrets; identities only.
+        senders: await q(
+          `SELECT id, provider, from_name, from_email, daily_limit, status, created_at
+           FROM sender_accounts`,
+        ),
+      };
     });
   }
 }

@@ -218,6 +218,19 @@ export function WorkspaceSection() {
             onChange={(e) => set({ website: e.target.value || null })}
           />
         </label>
+        <label className="block space-y-1 sm:col-span-2">
+          <span className={label}>Business postal address</span>
+          <input
+            className={field}
+            disabled={!canEdit}
+            placeholder="Street, city, postcode, country"
+            value={v("postalAddress", org.postal_address) ?? ""}
+            onChange={(e) => set({ postalAddress: e.target.value || null })}
+          />
+          <span className="text-tiny text-faint">
+            Printed in every campaign email footer — anti-spam law (CAN-SPAM) requires a real postal address.
+          </span>
+        </label>
         <label className="block space-y-1">
           <span className={label}>Industry</span>
           <select

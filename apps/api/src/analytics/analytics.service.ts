@@ -29,7 +29,11 @@ export interface Overview {
   }[];
   // Actionable warnings surfaced on the dashboard.
   alerts: {
-    kind: 'sender_unverified' | 'sender_near_limit' | 'usage_near_limit';
+    kind:
+      | 'sender_unverified'
+      | 'sender_near_limit'
+      | 'usage_near_limit'
+      | 'missing_postal_address';
     message: string;
   }[];
 }
@@ -124,6 +128,19 @@ export class AnalyticsService {
             message: `${s.from_email} near daily limit (${s.sent_today}/${s.daily_limit})`,
           });
         }
+      }
+
+      // CAN-SPAM requires a physical postal address in commercial email.
+      const org = await c.query<{ postal_address: string | null }>(
+        `SELECT postal_address FROM orgs WHERE id = $1`,
+        [orgId],
+      );
+      if (!org.rows[0]?.postal_address) {
+        alerts.push({
+          kind: 'missing_postal_address',
+          message:
+            'Add your business postal address (Settings → Workspace). Anti-spam law requires it in every campaign email.',
+        });
       }
 
       // Plan limits at 80%+ — warn before something gets blocked or deferred.
