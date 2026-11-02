@@ -27,7 +27,13 @@ const NAV = [
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
-export function Sidebar({ orgName }: { orgName: string }) {
+export function Sidebar({
+  orgName,
+  logo,
+}: {
+  orgName: string;
+  logo?: string | null;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const initials = orgName
@@ -57,12 +63,22 @@ export function Sidebar({ orgName }: { orgName: string }) {
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-sidebar">
       <div className="flex items-center gap-2 px-3 py-3">
-        <Link
-          href="/dashboard"
-          className="flex h-7 w-7 items-center justify-center rounded bg-accent text-micro font-semibold text-white"
-        >
-          {initials || "SS"}
-        </Link>
+        {logo ? (
+          <Link
+            href="/dashboard"
+            className="flex h-7 w-7 items-center justify-center overflow-hidden rounded"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element -- data: URL */}
+            <img src={logo} alt="" className="h-full w-full object-contain" />
+          </Link>
+        ) : (
+          <Link
+            href="/dashboard"
+            className="flex h-7 w-7 items-center justify-center rounded bg-accent text-micro font-semibold text-white"
+          >
+            {initials || "SS"}
+          </Link>
+        )}
         <span className="truncate text-sm font-medium text-ink">
           {orgName}
         </span>

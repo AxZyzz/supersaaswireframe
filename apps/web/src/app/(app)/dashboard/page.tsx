@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import {
   Activity,
   AlertTriangle,
+  CheckCircle2,
+  Circle,
   Inbox,
   Mail,
   Send,
@@ -21,6 +23,15 @@ import {
   pct,
   timeAgo,
 } from "@/lib/analytics";
+import { getSetup, SetupStatus } from "@/lib/org";
+
+const CHECKLIST: { key: keyof SetupStatus; label: string; href: string }[] = [
+  { key: "knowledge", label: "Teach the AI your business", href: "/settings" },
+  { key: "sender", label: "Connect a sender", href: "/settings" },
+  { key: "senderVerified", label: "Verify your sender", href: "/settings" },
+  { key: "leads", label: "Import your first leads", href: "/leads" },
+  { key: "campaign", label: "Create a campaign", href: "/campaigns" },
+];
 
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-neut-bg text-muted",
@@ -34,12 +45,14 @@ const STATUS_STYLES: Record<string, string> = {
 export default function DashboardPage() {
   const [ov, setOv] = useState<Overview | null>(null);
   const [rows, setRows] = useState<CampaignAnalyticsRow[]>([]);
+  const [setup, setSetup] = useState<SetupStatus | null>(null);
 
   useEffect(() => {
-    void Promise.all([getOverview(), getCampaignAnalytics()]).then(
-      ([o, r]) => {
+    void Promise.all([getOverview(), getCampaignAnalytics(), getSetup()]).then(
+      ([o, r, s]) => {
         setOv(o);
         setRows(r);
+        setSetup(s);
       },
     );
   }, []);
@@ -186,6 +199,41 @@ export default function DashboardPage() {
         </div>
 
         <div className="space-y-5">
+          {/* start-here checklist — disappears once every step is done */}
+          {setup && CHECKLIST.some((c) => !setup[c.key]) && (
+            <section className="rounded-lg border border-line bg-white p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-ink2">Start here</h2>
+                <span className="text-tiny text-faint">
+                  {CHECKLIST.filter((c) => setup[c.key]).length}/{CHECKLIST.length}
+                </span>
+              </div>
+              <ul className="space-y-2">
+                {CHECKLIST.map((c) => (
+                  <li key={c.key}>
+                    <Link
+                      href={c.href}
+                      className="flex items-center gap-2 text-sm hover:underline"
+                    >
+                      {setup[c.key] ? (
+                        <CheckCircle2 size={15} className="text-success-text" />
+                      ) : (
+                        <Circle size={15} className="text-faint" />
+                      )}
+                      <span
+                        className={
+                          setup[c.key] ? "text-muted line-through" : "text-ink"
+                        }
+                      >
+                        {c.label}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {/* alerts */}
           <section className="rounded-lg border border-line bg-white p-4">
             <h2 className="mb-3 text-sm font-semibold text-ink2">Alerts</h2>

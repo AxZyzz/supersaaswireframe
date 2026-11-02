@@ -23,6 +23,14 @@ export const orgs = pgTable('orgs', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   slug: text('slug').notNull().unique(),
+  website: text('website'),
+  industry: text('industry'),
+  teamSize: text('team_size'),
+  timezone: text('timezone').notNull().default('UTC'),
+  // Branding (E9 / white-label readiness): accent hex + small logo data URL.
+  brandColor: text('brand_color'),
+  logoData: text('logo_data'),
+  onboardedAt: timestamp('onboarded_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),

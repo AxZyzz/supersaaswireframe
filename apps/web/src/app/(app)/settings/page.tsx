@@ -11,6 +11,7 @@ import {
 } from "@/lib/api-keys";
 import { SendersSection } from "@/components/senders-section";
 import { KnowledgeSection } from "@/components/knowledge-section";
+import { WorkspaceSection } from "@/components/workspace-section";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -59,9 +60,11 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-title font-semibold text-ink2">Settings</h1>
         <p className="text-sm text-muted">
-          Workspace configuration. More sections arrive with E9.
+          Workspace profile, branding, senders, AI knowledge and API access.
         </p>
       </div>
+
+      <WorkspaceSection />
 
       <SendersSection />
 

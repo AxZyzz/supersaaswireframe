@@ -5,16 +5,13 @@ import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { NotificationBell } from "@/components/notification-bell";
 import { api, getAccessToken } from "@/lib/api";
+import { applyBrand } from "@/lib/branding";
+import type { Org } from "@/lib/org";
 
 interface Me {
   userId: string;
   orgId: string;
   role: string;
-}
-interface Org {
-  id: string;
-  name: string;
-  slug: string;
 }
 
 const TITLES: [string, string][] = [
@@ -43,11 +40,29 @@ export default function AppLayout({
     }
     Promise.all([api<Me>("/auth/me"), api<Org>("/orgs/me")])
       .then(([meRes, orgRes]) => {
+        // New workspaces go through the setup wizard first (admins only —
+        // they're the ones who can configure senders and branding).
+        if (!orgRes.onboarded_at && meRes.role === "admin") {
+          router.replace("/onboarding");
+          return;
+        }
+        applyBrand(orgRes.brand_color);
         setMe(meRes);
         setOrg(orgRes);
       })
       .catch(() => router.replace("/login"));
   }, [router]);
+
+  // Settings saves broadcast the new org so the shell re-themes in place.
+  useEffect(() => {
+    const onUpdate = (e: Event) => {
+      const next = (e as CustomEvent<Org>).detail;
+      applyBrand(next.brand_color);
+      setOrg(next);
+    };
+    window.addEventListener("org-updated", onUpdate);
+    return () => window.removeEventListener("org-updated", onUpdate);
+  }, []);
 
   if (!me || !org) {
     return (
@@ -62,7 +77,7 @@ export default function AppLayout({
 
   return (
     <div className="flex h-screen overflow-hidden bg-page">
-      <Sidebar orgName={org.name} />
+      <Sidebar orgName={org.name} logo={org.logo_data} />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-12 shrink-0 items-center justify-between border-b border-line bg-white px-5">
           <h1 className="text-base font-semibold text-ink2">{title}</h1>
