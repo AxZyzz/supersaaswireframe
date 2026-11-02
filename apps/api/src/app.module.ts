@@ -1,3 +1,4 @@
+import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AiModule } from './ai/ai.module';
@@ -6,13 +7,14 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
+import { validateEnv } from './config/env.validation';
 import { CryptoModule } from './crypto/crypto.module';
 import { DbModule } from './db/db.module';
 import { InboxModule } from './inbox/inbox.module';
 import { LeadsModule } from './leads/leads.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { OrgsModule } from './orgs/orgs.module';
-import { QueueModule } from './queue/queue.module';
+import { CAMPAIGN_SEND_QUEUE, QueueModule } from './queue/queue.module';
 import { SendersModule } from './senders/senders.module';
 import { SendingModule } from './sending/sending.module';
 import { TemplatesModule } from './templates/templates.module';
@@ -23,10 +25,13 @@ import { TemplatesModule } from './templates/templates.module';
       isGlobal: true,
       // Root .env is the single source; apps/api/.env can override locally.
       envFilePath: ['.env', '../../.env'],
+      validate: validateEnv,
     }),
     DbModule,
     CryptoModule,
     QueueModule,
+    // readiness probe pings Redis through this queue's connection
+    BullModule.registerQueue({ name: CAMPAIGN_SEND_QUEUE }),
     AuthModule,
     OrgsModule,
     LeadsModule,

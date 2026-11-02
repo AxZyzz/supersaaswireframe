@@ -22,5 +22,11 @@
   },
   "devDependencies": {
     "drizzle-orm": "^0.45.2"
+  },
+  "overrides": {
+    "multer": "2.5.0",
+    "@nestjs/common": "11.1.28",
+    "@nestjs/core": "11.1.28",
+    "@nestjs/platform-express": "11.1.28"
   }
 }
