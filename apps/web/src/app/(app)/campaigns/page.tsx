@@ -1,5 +1,6 @@
 "use client";
 
+import { errorMessage } from "@/lib/api";
 import { useCallback, useEffect, useState } from "react";
 import {
   Archive,
@@ -132,11 +133,12 @@ export default function CampaignsPage() {
     if (!selected) return;
     try {
       const r = await enrollCampaign(selected.id);
-      setNote({ ok: true, text: `Enrolled ${r.enrolled} lead(s). Campaign active.` });
       await loadList();
-      await open(selected.id);
-    } catch {
-      setNote({ ok: false, text: "Enroll failed — add a step first." });
+      await open(selected.id); // clears the note, so set it after
+      setNote({ ok: true, text: `Enrolled ${r.enrolled} lead(s). Campaign active.` });
+    } catch (e) {
+      // e.g. no steps yet, or the plan's active-campaign limit
+      setNote({ ok: false, text: errorMessage(e, "Enroll failed.") });
     }
   }
 
@@ -150,12 +152,12 @@ export default function CampaignsPage() {
   async function runSends() {
     if (!selected) return;
     const c = await runDueSends();
+    await loadList();
+    await open(selected.id); // clears the note, so set it after
     setNote({
       ok: true,
       text: `Processed: ${c.sent ?? 0} sent, ${c.suppressed ?? 0} suppressed, ${c.completed ?? 0} completed.`,
     });
-    await loadList();
-    await open(selected.id);
   }
 
   const tplName = (id: string | null) =>

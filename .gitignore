@@ -23,3 +23,8 @@ launch.json
 .DS_Store
 Thumbs.db
 *.log
+
+# playwright
+apps/e2e/test-results/
+apps/e2e/playwright-report/
+apps/e2e/blob-report/

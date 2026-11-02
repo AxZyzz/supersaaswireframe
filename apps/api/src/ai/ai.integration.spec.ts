@@ -95,7 +95,11 @@ describe('AI content integration', () => {
       .send({ goal: 'Book demos with SaaS founders', steps: 3 })
       .expect(200);
     expect(res.body.model).toBe('mock');
-    expect(Array.isArray(res.body.steps)).toBe(true);
+    // a usable draft of the requested length, first step immediate
+    expect(res.body.steps).toHaveLength(3);
+    expect(res.body.steps[0].delayHours).toBe(0);
+    expect(res.body.steps[0].subject).toBeTruthy();
+    expect(res.body.steps[2].delayHours).toBeGreaterThan(0);
 
     // usage logging is fire-and-forget — poll briefly for the row
     let logged = 0;
