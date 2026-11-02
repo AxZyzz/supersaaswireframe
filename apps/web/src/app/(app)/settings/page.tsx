@@ -9,10 +9,12 @@ import {
   listApiKeys,
   revokeApiKey,
 } from "@/lib/api-keys";
+import { api } from "@/lib/api";
 import { SendersSection } from "@/components/senders-section";
 import { KnowledgeSection } from "@/components/knowledge-section";
 import { WorkspaceSection } from "@/components/workspace-section";
 import { TeamSection } from "@/components/team-section";
+import { HelpLink } from "@/components/help-link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -23,15 +25,24 @@ export default function SettingsPage() {
   const [creating, setCreating] = useState(false);
   const [fresh, setFresh] = useState<CreatedApiKey | null>(null);
   const [copied, setCopied] = useState(false);
+  // agents get a read-only view; API keys are admin/manager only
+  const [role, setRole] = useState<string | null>(null);
+  const canManage = role === "admin" || role === "manager";
 
   const load = useCallback(async () => {
     setLoading(true);
-    setKeys(await listApiKeys());
-    setLoading(false);
+    try {
+      setKeys(await listApiKeys());
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    void load();
+    void api<{ role: string }>("/auth/me").then((me) => {
+      setRole(me.role);
+      if (me.role !== "agent") void load();
+    });
   }, [load]);
 
   async function create() {
@@ -69,14 +80,16 @@ export default function SettingsPage() {
 
       <TeamSection />
 
-      <SendersSection />
+      <SendersSection readOnly={role === "agent"} />
 
-      <KnowledgeSection />
+      <KnowledgeSection readOnly={role === "agent"} />
 
+      {canManage && (
       <section className="rounded-lg border border-line bg-white p-5">
         <div className="mb-1 flex items-center gap-2">
           <KeyRound size={16} className="text-faint" />
           <h2 className="text-section font-semibold text-ink2">API keys</h2>
+          <HelpLink slug="leads-api" />
         </div>
         <p className="mb-4 text-sm text-muted">
           Push leads into SuperSaaS from external systems. Send the key as an{" "}
@@ -186,6 +199,7 @@ export default function SettingsPage() {
           </table>
         </div>
       </section>
+      )}
     </div>
   );
 }

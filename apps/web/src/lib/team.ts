@@ -3,9 +3,9 @@ import { api } from "./api";
 export type Role = "admin" | "manager" | "agent";
 
 export const ROLE_META: Record<Role, { label: string; desc: string }> = {
-  admin: { label: "Admin", desc: "Everything, incl. team, billing and workspace settings" },
+  admin: { label: "Admin", desc: "Everything, incl. team, branding and workspace settings" },
   manager: { label: "Manager", desc: "Campaigns, senders, templates, leads and inbox" },
-  agent: { label: "Agent", desc: "Works leads and the inbox" },
+  agent: { label: "Agent", desc: "Views and edits leads, works the inbox" },
 };
 
 export interface TeamMember {

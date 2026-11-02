@@ -111,7 +111,7 @@ function AiView() {
         <Sparkles size={12} className="text-accent" /> AI sequence · 3 steps
       </div>
       {[
-        ["Day 0", "Quick idea for {{company}}'s outbound"],
+        ["Day 0", "Quick idea for {company}'s outbound"],
         ["Day 3", "Following up — worth a look?"],
         ["Day 7", "Closing the loop"],
       ].map(([d, s]) => (

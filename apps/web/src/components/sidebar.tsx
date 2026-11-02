@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   BarChart3,
+  CircleHelp,
   FileText,
   Filter,
   Inbox,
@@ -114,6 +115,17 @@ export function Sidebar({
       </nav>
 
       <div className="space-y-0.5 border-t border-line px-2 py-2">
+        <Link
+          href="/help"
+          className={`flex items-center gap-2.5 rounded px-2.5 py-1.5 text-sm ${
+            pathname.startsWith("/help")
+              ? "bg-accent-soft font-medium text-accent"
+              : "text-muted hover:bg-hover hover:text-ink"
+          }`}
+        >
+          <CircleHelp size={17} strokeWidth={1.9} />
+          <span>Help</span>
+        </Link>
         <Link
           href="/settings"
           className="flex items-center gap-2.5 rounded px-2.5 py-1.5 text-sm text-muted hover:bg-hover hover:text-ink"

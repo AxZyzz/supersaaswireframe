@@ -18,6 +18,7 @@ import {
   ROLE_META,
   TeamMember,
 } from "@/lib/team";
+import { HelpLink } from "@/components/help-link";
 
 const ROLES = Object.keys(ROLE_META) as Role[];
 
@@ -88,6 +89,7 @@ export function TeamSection() {
       <div className="mb-1 flex items-center gap-2">
         <Users size={16} className="text-faint" />
         <h2 className="text-section font-semibold text-ink2">Team</h2>
+        <HelpLink slug="team" />
       </div>
       <p className="mb-4 text-sm text-muted">
         {me.role === "agent"

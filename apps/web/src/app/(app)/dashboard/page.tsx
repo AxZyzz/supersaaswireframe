@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { LoadError, loadErrorText } from "@/components/feedback";
 import {
   Activity,
   AlertTriangle,
@@ -47,16 +48,22 @@ export default function DashboardPage() {
   const [rows, setRows] = useState<CampaignAnalyticsRow[]>([]);
   const [setup, setSetup] = useState<SetupStatus | null>(null);
 
-  useEffect(() => {
-    void Promise.all([getOverview(), getCampaignAnalytics(), getSetup()]).then(
-      ([o, r, s]) => {
+  const [err, setErr] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    setErr(null);
+    Promise.all([getOverview(), getCampaignAnalytics(), getSetup()])
+      .then(([o, r, s]) => {
         setOv(o);
         setRows(r);
         setSetup(s);
-      },
-    );
+      })
+      .catch((e) => setErr(loadErrorText(e)));
   }, []);
 
+  useEffect(() => load(), [load]);
+
+  if (err) return <LoadError message={err} onRetry={load} />;
   if (!ov) {
     return (
       <div className="flex h-64 items-center justify-center text-sm text-muted">

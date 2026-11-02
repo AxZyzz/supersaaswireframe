@@ -24,12 +24,15 @@ export function DuplicatesModal({
 
   const load = useCallback(async () => {
     setLoading(true);
-    const g = await findDuplicates();
-    setGroups(g);
-    setPrimary(
-      Object.fromEntries(g.map((grp) => [grp.leads[0].id, grp.leads[0].id])),
-    );
-    setLoading(false);
+    try {
+      const g = await findDuplicates();
+      setGroups(g);
+      setPrimary(
+        Object.fromEntries(g.map((grp) => [grp.leads[0].id, grp.leads[0].id])),
+      );
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {

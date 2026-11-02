@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { LoadError, loadErrorText } from "@/components/feedback";
 import { ArrowLeft, RefreshCw } from "lucide-react";
 import { SCORE_STYLES } from "@/lib/leads";
 import {
@@ -19,14 +20,21 @@ export default function SegmentDetailPage() {
   const [members, setMembers] = useState<SegmentMember[]>([]);
   const [total, setTotal] = useState(0);
 
+  const [err, setErr] = useState<string | null>(null);
+
   const load = useCallback(async () => {
-    const [seg, mem] = await Promise.all([
-      getSegment(id),
-      listSegmentMembers(id),
-    ]);
-    setSegment(seg);
-    setMembers(mem.data);
-    setTotal(mem.total);
+    setErr(null);
+    try {
+      const [seg, mem] = await Promise.all([
+        getSegment(id),
+        listSegmentMembers(id),
+      ]);
+      setSegment(seg);
+      setMembers(mem.data);
+      setTotal(mem.total);
+    } catch (e) {
+      setErr(loadErrorText(e));
+    }
   }, [id]);
 
   useEffect(() => {
@@ -38,6 +46,7 @@ export default function SegmentDetailPage() {
     setTimeout(() => void load(), 800);
   }
 
+  if (err) return <LoadError message={err} onRetry={() => void load()} />;
   if (!segment) return <p className="text-sm text-muted">Loading…</p>;
 
   return (

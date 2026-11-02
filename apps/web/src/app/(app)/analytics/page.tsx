@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { LoadError, loadErrorText } from "@/components/feedback";
 import {
   CampaignAnalyticsRow,
   getCampaignAnalytics,
@@ -13,15 +14,21 @@ export default function AnalyticsPage() {
   const [ov, setOv] = useState<Overview | null>(null);
   const [rows, setRows] = useState<CampaignAnalyticsRow[]>([]);
 
-  useEffect(() => {
-    void Promise.all([getOverview(), getCampaignAnalytics()]).then(
-      ([o, r]) => {
+  const [err, setErr] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    setErr(null);
+    Promise.all([getOverview(), getCampaignAnalytics()])
+      .then(([o, r]) => {
         setOv(o);
         setRows(r);
-      },
-    );
+      })
+      .catch((e) => setErr(loadErrorText(e)));
   }, []);
 
+  useEffect(() => load(), [load]);
+
+  if (err) return <LoadError message={err} onRetry={load} />;
   if (!ov) {
     return (
       <div className="flex h-64 items-center justify-center text-sm text-muted">

@@ -50,16 +50,20 @@ export default function LeadsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setSelected(new Set());
-    const res = await listLeads({
-      search: search || undefined,
-      status: view === "kanban" ? undefined : status || undefined,
-      score: score || undefined,
-      limit: view === "kanban" ? KANBAN_LIMIT : PAGE,
-      offset: view === "kanban" ? 0 : offset,
-    });
-    setLeads(res.data);
-    setTotal(res.total);
-    setLoading(false);
+    // failures surface via the global Toaster; the spinner always clears
+    try {
+      const res = await listLeads({
+        search: search || undefined,
+        status: view === "kanban" ? undefined : status || undefined,
+        score: score || undefined,
+        limit: view === "kanban" ? KANBAN_LIMIT : PAGE,
+        offset: view === "kanban" ? 0 : offset,
+      });
+      setLeads(res.data);
+      setTotal(res.total);
+    } finally {
+      setLoading(false);
+    }
   }, [search, status, score, offset, view]);
 
   useEffect(() => {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { BookOpen, Check } from "lucide-react";
 import { getKnowledge, OrgKnowledge, saveKnowledge } from "@/lib/ai";
+import { HelpLink } from "@/components/help-link";
 
 const FIELDS: { key: keyof OrgKnowledge; label: string; placeholder: string }[] =
   [
@@ -43,7 +44,7 @@ const FIELDS: { key: keyof OrgKnowledge; label: string; placeholder: string }[] 
     },
   ];
 
-export function KnowledgeSection() {
+export function KnowledgeSection({ readOnly = false }: { readOnly?: boolean } = {}) {
   const [kb, setKb] = useState<OrgKnowledge>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -51,15 +52,21 @@ export function KnowledgeSection() {
 
   useEffect(() => {
     void (async () => {
-      setKb((await getKnowledge()) ?? {});
-      setLoading(false);
+      try {
+        setKb((await getKnowledge()) ?? {});
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 
   async function save() {
     setSaving(true);
-    await saveKnowledge(kb);
-    setSaving(false);
+    try {
+      await saveKnowledge(kb);
+    } finally {
+      setSaving(false);
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 1500);
   }
@@ -72,6 +79,7 @@ export function KnowledgeSection() {
       <div className="mb-1 flex items-center gap-2">
         <BookOpen size={16} className="text-faint" />
         <h2 className="text-section font-semibold text-ink2">Knowledge base</h2>
+        <HelpLink slug="ai-builder" />
       </div>
       <p className="mb-4 text-sm text-muted">
         Business context the AI uses to ground every generated email. Fill in what
@@ -92,10 +100,12 @@ export function KnowledgeSection() {
                 onChange={(e) => setKb((p) => ({ ...p, [key]: e.target.value }))}
                 placeholder={placeholder}
                 rows={2}
-                className={field}
+                disabled={readOnly}
+                className={`${field} disabled:bg-panel disabled:text-muted`}
               />
             </label>
           ))}
+          {!readOnly && (
           <button
             onClick={() => void save()}
             disabled={saving}
@@ -104,6 +114,7 @@ export function KnowledgeSection() {
             {saved ? <Check size={15} /> : null}
             {saved ? "Saved" : saving ? "Saving…" : "Save knowledge base"}
           </button>
+          )}
         </div>
       )}
     </section>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { LoadError, loadErrorText } from "@/components/feedback";
 import { Plus, RefreshCw, Trash2, Users } from "lucide-react";
 import { SegmentCreateModal } from "@/components/segment-create-modal";
 import {
@@ -10,16 +11,25 @@ import {
   refreshSegment,
   Segment,
 } from "@/lib/segments";
+import { HelpLink } from "@/components/help-link";
 
 export default function SegmentsPage() {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
 
+  const [err, setErr] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
-    setSegments(await listSegments());
-    setLoading(false);
+    setErr(null);
+    try {
+      setSegments(await listSegments());
+    } catch (e) {
+      setErr(loadErrorText(e));
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -36,10 +46,13 @@ export default function SegmentsPage() {
     await load();
   }
 
+  if (err) return <LoadError message={err} onRetry={() => void load()} />;
+
   return (
     <div className="mx-auto max-w-shell space-y-4">
       <div className="flex items-center">
         <h1 className="text-title font-semibold text-ink2">Segments</h1>
+        <span className="ml-2"><HelpLink slug="segments" /></span>
         <div className="flex-1" />
         <button
           onClick={() => setCreating(true)}

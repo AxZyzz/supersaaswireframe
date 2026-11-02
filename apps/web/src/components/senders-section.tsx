@@ -21,10 +21,19 @@ import {
   testSender,
   verifySender,
 } from "@/lib/senders";
+import { HelpLink } from "@/components/help-link";
 
 type Provider = "ses" | "gmail" | "smtp";
 
-export function SendersSection() {
+export function SendersSection({
+  showDnsCheck = true,
+  readOnly = false,
+}: {
+  /** Onboarding has its own domain step, so it hides the inline checker. */
+  showDnsCheck?: boolean;
+  /** Agents can see senders but not add, verify, test or delete them. */
+  readOnly?: boolean;
+} = {}) {
   const [senders, setSenders] = useState<Sender[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -34,8 +43,11 @@ export function SendersSection() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    setSenders(await listSenders());
-    setLoading(false);
+    try {
+      setSenders(await listSenders());
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -103,13 +115,16 @@ export function SendersSection() {
         <h2 className="text-section font-semibold text-ink2">
           Sender accounts
         </h2>
+        <HelpLink slug="senders" />
         <div className="flex-1" />
-        <button
-          onClick={() => setAdding((v) => !v)}
-          className="flex items-center gap-1.5 rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover"
-        >
-          <Plus size={15} /> Add sender
-        </button>
+        {!readOnly && (
+          <button
+            onClick={() => setAdding((v) => !v)}
+            className="flex items-center gap-1.5 rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover"
+          >
+            <Plus size={15} /> Add sender
+          </button>
+        )}
       </div>
       <p className="mb-4 text-sm text-muted">
         The identities campaigns send from. SMTP verifies immediately; SES and
@@ -254,7 +269,9 @@ export function SendersSection() {
                     </span>
                   </td>
                   <td className="px-4 py-2.5">
-                    <div className="flex items-center justify-end gap-3">
+                    <div
+                      className={`flex items-center justify-end gap-3 ${readOnly ? "hidden" : ""}`}
+                    >
                       <button
                         onClick={() => void verify(s.id)}
                         disabled={busyId === s.id}
@@ -290,7 +307,7 @@ export function SendersSection() {
         </table>
       </div>
 
-      <DnsCheckTool />
+      {showDnsCheck && <DnsCheckTool />}
     </section>
   );
 }
@@ -303,8 +320,11 @@ function DnsCheckTool() {
   async function run() {
     if (!domain.trim()) return;
     setBusy(true);
-    setResult(await dnsCheck(domain.trim()));
-    setBusy(false);
+    try {
+      setResult(await dnsCheck(domain.trim()));
+    } finally {
+      setBusy(false);
+    }
   }
 
   const row = (label: string, c: DnsCheckResult["spf"]) => (

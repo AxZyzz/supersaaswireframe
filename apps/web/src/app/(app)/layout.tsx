@@ -4,6 +4,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { NotificationBell } from "@/components/notification-bell";
+import { CommandPalette, openCommandPalette } from "@/components/command-palette";
+import { Toaster } from "@/components/feedback";
+import { Search } from "lucide-react";
 import { api, getAccessToken } from "@/lib/api";
 import { applyBrand } from "@/lib/branding";
 import type { Org } from "@/lib/org";
@@ -22,6 +25,7 @@ const TITLES: [string, string][] = [
   ["/templates", "Templates"],
   ["/analytics", "Analytics"],
   ["/settings", "Settings"],
+  ["/help", "Help"],
   ["/dashboard", "Dashboard"],
 ];
 
@@ -82,6 +86,13 @@ export default function AppLayout({
         <header className="flex h-12 shrink-0 items-center justify-between border-b border-line bg-white px-5">
           <h1 className="text-base font-semibold text-ink2">{title}</h1>
           <div className="flex items-center gap-3">
+            <button
+              onClick={openCommandPalette}
+              className="hidden items-center gap-2 rounded border border-line-mid px-2.5 py-1 text-tiny text-faint hover:bg-hover sm:flex"
+            >
+              <Search size={13} /> Jump to…
+              <kbd className="rounded border border-line bg-panel px-1 text-micro">Ctrl K</kbd>
+            </button>
             <NotificationBell />
             <span className="rounded-full bg-accent-soft px-2 py-0.5 text-micro font-medium capitalize text-accent">
               {me.role}
@@ -90,6 +101,8 @@ export default function AppLayout({
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto p-5">{children}</main>
       </div>
+      <CommandPalette />
+      <Toaster />
     </div>
   );
 }

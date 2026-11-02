@@ -29,6 +29,7 @@ import {
 import { dnsCheck, DnsCheckResult, listSenders } from "@/lib/senders";
 import { SendersSection } from "@/components/senders-section";
 import { BrandingFields } from "@/components/workspace-section";
+import { Toaster } from "@/components/feedback";
 
 const STEPS = ["Workspace", "AI memory", "Sender", "Domain", "Done"];
 
@@ -137,7 +138,7 @@ export default function OnboardingPage() {
                 The mailbox your campaigns send from. You can add more later in
                 Settings.
               </p>
-              <SendersSection />
+              <SendersSection showDnsCheck={false} />
             </Card>
           )}
           {step === 3 && <DomainStep />}
@@ -173,6 +174,7 @@ export default function OnboardingPage() {
           )}
         </div>
       </main>
+      <Toaster />
     </div>
   );
 }
