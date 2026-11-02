@@ -38,6 +38,9 @@ export function validateEnv(
     for (const k of ['WEB_URL', 'API_URL', 'REDIS_URL']) {
       if (!str(k)) errors.push(`${k} is required in production`);
     }
+    if (str('THROTTLE_DISABLED') === 'true') {
+      errors.push('THROTTLE_DISABLED is a test-only switch');
+    }
     if (str('EMAIL_DRIVER') === 'mock') {
       errors.push('EMAIL_DRIVER=mock is not allowed in production');
     }

@@ -23,11 +23,20 @@ export class SendProcessor
     super();
   }
 
+  private get enabled() {
+    return (
+      process.env.NODE_ENV !== 'test' && process.env.SEND_SCHEDULER !== 'off'
+    );
+  }
+
   async onApplicationBootstrap() {
-    if (
-      process.env.NODE_ENV === 'test' ||
-      process.env.SEND_SCHEDULER === 'off'
-    ) {
+    if (!this.enabled) {
+      // Repeatable jobs outlive the process in Redis. A dev server that ran
+      // with the scheduler on leaves one behind; clear it so a scheduler-off
+      // instance (tests, e2e) never runs surprise global ticks mid-test.
+      for (const job of await this.queue.getRepeatableJobs()) {
+        await this.queue.removeRepeatableByKey(job.key);
+      }
       return;
     }
     // Fire every 30s. jobId keeps a single repeatable instance.
@@ -44,6 +53,7 @@ export class SendProcessor
   }
 
   async process(): Promise<void> {
+    if (!this.enabled) return; // a stale tick queued before the cleanup ran
     const counts = await this.send.tick();
     if (counts.sent || counts.failed) {
       this.logger.log(

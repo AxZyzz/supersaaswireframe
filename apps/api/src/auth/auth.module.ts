@@ -21,7 +21,12 @@ import { RolesGuard } from './guards/roles.guard';
         ),
       }),
     }),
-    ThrottlerModule.forRoot([{ limit: 100, ttl: 60_000 }]),
+    ThrottlerModule.forRoot({
+      throttlers: [{ limit: 100, ttl: 60_000 }],
+      // Test-only escape hatch (route-sweep suites); env validation forbids
+      // it in production.
+      skipIf: () => process.env.THROTTLE_DISABLED === 'true',
+    }),
   ],
   controllers: [AuthController],
   providers: [

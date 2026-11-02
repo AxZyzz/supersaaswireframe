@@ -59,6 +59,7 @@ export class TemplatesController {
     return this.templates.list(user.orgId, q.folderId);
   }
 
+  @Roles('admin', 'manager')
   @Post()
   @HttpCode(201)
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateTemplateDto) {
@@ -70,6 +71,7 @@ export class TemplatesController {
     return this.templates.get(user.orgId, id);
   }
 
+  @Roles('admin', 'manager')
   @Patch(':id')
   update(
     @CurrentUser() user: AuthUser,
@@ -88,6 +90,7 @@ export class TemplatesController {
     return this.templates.remove(user.orgId, id);
   }
 
+  @Roles('admin', 'manager')
   @Post(':id/duplicate')
   @HttpCode(201)
   duplicate(

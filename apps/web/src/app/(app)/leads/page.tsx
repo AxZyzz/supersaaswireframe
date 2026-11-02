@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { ImportModal } from "@/components/import-modal";
 import { DuplicatesModal } from "@/components/duplicates-modal";
+import { canManage, useRole } from "@/lib/me";
 import { LeadKanban } from "@/components/lead-kanban";
 import {
   bulkTag,
@@ -31,6 +32,7 @@ const PAGE = 50;
 const KANBAN_LIMIT = 200;
 
 export default function LeadsPage() {
+  const role = useRole();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
@@ -195,18 +197,23 @@ export default function LeadsPage() {
         >
           <Download size={15} /> Export
         </button>
-        <button
-          onClick={() => setDedup(true)}
-          className="flex items-center gap-1.5 rounded border border-line-mid px-3 py-1.5 text-sm font-medium text-ink hover:bg-hover"
-        >
-          <Copy size={15} /> Duplicates
-        </button>
-        <button
-          onClick={() => setImporting(true)}
-          className="flex items-center gap-1.5 rounded border border-line-mid px-3 py-1.5 text-sm font-medium text-ink hover:bg-hover"
-        >
-          <Upload size={15} /> Import CSV
-        </button>
+        {/* merging + bulk import are manager actions (API enforces too) */}
+        {canManage(role) && (
+          <>
+            <button
+              onClick={() => setDedup(true)}
+              className="flex items-center gap-1.5 rounded border border-line-mid px-3 py-1.5 text-sm font-medium text-ink hover:bg-hover"
+            >
+              <Copy size={15} /> Duplicates
+            </button>
+            <button
+              onClick={() => setImporting(true)}
+              className="flex items-center gap-1.5 rounded border border-line-mid px-3 py-1.5 text-sm font-medium text-ink hover:bg-hover"
+            >
+              <Upload size={15} /> Import CSV
+            </button>
+          </>
+        )}
         <button
           onClick={() => setCreating((v) => !v)}
           className="flex items-center gap-1.5 rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover"

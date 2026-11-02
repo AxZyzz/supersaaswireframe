@@ -1,0 +1,117 @@
+# Authorization matrix
+
+> Generated from controller metadata by `apps/api/src/auth/authz-matrix.integration.spec.ts`.
+> Do not edit by hand — run the API tests with `UPDATE_AUTHZ=1` to regenerate.
+
+✅ allowed · ⛔ 403 Forbidden · — public (no login; API-key routes noted)
+
+| Route | Auth | Admin | Manager | Agent |
+|---|---|:-:|:-:|:-:|
+| `GET /` | public | — | — | — |
+| `POST /ai/campaigns/from-sequence` | login | ✅ | ✅ | ⛔ |
+| `POST /ai/generate-sequence` | login | ✅ | ✅ | ⛔ |
+| `GET /ai/knowledge` | login | ✅ | ✅ | ✅ |
+| `PUT /ai/knowledge` | login | ✅ | ✅ | ⛔ |
+| `GET /analytics/campaigns` | login | ✅ | ✅ | ✅ |
+| `GET /analytics/overview` | login | ✅ | ✅ | ✅ |
+| `GET /api-keys` | login | ✅ | ✅ | ⛔ |
+| `POST /api-keys` | login | ✅ | ✅ | ⛔ |
+| `DELETE /api-keys/:id` | login | ✅ | ✅ | ⛔ |
+| `POST /auth/login` | public | — | — | — |
+| `POST /auth/logout` | public | — | — | — |
+| `GET /auth/me` | login | ✅ | ✅ | ✅ |
+| `POST /auth/refresh` | public | — | — | — |
+| `POST /auth/signup` | public | — | — | — |
+| `POST /auth/switch-org` | login | ✅ | ✅ | ✅ |
+| `GET /campaigns` | login | ✅ | ✅ | ✅ |
+| `POST /campaigns` | login | ✅ | ✅ | ⛔ |
+| `DELETE /campaigns/:id` | login | ✅ | ✅ | ⛔ |
+| `GET /campaigns/:id` | login | ✅ | ✅ | ✅ |
+| `PATCH /campaigns/:id` | login | ✅ | ✅ | ⛔ |
+| `POST /campaigns/:id/archive` | login | ✅ | ✅ | ⛔ |
+| `GET /campaigns/:id/audience` | login | ✅ | ✅ | ✅ |
+| `POST /campaigns/:id/duplicate` | login | ✅ | ✅ | ⛔ |
+| `POST /campaigns/:id/enroll` | login | ✅ | ✅ | ⛔ |
+| `POST /campaigns/:id/pause` | login | ✅ | ✅ | ⛔ |
+| `POST /campaigns/:id/resume` | login | ✅ | ✅ | ⛔ |
+| `POST /campaigns/:id/schedule` | login | ✅ | ✅ | ⛔ |
+| `GET /campaigns/:id/stats` | login | ✅ | ✅ | ✅ |
+| `POST /campaigns/:id/steps` | login | ✅ | ✅ | ⛔ |
+| `DELETE /campaigns/steps/:stepId` | login | ✅ | ✅ | ⛔ |
+| `PATCH /campaigns/steps/:stepId` | login | ✅ | ✅ | ⛔ |
+| `GET /health/ready` | public | — | — | — |
+| `GET /inbox` | login | ✅ | ✅ | ✅ |
+| `GET /inbox/:id` | login | ✅ | ✅ | ✅ |
+| `PATCH /inbox/:id` | login | ✅ | ✅ | ✅ |
+| `POST /inbox/:id/notes` | login | ✅ | ✅ | ✅ |
+| `POST /inbox/simulate-reply` | login | ✅ | ✅ | ⛔ |
+| `GET /inbox/unread-count` | login | ✅ | ✅ | ✅ |
+| `GET /invites/:token` | public | — | — | — |
+| `POST /invites/:token/accept` | login | ✅ | ✅ | ✅ |
+| `POST /invites/:token/register` | public | — | — | — |
+| `GET /leads` | login | ✅ | ✅ | ✅ |
+| `POST /leads` | login | ✅ | ✅ | ✅ |
+| `DELETE /leads/:id` | login | ✅ | ✅ | ⛔ |
+| `GET /leads/:id` | login | ✅ | ✅ | ✅ |
+| `PATCH /leads/:id` | login | ✅ | ✅ | ✅ |
+| `POST /leads/:id/notes` | login | ✅ | ✅ | ✅ |
+| `POST /leads/:id/tags` | login | ✅ | ✅ | ✅ |
+| `DELETE /leads/:id/tags/:tagId` | login | ✅ | ✅ | ✅ |
+| `GET /leads/duplicates` | login | ✅ | ✅ | ✅ |
+| `GET /leads/export` | login | ✅ | ✅ | ✅ |
+| `POST /leads/import` | login | ✅ | ✅ | ⛔ |
+| `GET /leads/import/:id` | login | ✅ | ✅ | ✅ |
+| `POST /leads/merge` | login | ✅ | ✅ | ⛔ |
+| `GET /notifications` | login | ✅ | ✅ | ✅ |
+| `POST /notifications/:id/read` | login | ✅ | ✅ | ✅ |
+| `POST /notifications/read-all` | login | ✅ | ✅ | ✅ |
+| `GET /notifications/unread-count` | login | ✅ | ✅ | ✅ |
+| `GET /orgs/invites` | login | ✅ | ⛔ | ⛔ |
+| `POST /orgs/invites` | login | ✅ | ⛔ | ⛔ |
+| `DELETE /orgs/invites/:id` | login | ✅ | ⛔ | ⛔ |
+| `GET /orgs/me` | login | ✅ | ✅ | ✅ |
+| `PATCH /orgs/me` | login | ✅ | ⛔ | ⛔ |
+| `POST /orgs/me/onboarding/complete` | login | ✅ | ⛔ | ⛔ |
+| `GET /orgs/me/setup` | login | ✅ | ✅ | ✅ |
+| `GET /orgs/members` | login | ✅ | ✅ | ⛔ |
+| `DELETE /orgs/members/:userId` | login | ✅ | ⛔ | ⛔ |
+| `PATCH /orgs/members/:userId` | login | ✅ | ⛔ | ⛔ |
+| `GET /segments` | login | ✅ | ✅ | ✅ |
+| `POST /segments` | login | ✅ | ✅ | ⛔ |
+| `DELETE /segments/:id` | login | ✅ | ✅ | ⛔ |
+| `GET /segments/:id` | login | ✅ | ✅ | ✅ |
+| `PATCH /segments/:id` | login | ✅ | ✅ | ⛔ |
+| `GET /segments/:id/leads` | login | ✅ | ✅ | ✅ |
+| `POST /segments/:id/members` | login | ✅ | ✅ | ⛔ |
+| `DELETE /segments/:id/members/:leadId` | login | ✅ | ✅ | ⛔ |
+| `POST /segments/:id/refresh` | login | ✅ | ✅ | ⛔ |
+| `GET /senders` | login | ✅ | ✅ | ✅ |
+| `POST /senders` | login | ✅ | ✅ | ⛔ |
+| `DELETE /senders/:id` | login | ✅ | ✅ | ⛔ |
+| `GET /senders/:id` | login | ✅ | ✅ | ✅ |
+| `PATCH /senders/:id` | login | ✅ | ✅ | ⛔ |
+| `POST /senders/:id/test` | login | ✅ | ✅ | ⛔ |
+| `POST /senders/:id/verify` | login | ✅ | ✅ | ⛔ |
+| `GET /senders/dns-check` | login | ✅ | ✅ | ✅ |
+| `POST /sending/tick` | login | ✅ | ✅ | ⛔ |
+| `GET /t/c/:trackingId` | public | — | — | — |
+| `GET /t/o/:trackingId` | public | — | — | — |
+| `GET /tags` | login | ✅ | ✅ | ✅ |
+| `POST /tags` | login | ✅ | ✅ | ✅ |
+| `DELETE /tags/:id` | login | ✅ | ✅ | ⛔ |
+| `POST /tags/bulk` | login | ✅ | ✅ | ✅ |
+| `GET /templates` | login | ✅ | ✅ | ✅ |
+| `POST /templates` | login | ✅ | ✅ | ⛔ |
+| `DELETE /templates/:id` | login | ✅ | ✅ | ⛔ |
+| `GET /templates/:id` | login | ✅ | ✅ | ✅ |
+| `PATCH /templates/:id` | login | ✅ | ✅ | ⛔ |
+| `POST /templates/:id/duplicate` | login | ✅ | ✅ | ⛔ |
+| `POST /templates/:id/preview` | login | ✅ | ✅ | ✅ |
+| `POST /templates/:id/test` | login | ✅ | ✅ | ⛔ |
+| `GET /templates/folders` | login | ✅ | ✅ | ✅ |
+| `POST /templates/folders` | login | ✅ | ✅ | ⛔ |
+| `DELETE /templates/folders/:id` | login | ✅ | ✅ | ⛔ |
+| `GET /u/:token` | public | — | — | — |
+| `POST /u/:token` | public | — | — | — |
+| `GET /usage` | login | ✅ | ✅ | ✅ |
+| `POST /v1/leads` | API key | — | — | — |

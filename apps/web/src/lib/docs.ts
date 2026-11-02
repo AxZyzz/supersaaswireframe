@@ -42,7 +42,7 @@ Admins can do everything. Managers run campaigns, senders and templates. Agents 
     section: "Leads",
     title: "Importing leads from CSV",
     summary: "Column mapping, duplicates and limits.",
-    body: `On Leads, choose **Import**, pick a CSV (up to 5 MB) and map each column to a lead field. Unmapped columns are skipped.
+    body: `On Leads, choose **Import CSV** (admins and managers), pick a CSV (up to 5 MB) and map each column to a lead field. Unmapped columns are skipped.
 
 ## Duplicates
 Emails are matched case-insensitively. Choose **Skip** to leave existing leads untouched, or **Update** to fill them in from the file. Use **Duplicates** afterwards to review and merge matches (admins and managers).
@@ -178,7 +178,7 @@ Reclassify anything with one click. Assign conversations to teammates, leave int
 
 - **Admin** — everything, including team, branding and workspace settings.
 - **Manager** — campaigns, senders, templates, knowledge base, leads and inbox.
-- **Agent** — views and edits leads and works the inbox (can't delete or merge leads, or run campaigns).
+- **Agent** — adds, edits and tags leads and works the inbox. Can browse templates and campaigns but not change them, import CSVs, merge or delete leads.
 
 Role changes and removals apply immediately. A workspace always keeps at least one admin.`,
   },

@@ -14,6 +14,7 @@ import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../../auth/types';
 import type { ImportableField } from './import.dto';
 import { ImportService } from './import.service';
+import { Roles } from '../../auth/decorators/roles.decorator';
 
 interface MulterFile {
   buffer: Buffer;
@@ -27,6 +28,9 @@ const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 export class ImportController {
   constructor(private readonly imports: ImportService) {}
 
+  // Bulk import (up to the plan's lead cap) is a manager action; agents add
+  // and edit leads one at a time.
+  @Roles('admin', 'manager')
   @Post()
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_BYTES } }))
   start(

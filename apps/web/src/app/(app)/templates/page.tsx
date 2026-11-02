@@ -14,6 +14,7 @@ import {
   updateTemplate,
 } from "@/lib/templates";
 import { listSenders, Sender } from "@/lib/senders";
+import { canManage, useRole } from "@/lib/me";
 
 type Draft = {
   id: string | null; // null = unsaved new template
@@ -25,6 +26,7 @@ type Draft = {
 const EMPTY: Draft = { id: null, name: "", subject: "", bodyHtml: "" };
 
 export default function TemplatesPage() {
+  const editable = canManage(useRole());
   const [templates, setTemplates] = useState<Template[]>([]);
   const [senders, setSenders] = useState<Sender[]>([]);
   const [draft, setDraft] = useState<Draft>(EMPTY);
@@ -127,15 +129,21 @@ export default function TemplatesPage() {
     <div className="mx-auto flex max-w-shell gap-4">
       {/* library */}
       <aside className="w-64 shrink-0 space-y-2">
-        <button
-          onClick={() => {
-            setNote(null);
-            setDraft(EMPTY);
-          }}
-          className="flex w-full items-center justify-center gap-1.5 rounded bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover"
-        >
-          <Plus size={15} /> New template
-        </button>
+        {editable ? (
+          <button
+            onClick={() => {
+              setNote(null);
+              setDraft(EMPTY);
+            }}
+            className="flex w-full items-center justify-center gap-1.5 rounded bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover"
+          >
+            <Plus size={15} /> New template
+          </button>
+        ) : (
+          <p className="rounded border border-line bg-panel px-3 py-2 text-tiny text-muted">
+            Templates are managed by admins and managers. You can browse and preview them.
+          </p>
+        )}
         <div className="overflow-hidden rounded-lg border border-line bg-white">
           {templates.length === 0 ? (
             <p className="px-3 py-6 text-center text-sm text-muted">
@@ -172,6 +180,8 @@ export default function TemplatesPage() {
               placeholder="Template name"
               className={`${field} font-medium`}
             />
+            {editable && (
+              <>
             <button
               onClick={() => void save()}
               disabled={saving || !draft.name.trim()}
@@ -202,6 +212,8 @@ export default function TemplatesPage() {
             >
               <Trash2 size={15} />
             </button>
+              </>
+            )}
           </div>
 
           {note && (
