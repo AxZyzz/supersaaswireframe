@@ -11,11 +11,13 @@ import {
   Query,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthUser } from '../auth/types';
 import {
   AddNoteDto,
+  ReplyDto,
   SimulateReplyDto,
   UpdateConversationDto,
 } from './inbox.dto';
@@ -56,6 +58,18 @@ export class InboxController {
     @Body() dto: UpdateConversationDto,
   ) {
     return this.inbox.update(user.orgId, id, dto, user.userId);
+  }
+
+  /** Send a reply to the lead from the conversation's sender (T7.3). */
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Post(':id/reply')
+  @HttpCode(201)
+  reply(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReplyDto,
+  ) {
+    return this.inbox.reply(user.orgId, user.userId, id, dto.body);
   }
 
   @Post(':id/notes')

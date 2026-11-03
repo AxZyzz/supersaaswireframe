@@ -7,6 +7,7 @@ import request from 'supertest';
 import { AppModule } from '../app.module';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { MockProvider } from '../senders/providers/mock.provider';
 
 /** E7 chunk 1: reply ingestion threads replies into conversations, classifies
  *  them, and applies sequence automations (stop-on-reply, out-of-office
@@ -362,5 +363,43 @@ describe('Inbox integration', () => {
       );
       expect(r.rows[0].status).toBe('converted');
     });
+  });
+
+  it('replies to the lead from the inbox, threaded (T7.3)', async () => {
+    await http()
+      .post(`/inbox/${conversationId}/reply`)
+      .set('Authorization', auth())
+      .send({ body: '   ' })
+      .expect(400);
+
+    const r = await http()
+      .post(`/inbox/${conversationId}/reply`)
+      .set('Authorization', auth())
+      .send({ body: 'Great — Tuesday 3pm?\nI will send an invite.' })
+      .expect(201);
+    expect(r.body.subject).toMatch(/^Re: /i);
+
+    const msg = [...MockProvider.outbox]
+      .reverse()
+      .find((m) => m.to === 'amy@ib.local');
+    expect(msg?.subject).toBe(r.body.subject);
+    expect(msg?.text).toContain('Tuesday 3pm');
+    expect(msg?.html).toContain('<br>');
+
+    const thread = await http()
+      .get(`/inbox/${conversationId}`)
+      .set('Authorization', auth())
+      .expect(200);
+    const last = thread.body.thread[thread.body.thread.length - 1];
+    expect(last.direction).toBe('outbound');
+    expect(last.from_email).toBe('rep@ib.local');
+    expect(last.body_text).toContain('Tuesday 3pm');
+    expect(thread.body.unread).toBe(false);
+
+    await http()
+      .post(`/inbox/${randomUUID()}/reply`)
+      .set('Authorization', auth())
+      .send({ body: 'hi' })
+      .expect(404);
   });
 });

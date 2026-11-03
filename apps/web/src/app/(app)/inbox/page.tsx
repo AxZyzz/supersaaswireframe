@@ -10,11 +10,13 @@ import {
   FlaskConical,
   Mail,
   MailOpen,
+  Send,
   Search,
   X,
 } from "lucide-react";
 import {
   addNote,
+  replyConversation,
   CLASS_META,
   ConversationDetail,
   ConversationPatch,
@@ -27,6 +29,8 @@ import {
   simulateReply,
   updateConversation,
 } from "@/lib/inbox";
+import { errorMessage } from "@/lib/api";
+import { toast } from "@/components/feedback";
 import { timeAgo } from "@/lib/analytics";
 import { useLive } from "@/lib/realtime";
 
@@ -72,6 +76,9 @@ function Inbox() {
   const [simOpen, setSimOpen] = useState(false);
   const [members, setMembers] = useState<Member[] | null>(null);
   const [note, setNote] = useState("");
+  const [reply, setReply] = useState("");
+  const [sending, setSending] = useState(false);
+  const [mode, setMode] = useState<"reply" | "note">("reply");
 
   useEffect(() => {
     listMembers()
@@ -109,6 +116,22 @@ function Inbox() {
   useEffect(() => {
     if (deepLink) void open(deepLink);
   }, [deepLink]);
+
+  async function sendReply() {
+    if (!selected || !reply.trim()) return;
+    setSending(true);
+    try {
+      await replyConversation(selected.id, reply.trim());
+      setReply("");
+      toast("Reply sent.");
+      setSelected(await getConversation(selected.id));
+      void load();
+    } catch (e) {
+      toast(errorMessage(e, "Couldn't send the reply."), "error");
+    } finally {
+      setSending(false);
+    }
+  }
 
   async function saveNote() {
     if (!selected || !note.trim()) return;
@@ -336,7 +359,46 @@ function Inbox() {
                 </div>
               ))}
             </div>
-            <div className="space-y-1.5 border-t border-line px-4 py-2.5">
+            <div className="space-y-2 border-t border-line px-4 py-2.5">
+              <div className="flex gap-1 text-tiny">
+                {(["reply", "note"] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setMode(m)}
+                    className={`rounded px-2 py-1 ${
+                      mode === m ? "bg-accent-soft font-medium text-accent" : "text-muted hover:bg-hover"
+                    }`}
+                  >
+                    {m === "reply" ? "Reply to lead" : "Internal note"}
+                  </button>
+                ))}
+              </div>
+              {mode === "reply" ? (
+                <div className="space-y-1.5">
+                  <textarea
+                    value={reply}
+                    onChange={(e) => setReply(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void sendReply();
+                    }}
+                    rows={3}
+                    placeholder={`Reply to ${selected.lead?.email ?? "the lead"}…`}
+                    className={`${field} w-full`}
+                  />
+                  <div className="flex items-center justify-between">
+                    <span className="text-tiny text-faint">
+                      Sends from {selected.sender_email ?? "your first sender"}, threaded · Ctrl+Enter
+                    </span>
+                    <button
+                      onClick={() => void sendReply()}
+                      disabled={!reply.trim() || sending}
+                      className="flex items-center gap-1.5 rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+                    >
+                      <Send size={13} /> {sending ? "Sending…" : "Send reply"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
               <div className="flex gap-2">
                 <input
                   value={note}
@@ -353,9 +415,7 @@ function Inbox() {
                   Add note
                 </button>
               </div>
-              <p className="text-tiny text-faint">
-                Replying to the lead from here arrives once a sending inbox (Gmail/SES) is connected.
-              </p>
+              )}
             </div>
           </>
         )}

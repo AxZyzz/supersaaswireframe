@@ -125,6 +125,13 @@ export const addNote = (id: string, body: string) =>
     body: JSON.stringify({ body }),
   });
 
+/** Send a reply to the lead from the conversation's sender (T7.3). */
+export const replyConversation = (id: string, body: string) =>
+  api<{ id: string; subject: string }>(`/inbox/${id}/reply`, {
+    method: "POST",
+    body: JSON.stringify({ body }),
+  });
+
 export interface Member {
   user_id: string;
   role: string;

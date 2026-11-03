@@ -51,6 +51,7 @@
 | `GET /inbox/:id` | login | ✅ | ✅ | ✅ |
 | `PATCH /inbox/:id` | login | ✅ | ✅ | ✅ |
 | `POST /inbox/:id/notes` | login | ✅ | ✅ | ✅ |
+| `POST /inbox/:id/reply` | login | ✅ | ✅ | ✅ |
 | `POST /inbox/simulate-reply` | login | ✅ | ✅ | ⛔ |
 | `GET /inbox/unread-count` | login | ✅ | ✅ | ✅ |
 | `GET /invites/:token` | public | — | — | — |

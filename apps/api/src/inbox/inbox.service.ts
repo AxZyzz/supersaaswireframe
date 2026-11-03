@@ -17,6 +17,7 @@ import {
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { RealtimeService } from '../realtime/realtime.service';
+import { SendersService } from '../senders/senders.service';
 
 export interface IngestReplyInput {
   fromEmail: string;
@@ -111,7 +112,121 @@ export class InboxService {
     private readonly ai: AiService,
     private readonly notifications: NotificationsService,
     private readonly realtime: RealtimeService,
+    private readonly senders: SendersService,
   ) {}
+
+  /**
+   * Manual reply to the lead (T7.3). Sends from the conversation's sender
+   * (else the workspace's first sender), threaded with In-Reply-To /
+   * References so it lands in the same thread in the lead's mail client.
+   * Network call happens outside any transaction; the message is recorded
+   * only if the provider accepted it.
+   */
+  async reply(orgId: string, userId: string, id: string, body: string) {
+    const text = body.trim();
+    if (!text) throw new BadRequestException('Reply is empty');
+
+    const ctx = await withOrgContext(this.pool, orgId, async (c) => {
+      const conv = await c.query<{
+        subject: string;
+        sender_id: string | null;
+        lead_email: string | null;
+        lead_id: string;
+      }>(
+        `SELECT cv.subject, cv.sender_id, l.email AS lead_email, cv.lead_id
+         FROM conversations cv JOIN leads l ON l.id = cv.lead_id
+         WHERE cv.id = $1`,
+        [id],
+      );
+      const cv = conv.rows[0];
+      if (!cv) throw new NotFoundException('Conversation not found');
+      if (!cv.lead_email)
+        throw new BadRequestException('This lead has no email address');
+      const sender = await c.query<{ id: string; signature: string | null }>(
+        `SELECT id, signature FROM sender_accounts
+         WHERE ($1::uuid IS NULL OR id = $1)
+         ORDER BY (id = $1) DESC NULLS LAST, created_at
+         LIMIT 1`,
+        [cv.sender_id],
+      );
+      if (!sender.rows[0]) {
+        throw new BadRequestException(
+          'Connect a sender account before replying',
+        );
+      }
+      const last = await c.query<{ message_id: string | null }>(
+        `SELECT message_id FROM conversation_messages
+         WHERE conversation_id = $1 AND message_id IS NOT NULL
+         ORDER BY created_at DESC LIMIT 1`,
+        [id],
+      );
+      return {
+        cv,
+        sender: sender.rows[0],
+        inReplyTo: last.rows[0]?.message_id ?? null,
+      };
+    });
+
+    const subject = /^re:/i.test(ctx.cv.subject)
+      ? ctx.cv.subject
+      : `Re: ${ctx.cv.subject || '(no subject)'}`;
+    const fullText = ctx.sender.signature
+      ? `${text}\n\n${ctx.sender.signature}`
+      : text;
+    const html = fullText
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\n/g, '<br>');
+    const headers: Record<string, string> = {};
+    if (ctx.inReplyTo) {
+      headers['In-Reply-To'] = ctx.inReplyTo;
+      headers['References'] = ctx.inReplyTo;
+    }
+
+    const sent = await this.senders.sendMessage(orgId, ctx.sender.id, {
+      to: ctx.cv.lead_email!,
+      subject,
+      text: fullText,
+      html,
+      headers,
+    });
+
+    const message = await withOrgContext(this.pool, orgId, async (c) => {
+      const m = await c.query<{ id: string; created_at: string }>(
+        `INSERT INTO conversation_messages
+           (org_id, conversation_id, direction, from_email, to_email, subject, body_text, message_id, in_reply_to)
+         VALUES ($1, $2, 'outbound', $3, $4, $5, $6, $7, $8)
+         RETURNING id, created_at`,
+        [
+          orgId,
+          id,
+          sent.from,
+          ctx.cv.lead_email,
+          subject,
+          fullText,
+          sent.messageId,
+          ctx.inReplyTo,
+        ],
+      );
+      await c.query(
+        `UPDATE conversations SET last_message_at = now(), unread = false
+         WHERE id = $1`,
+        [id],
+      );
+      await c.query(
+        `INSERT INTO lead_events (org_id, lead_id, type, data) VALUES ($1, $2, 'reply_sent', $3::jsonb)`,
+        [
+          orgId,
+          ctx.cv.lead_id,
+          JSON.stringify({ conversation_id: id, by: userId }),
+        ],
+      );
+      return m.rows[0];
+    });
+    this.realtime.toOrg(orgId, { type: 'inbox', id });
+    return { ...message, subject, messageId: sent.messageId };
+  }
 
   async ingestReply(
     orgId: string,

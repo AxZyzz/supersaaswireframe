@@ -2,6 +2,7 @@ import {
   IsBoolean,
   IsEmail,
   IsIn,
+  IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
@@ -37,4 +38,8 @@ export class SimulateReplyDto {
   @IsOptional()
   @IsIn([...REPLY_CLASSES])
   classification?: (typeof REPLY_CLASSES)[number];
+}
+
+export class ReplyDto {
+  @IsString() @IsNotEmpty() @MaxLength(20000) body!: string;
 }
