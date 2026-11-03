@@ -22,22 +22,31 @@ export function DuplicatesModal({
   const [primary, setPrimary] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const g = await findDuplicates();
-      setGroups(g);
-      setPrimary(
-        Object.fromEntries(g.map((grp) => [grp.leads[0].id, grp.leads[0].id])),
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // `loading` starts true; reloads after a merge keep the list on screen.
+  const fetchAndApply = useCallback(
+    (isLive: () => boolean = () => true) =>
+      findDuplicates()
+        .then((g) => {
+          if (!isLive()) return;
+          setGroups(g);
+          setPrimary(
+            Object.fromEntries(
+              g.map((grp) => [grp.leads[0].id, grp.leads[0].id]),
+            ),
+          );
+        })
+        .finally(() => isLive() && setLoading(false)),
+    [],
+  );
+  const load = useCallback(() => fetchAndApply(), [fetchAndApply]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let live = true;
+    void fetchAndApply(() => live);
+    return () => {
+      live = false;
+    };
+  }, [fetchAndApply]);
 
   const name = (l: Lead) =>
     [l.first_name, l.last_name].filter(Boolean).join(" ") || "Unnamed";

@@ -20,21 +20,28 @@ export default function SegmentsPage() {
 
   const [err, setErr] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setErr(null);
-    try {
-      setSegments(await listSegments());
-    } catch (e) {
-      setErr(loadErrorText(e));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // `loading` starts true; the error clears once a (re)load succeeds.
+  const fetchAndApply = useCallback(
+    (isLive: () => boolean = () => true) =>
+      listSegments()
+        .then((s) => {
+          if (!isLive()) return;
+          setErr(null);
+          setSegments(s);
+        })
+        .catch((e) => isLive() && setErr(loadErrorText(e)))
+        .finally(() => isLive() && setLoading(false)),
+    [],
+  );
+  const load = useCallback(() => fetchAndApply(), [fetchAndApply]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let live = true;
+    void fetchAndApply(() => live);
+    return () => {
+      live = false;
+    };
+  }, [fetchAndApply]);
 
   async function refresh(id: string) {
     await refreshSegment(id);

@@ -51,18 +51,30 @@ export default function AnalyticsPage() {
       : presetRange(preset);
   const key = JSON.stringify(range);
 
-  const load = useCallback(() => {
-    setErr(null);
-    const r = JSON.parse(key) as Range;
-    Promise.all([getOverview(r), getCampaignAnalytics(r)])
-      .then(([o, c]) => {
-        setOv(o);
-        setRows(c);
-      })
-      .catch((e) => setErr(loadErrorText(e)));
-  }, [key]);
+  // The error clears when a load succeeds (no synchronous reset in the
+  // effect); `isLive` drops responses for a range that's no longer selected.
+  const load = useCallback(
+    (isLive: () => boolean = () => true) => {
+      const r = JSON.parse(key) as Range;
+      Promise.all([getOverview(r), getCampaignAnalytics(r)])
+        .then(([o, c]) => {
+          if (!isLive()) return;
+          setErr(null);
+          setOv(o);
+          setRows(c);
+        })
+        .catch((e) => isLive() && setErr(loadErrorText(e)));
+    },
+    [key],
+  );
 
-  useEffect(() => load(), [load]);
+  useEffect(() => {
+    let live = true;
+    load(() => live);
+    return () => {
+      live = false;
+    };
+  }, [load]);
   useLive("campaigns", () => load());
 
   async function toggle(id: string) {
@@ -74,7 +86,7 @@ export default function AnalyticsPage() {
     }
   }
 
-  if (err) return <LoadError message={err} onRetry={load} />;
+  if (err) return <LoadError message={err} onRetry={() => load()} />;
   if (!ov) {
     return (
       <div className="flex h-64 items-center justify-center text-sm text-muted">

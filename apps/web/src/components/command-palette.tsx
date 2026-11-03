@@ -75,12 +75,16 @@ export function CommandPalette() {
     };
   }, []);
 
-  useEffect(() => {
+  // Fresh search every time the palette opens. Adjusting state during render
+  // (React's pattern for "reset when X changes") avoids an extra effect pass.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setQ("");
       setActive(0);
     }
-  }, [open]);
+  }
 
   const results = useMemo(() => {
     const needle = q.trim().toLowerCase();

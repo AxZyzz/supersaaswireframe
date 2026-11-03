@@ -22,24 +22,30 @@ export default function SegmentDetailPage() {
 
   const [err, setErr] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setErr(null);
-    try {
-      const [seg, mem] = await Promise.all([
-        getSegment(id),
-        listSegmentMembers(id),
-      ]);
-      setSegment(seg);
-      setMembers(mem.data);
-      setTotal(mem.total);
-    } catch (e) {
-      setErr(loadErrorText(e));
-    }
-  }, [id]);
+  // Fetch, then apply (or show the error). The error clears only once a
+  // retry succeeds, so there's no synchronous reset inside the effect.
+  const fetchAndApply = useCallback(
+    (isLive: () => boolean = () => true) =>
+      Promise.all([getSegment(id), listSegmentMembers(id)])
+        .then(([seg, mem]) => {
+          if (!isLive()) return;
+          setErr(null);
+          setSegment(seg);
+          setMembers(mem.data);
+          setTotal(mem.total);
+        })
+        .catch((e) => isLive() && setErr(loadErrorText(e))),
+    [id],
+  );
+  const load = useCallback(() => fetchAndApply(), [fetchAndApply]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let live = true;
+    void fetchAndApply(() => live);
+    return () => {
+      live = false;
+    };
+  }, [fetchAndApply]);
 
   async function refresh() {
     await refreshSegment(id);

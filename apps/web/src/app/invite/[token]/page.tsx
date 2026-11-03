@@ -7,9 +7,9 @@ import { MailCheck, XCircle } from "lucide-react";
 import {
   clearSession,
   errorMessage,
-  hasSessionHint,
   setSession,
 } from "@/lib/api";
+import { useSessionHint } from "@/lib/session-hint";
 import {
   acceptInvite,
   InvitePreview,
@@ -26,14 +26,13 @@ export default function InvitePage() {
   const router = useRouter();
   const [inv, setInv] = useState<InvitePreview | null>(null);
   const [missing, setMissing] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
+  const signedIn = useSessionHint();
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    setSignedIn(hasSessionHint());
     previewInvite(token)
       .then(setInv)
       .catch(() => setMissing(true));

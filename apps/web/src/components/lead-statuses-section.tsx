@@ -30,8 +30,12 @@ export function LeadStatusesSection({ canEdit }: { canEdit: boolean }) {
 
   const load = useCallback(async () => setList(await listLeadStatuses()), []);
   useEffect(() => {
-    void load();
-  }, [load]);
+    let live = true;
+    void listLeadStatuses().then((l) => live && setList(l));
+    return () => {
+      live = false;
+    };
+  }, []);
 
   async function run(fn: () => Promise<unknown>, ok?: string) {
     try {

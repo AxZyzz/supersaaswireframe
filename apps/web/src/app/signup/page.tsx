@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { api, ApiError, errorMessage, setSession } from "@/lib/api";
 import { WaitlistForm } from "@/components/waitlist-form";
+
+const noopSubscribe = () => () => {};
 
 export default function SignupPage() {
   const router = useRouter();
@@ -18,13 +20,24 @@ export default function SignupPage() {
   const [busy, setBusy] = useState(false);
   // Invite-only beta: ?code=… comes from the operator's invite link.
   const [mode, setMode] = useState<"open" | "waitlist" | null>(null);
-  const [code, setCode] = useState<string | null>(null);
+  // Read from the URL without an effect: "" on the server/hydration, then the
+  // real query string.
+  const search = useSyncExternalStore(
+    noopSubscribe,
+    () => window.location.search,
+    () => "",
+  );
+  const params = useMemo(() => new URLSearchParams(search), [search]);
+  const code = params.get("code");
+  // Prefill the invited email once it's known (adjust-state-during-render).
+  const invited = params.get("email");
+  const [prefilled, setPrefilled] = useState<string | null>(null);
+  if (invited && invited !== prefilled) {
+    setPrefilled(invited);
+    setForm((f) => ({ ...f, email: invited }));
+  }
 
   useEffect(() => {
-    const p = new URLSearchParams(window.location.search);
-    setCode(p.get("code"));
-    const invited = p.get("email");
-    if (invited) setForm((f) => ({ ...f, email: invited }));
     api<{ mode: "open" | "waitlist" }>("/beta/mode")
       .then((r) => setMode(r.mode))
       .catch(() => setMode("open"));

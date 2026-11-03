@@ -35,15 +35,24 @@ export default function TemplatesPage() {
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const load = useCallback(async () => {
-    const [t, s] = await Promise.all([listTemplates(), listSenders()]);
-    setTemplates(t);
-    setSenders(s);
-  }, []);
+  const fetchAndApply = useCallback(
+    (isLive: () => boolean = () => true) =>
+      Promise.all([listTemplates(), listSenders()]).then(([t, s]) => {
+        if (!isLive()) return;
+        setTemplates(t);
+        setSenders(s);
+      }),
+    [],
+  );
+  const load = useCallback(() => fetchAndApply(), [fetchAndApply]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let live = true;
+    void fetchAndApply(() => live);
+    return () => {
+      live = false;
+    };
+  }, [fetchAndApply]);
 
   function select(t: Template) {
     setNote(null);

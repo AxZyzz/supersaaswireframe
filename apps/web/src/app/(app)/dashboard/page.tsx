@@ -50,20 +50,28 @@ export default function DashboardPage() {
 
   const [err, setErr] = useState<string | null>(null);
 
-  const load = useCallback(() => {
-    setErr(null);
+  // The error clears when a load succeeds (no synchronous reset in the effect).
+  const load = useCallback((isLive: () => boolean = () => true) => {
     Promise.all([getOverview(), getCampaignAnalytics(), getSetup()])
       .then(([o, r, s]) => {
+        if (!isLive()) return;
+        setErr(null);
         setOv(o);
         setRows(r);
         setSetup(s);
       })
-      .catch((e) => setErr(loadErrorText(e)));
+      .catch((e) => isLive() && setErr(loadErrorText(e)));
   }, []);
 
-  useEffect(() => load(), [load]);
+  useEffect(() => {
+    let live = true;
+    load(() => live);
+    return () => {
+      live = false;
+    };
+  }, [load]);
 
-  if (err) return <LoadError message={err} onRetry={load} />;
+  if (err) return <LoadError message={err} onRetry={() => load()} />;
   if (!ov) {
     return (
       <div className="flex h-64 items-center justify-center text-sm text-muted">

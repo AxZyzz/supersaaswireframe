@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Send } from "lucide-react";
-import { hasSessionHint } from "@/lib/api";
+import { useSessionHint } from "@/lib/session-hint";
 import { applyBrand } from "@/lib/branding";
 import { BRAND } from "@/lib/marketing";
 
@@ -20,9 +20,8 @@ function Logo() {
 
 export function SiteNav() {
   // Signed-in visitors get a way back into the app instead of sign-up CTAs.
-  const [signedIn, setSignedIn] = useState(false);
+  const signedIn = useSessionHint();
   useEffect(() => {
-    setSignedIn(hasSessionHint());
     // public pages wear our brand, not the last workspace's accent
     applyBrand(null);
   }, []);

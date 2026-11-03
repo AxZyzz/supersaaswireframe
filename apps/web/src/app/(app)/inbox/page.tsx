@@ -126,13 +126,17 @@ function Inbox() {
     return () => clearTimeout(t);
   }, [load]);
 
-  async function open(id: string) {
-    const d = await getConversation(id);
+  // Show a fetched conversation and mark it read.
+  async function show(d: Awaited<ReturnType<typeof getConversation>>) {
     setSelected(d);
     if (d.unread) {
-      await updateConversation(id, { unread: false });
-      setRows((rs) => rs.map((r) => (r.id === id ? { ...r, unread: false } : r)));
+      await updateConversation(d.id, { unread: false });
+      setRows((rs) => rs.map((r) => (r.id === d.id ? { ...r, unread: false } : r)));
     }
+  }
+
+  async function open(id: string) {
+    await show(await getConversation(id));
   }
 
   // Live: new replies, assignment and notes from teammates appear instantly.
@@ -145,7 +149,14 @@ function Inbox() {
 
   // Open a conversation linked from a notification (/inbox?c=<id>).
   useEffect(() => {
-    if (deepLink) void open(deepLink);
+    if (!deepLink) return;
+    let live = true;
+    void getConversation(deepLink).then((d) => {
+      if (live) void show(d);
+    });
+    return () => {
+      live = false;
+    };
   }, [deepLink]);
 
   // T6.6: AI drafts the reply; anything already typed is used as guidance.

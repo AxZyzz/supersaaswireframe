@@ -57,8 +57,8 @@ export default function OperatorPage() {
   } | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  const load = useCallback(() => {
-    setErr(null);
+  // The error clears when a load succeeds (no synchronous reset in the effect).
+  const load = useCallback((isLive: () => boolean = () => true) => {
     Promise.all([
       api<{ totals: Totals; daily: { day: string; sent: number; failed: number }[] }>(
         "/operator/overview",
@@ -67,13 +67,21 @@ export default function OperatorPage() {
       api<Failure[]>("/operator/failures"),
       api<Health>("/operator/health"),
     ])
-      .then(([ov, orgs, failures, health]) =>
-        setData({ ...ov, orgs, failures, health }),
-      )
-      .catch((e) => setErr(loadErrorText(e)));
+      .then(([ov, orgs, failures, health]) => {
+        if (!isLive()) return;
+        setErr(null);
+        setData({ ...ov, orgs, failures, health });
+      })
+      .catch((e) => isLive() && setErr(loadErrorText(e)));
   }, []);
 
-  useEffect(() => load(), [load]);
+  useEffect(() => {
+    let live = true;
+    load(() => live);
+    return () => {
+      live = false;
+    };
+  }, [load]);
 
   async function setPlan(id: string, plan: string) {
     await api(`/operator/orgs/${id}/plan`, {
@@ -84,7 +92,7 @@ export default function OperatorPage() {
     load();
   }
 
-  if (err) return <LoadError message={err} onRetry={load} />;
+  if (err) return <LoadError message={err} onRetry={() => load()} />;
   if (!data) return <p className="text-sm text-muted">Loading operator console…</p>;
 
   const t = data.totals;

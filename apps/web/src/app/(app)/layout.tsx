@@ -43,7 +43,6 @@ export default function AppLayout({
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    setOffline(false);
     // A fresh page load has no access token in memory yet: restore it from
     // the httpOnly refresh cookie (or send the visitor to /login).
     ensureSession()
@@ -93,7 +92,10 @@ export default function AppLayout({
         <p className="text-sm text-ink">Can&apos;t reach the server right now.</p>
         <p className="text-tiny text-muted">You&apos;re still signed in. This usually clears in a few seconds.</p>
         <button
-          onClick={() => setAttempt((a) => a + 1)}
+          onClick={() => {
+            setOffline(false);
+            setAttempt((a) => a + 1);
+          }}
           className="rounded border border-line-mid bg-surface px-3 py-1.5 text-sm text-ink hover:bg-hover"
         >
           Try again

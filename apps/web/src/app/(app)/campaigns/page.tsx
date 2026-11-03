@@ -48,6 +48,9 @@ const STATUS_STYLES: Record<string, string> = {
   archived: "bg-neut-bg text-faint",
 };
 
+const fetchList = () =>
+  Promise.all([listCampaigns(), listTemplates(), listSegments(), listSenders()]);
+
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -60,22 +63,27 @@ export default function CampaignsPage() {
   const [aiOpen, setAiOpen] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const loadList = useCallback(async () => {
-    const [c, t, s, sn] = await Promise.all([
-      listCampaigns(),
-      listTemplates(),
-      listSegments(),
-      listSenders(),
-    ]);
-    setCampaigns(c);
-    setTemplates(t);
-    setSegments(s);
-    setSenders(sn);
-  }, []);
+  const applyList = useCallback(
+    ([c, t, s, sn]: Awaited<ReturnType<typeof fetchList>>) => {
+      setCampaigns(c);
+      setTemplates(t);
+      setSegments(s);
+      setSenders(sn);
+    },
+    [],
+  );
+  const loadList = useCallback(
+    async () => applyList(await fetchList()),
+    [applyList],
+  );
 
   useEffect(() => {
-    void loadList();
-  }, [loadList]);
+    let live = true;
+    void fetchList().then((r) => live && applyList(r));
+    return () => {
+      live = false;
+    };
+  }, [applyList]);
 
   // Reload a campaign's detail without clearing the status note — used by
   // live updates, so "Processed: N sent" isn't wiped by its own event.

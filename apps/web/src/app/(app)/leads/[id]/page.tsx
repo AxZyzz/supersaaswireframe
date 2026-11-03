@@ -33,8 +33,14 @@ export default function LeadProfilePage() {
   }, [id]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let live = true;
+    getLead(id)
+      .then((l) => live && setLead(l))
+      .catch(() => live && setNotFound(true));
+    return () => {
+      live = false;
+    };
+  }, [id]);
 
   async function setStatus(status: string) {
     await updateLead(id, { status });

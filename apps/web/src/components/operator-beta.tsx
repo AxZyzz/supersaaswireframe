@@ -38,18 +38,27 @@ export function OperatorBeta() {
   const [links, setLinks] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    const [w, f] = await Promise.all([
-      api<WaitlistRow[]>("/operator/waitlist"),
-      api<FeedbackRow[]>("/operator/feedback"),
-    ]);
-    setWaitlist(w);
-    setFeedback(f);
-  }, []);
+  const fetchAndApply = useCallback(
+    (isLive: () => boolean = () => true) =>
+      Promise.all([
+        api<WaitlistRow[]>("/operator/waitlist"),
+        api<FeedbackRow[]>("/operator/feedback"),
+      ]).then(([w, f]) => {
+        if (!isLive()) return;
+        setWaitlist(w);
+        setFeedback(f);
+      }),
+    [],
+  );
+  const load = useCallback(() => fetchAndApply(), [fetchAndApply]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let live = true;
+    void fetchAndApply(() => live);
+    return () => {
+      live = false;
+    };
+  }, [fetchAndApply]);
 
   async function approve(row: WaitlistRow) {
     const r = await api<{ code: string; email: string }>(
