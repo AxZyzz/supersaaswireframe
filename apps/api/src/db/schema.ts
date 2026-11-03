@@ -29,6 +29,8 @@ export const orgs = pgTable('orgs', {
   timezone: text('timezone').notNull().default('UTC'),
   // Branding (E9 / white-label readiness): accent hex + small logo data URL.
   brandColor: text('brand_color'),
+  // T2.3: ordered {name,color}[] lead status list; NULL = system defaults.
+  leadStatuses: jsonb('lead_statuses'),
   logoData: text('logo_data'),
   onboardedAt: timestamp('onboarded_at', { withTimezone: true }),
   // Usage plan; limits per plan live in src/usage/plan-limits.ts.

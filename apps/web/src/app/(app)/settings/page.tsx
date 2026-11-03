@@ -19,6 +19,7 @@ import { TeamSection } from "@/components/team-section";
 import { UsageSection } from "@/components/usage-section";
 import { NotificationPrefsSection } from "@/components/notification-prefs-section";
 import { PrivacySection } from "@/components/privacy-section";
+import { LeadStatusesSection } from "@/components/lead-statuses-section";
 import { HelpLink } from "@/components/help-link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -99,6 +100,8 @@ export default function SettingsPage() {
       <SendersSection readOnly={role === "agent"} />
 
       <KnowledgeSection readOnly={role === "agent"} />
+
+      <LeadStatusesSection canEdit={canManage} />
 
       {canManage && (
       <section className="rounded-lg border border-line bg-white p-5">

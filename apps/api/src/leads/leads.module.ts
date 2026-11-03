@@ -19,6 +19,7 @@ import { SegmentsService } from './segments/segments.service';
 import { TagsController } from './tags.controller';
 import { TagsService } from './tags.service';
 import { ThrottlerStorageModule } from '../auth/redis-throttler.storage';
+import { LeadStatusesController, LeadStatusesService } from './lead-statuses';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { ThrottlerStorageModule } from '../auth/redis-throttler.storage';
     SegmentsController,
     ApiKeysController,
     PublicLeadsController,
+    LeadStatusesController,
   ],
   providers: [
     LeadsService,
@@ -45,6 +47,7 @@ import { ThrottlerStorageModule } from '../auth/redis-throttler.storage';
     SegmentRefreshProcessor,
     ApiKeysService,
     ApiKeyGuard,
+    LeadStatusesService,
   ],
 })
 export class LeadsModule {}

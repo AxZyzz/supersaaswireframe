@@ -10,16 +10,17 @@ import {
   addNote,
   deleteLead,
   getLead,
-  LEAD_STATUSES,
   LeadDetail,
   updateLead,
 } from "@/lib/leads";
+import { useLeadStatuses } from "@/lib/lead-statuses";
 
 export default function LeadProfilePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const role = useRole();
   const [lead, setLead] = useState<LeadDetail | null>(null);
+  const statuses = useLeadStatuses();
   const [note, setNote] = useState("");
   const [notFound, setNotFound] = useState(false);
 
@@ -139,7 +140,7 @@ export default function LeadProfilePage() {
                 onChange={(e) => void setStatus(e.target.value)}
                 className={field}
               >
-                {[...new Set([...LEAD_STATUSES, lead.status])].map((s) => (
+                {[...new Set([...statuses.map((x) => x.name), lead.status])].map((s) => (
                   <option key={s} value={s}>
                     {s}
                   </option>

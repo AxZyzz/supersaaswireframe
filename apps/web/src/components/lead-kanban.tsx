@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Lead, LEAD_STATUSES, SCORE_STYLES, updateLead } from "@/lib/leads";
+import { Lead, SCORE_STYLES, updateLead } from "@/lib/leads";
+import { StatusDot, useLeadStatuses } from "@/lib/lead-statuses";
 
 /**
  * Status kanban. Columns = the default status set plus any custom statuses
@@ -18,9 +19,11 @@ export function LeadKanban({
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
 
+  const statuses = useLeadStatuses();
   const columns = Array.from(
-    new Set([...LEAD_STATUSES, ...leads.map((l) => l.status)]),
+    new Set([...statuses.map((s) => s.name), ...leads.map((l) => l.status)]),
   );
+  const colorOf = (name: string) => statuses.find((s) => s.name === name)?.color;
 
   async function drop(status: string) {
     setOverCol(null);
@@ -52,7 +55,10 @@ export function LeadKanban({
             }`}
           >
             <div className="flex items-center justify-between px-3 py-2 text-sm font-medium capitalize text-ink">
-              <span>{col}</span>
+              <span className="flex items-center gap-1.5">
+                <StatusDot color={colorOf(col)} />
+                {col}
+              </span>
               <span className="rounded-full bg-white px-1.5 text-tiny text-faint">
                 {items.length}
               </span>

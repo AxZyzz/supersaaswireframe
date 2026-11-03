@@ -20,13 +20,13 @@ import {
   bulkTag,
   createLead,
   exportLeads,
-  LEAD_STATUSES,
   Lead,
   LeadTag,
   listLeads,
   listTags,
   SCORE_STYLES,
 } from "@/lib/leads";
+import { StatusDot, useLeadStatuses } from "@/lib/lead-statuses";
 
 const PAGE = 50;
 const KANBAN_LIMIT = 200;
@@ -38,6 +38,8 @@ export default function LeadsPage() {
   const [offset, setOffset] = useState(0);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
+  const statuses = useLeadStatuses();
+  const colorOf = (name: string) => statuses.find((s) => s.name === name)?.color;
   const [score, setScore] = useState("");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -145,9 +147,9 @@ export default function LeadsPage() {
           className={field}
         >
           <option value="">All statuses</option>
-          {LEAD_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s}
+          {statuses.map((s) => (
+            <option key={s.name} value={s.name}>
+              {s.name}
             </option>
           ))}
         </select>
@@ -367,7 +369,8 @@ export default function LeadsPage() {
                   <td className="px-4 py-2.5 text-muted">{l.company || "—"}</td>
                   <td className="px-4 py-2.5 text-muted">{l.email || "—"}</td>
                   <td className="px-4 py-2.5">
-                    <span className="rounded-full bg-neut-bg px-2 py-0.5 text-tiny capitalize text-muted">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-neut-bg px-2 py-0.5 text-tiny capitalize text-muted">
+                      <StatusDot color={colorOf(l.status)} />
                       {l.status}
                     </span>
                   </td>

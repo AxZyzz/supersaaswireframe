@@ -62,6 +62,10 @@
 | `GET /invites/:token` | public | — | — | — |
 | `POST /invites/:token/accept` | login | ✅ | ✅ | ✅ |
 | `POST /invites/:token/register` | public | — | — | — |
+| `GET /lead-statuses` | login | ✅ | ✅ | ✅ |
+| `PUT /lead-statuses` | login | ✅ | ✅ | ⛔ |
+| `DELETE /lead-statuses/:name` | login | ✅ | ✅ | ⛔ |
+| `POST /lead-statuses/rename` | login | ✅ | ✅ | ⛔ |
 | `GET /leads` | login | ✅ | ✅ | ✅ |
 | `POST /leads` | login | ✅ | ✅ | ✅ |
 | `DELETE /leads/:id` | login | ✅ | ✅ | ⛔ |
