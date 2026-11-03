@@ -6,9 +6,17 @@ import {
   HttpCode,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
 } from '@nestjs/common';
-import { IsString, MaxLength } from 'class-validator';
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import type { AuthUser } from '../../auth/types';
@@ -16,6 +24,11 @@ import { ApiKeysService } from './api-keys.service';
 
 class CreateApiKeyDto {
   @IsString() @MaxLength(80) name!: string;
+  @IsOptional() @IsInt() @Min(1) @Max(6000) rateLimitPerMin?: number;
+}
+
+class UpdateApiKeyDto {
+  @IsInt() @Min(1) @Max(6000) rateLimitPerMin!: number;
 }
 
 // JWT-protected key management (admin/manager). The raw key is returned once,
@@ -33,7 +46,17 @@ export class ApiKeysController {
   @Post()
   @HttpCode(201)
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateApiKeyDto) {
-    return this.keys.create(user.orgId, dto.name);
+    return this.keys.create(user.orgId, dto.name, dto.rateLimitPerMin);
+  }
+
+  /** Change a key's requests-per-minute budget (T2.9). */
+  @Patch(':id')
+  update(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateApiKeyDto,
+  ) {
+    return this.keys.setRateLimit(user.orgId, id, dto.rateLimitPerMin);
   }
 
   @Delete(':id')

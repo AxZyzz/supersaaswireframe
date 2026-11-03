@@ -360,6 +360,8 @@ export const apiKeys = pgTable(
     name: text('name').notNull(),
     keyHash: text('key_hash').notNull(),
     prefix: text('prefix').notNull(),
+    // T2.9: per-key request budget (requests per minute, 1..6000).
+    rateLimitPerMin: integer('rate_limit_per_min').notNull().default(120),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -110,6 +110,54 @@ describe('Public API integration', () => {
     expect(list.body.total).toBe(1);
   });
 
+  it("enforces each key's own rate limit (T2.9)", async () => {
+    const mk = (name: string, rateLimitPerMin?: number) =>
+      request(app.getHttpServer())
+        .post('/api-keys')
+        .set(jwt())
+        .send({ name, rateLimitPerMin })
+        .expect(201);
+    const tight = await mk('Tight', 2);
+    const other = await mk('Other');
+    expect(tight.body.rate_limit_per_min).toBe(2);
+    expect(other.body.rate_limit_per_min).toBe(120);
+
+    const call = (key: string) =>
+      request(app.getHttpServer())
+        .post('/v1/leads')
+        .set('X-Api-Key', key)
+        .send({ email: 'rl@ext.com' });
+    const first = await call(tight.body.key).expect(200);
+    expect(first.headers['x-ratelimit-limit']).toBe('2');
+    expect(first.headers['x-ratelimit-remaining']).toBe('1');
+    await call(tight.body.key).expect(200);
+    const blocked = await call(tight.body.key).expect(429);
+    expect(Number(blocked.headers['retry-after'])).toBeGreaterThan(0);
+
+    // budgets are per key, not per caller
+    await call(other.body.key).expect(200);
+
+    // invalid budgets are rejected; a valid one is stored
+    await request(app.getHttpServer())
+      .patch(`/api-keys/${tight.body.id}`)
+      .set(jwt())
+      .send({ rateLimitPerMin: 0 })
+      .expect(400);
+    const raised = await request(app.getHttpServer())
+      .patch(`/api-keys/${tight.body.id}`)
+      .set(jwt())
+      .send({ rateLimitPerMin: 600 })
+      .expect(200);
+    expect(raised.body.rate_limit_per_min).toBe(600);
+
+    for (const k of [tight, other]) {
+      await request(app.getHttpServer())
+        .delete(`/api-keys/${k.body.id}`)
+        .set(jwt())
+        .expect(200);
+    }
+  });
+
   it('revoked key no longer works', async () => {
     await request(app.getHttpServer())
       .delete(`/api-keys/${keyId}`)

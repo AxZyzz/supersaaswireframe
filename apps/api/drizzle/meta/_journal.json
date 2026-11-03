@@ -281,6 +281,13 @@
       "when": 1785603300000,
       "tag": "0039_email_events_lead_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1785603360000,
+      "tag": "0040_api_key_rate_limit",
+      "breakpoints": true
     }
   ]
 }

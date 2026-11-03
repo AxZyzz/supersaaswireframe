@@ -14,11 +14,11 @@ import { LeadsService } from '../leads.service';
 import { ApiKeyGuard, ApiKeyContext } from './api-key.guard';
 
 // Public REST surface. @Public bypasses the JWT guard; ApiKeyGuard authorizes
-// via X-Api-Key instead. Throttled per client (basic IP-based limit for V1;
-// true per-key limiting is a later refinement).
+// via X-Api-Key and enforces each key's own budget. The per-IP limit here is
+// only an abuse ceiling above any sane key budget.
 @Public()
 @UseGuards(ApiKeyGuard)
-@Throttle({ default: { limit: 120, ttl: 60_000 } })
+@Throttle({ default: { limit: 6000, ttl: 60_000 } })
 @Controller('v1/leads')
 export class PublicLeadsController {
   constructor(private readonly leads: LeadsService) {}

@@ -8,9 +8,12 @@ export interface ApiKeyRow {
   id: string;
   name: string;
   prefix: string;
+  rate_limit_per_min: number;
   created_at: Date;
   last_used_at: Date | null;
 }
+
+const COLS = 'id, name, prefix, rate_limit_per_min, created_at, last_used_at';
 
 @Injectable()
 export class ApiKeysService {
@@ -20,15 +23,15 @@ export class ApiKeysService {
     return createHash('sha256').update(raw).digest('hex');
   }
 
-  async create(orgId: string, name: string) {
+  async create(orgId: string, name: string, rateLimitPerMin = 120) {
     const raw = `ssk_${randomBytes(24).toString('hex')}`;
     const prefix = raw.slice(0, 12);
     const created = await withOrgContext(this.pool, orgId, async (c) => {
       const res = await c.query<ApiKeyRow>(
-        `INSERT INTO api_keys (org_id, name, key_hash, prefix)
-         VALUES ($1, $2, $3, $4)
-         RETURNING id, name, prefix, created_at, last_used_at`,
-        [orgId, name.trim(), this.hash(raw), prefix],
+        `INSERT INTO api_keys (org_id, name, key_hash, prefix, rate_limit_per_min)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING ${COLS}`,
+        [orgId, name.trim(), this.hash(raw), prefix, rateLimitPerMin],
       );
       return res.rows[0];
     });
@@ -39,11 +42,25 @@ export class ApiKeysService {
   list(orgId: string) {
     return withOrgContext(this.pool, orgId, async (c) => {
       const res = await c.query<ApiKeyRow>(
-        `SELECT id, name, prefix, created_at, last_used_at
+        `SELECT ${COLS}
          FROM api_keys WHERE revoked_at IS NULL ORDER BY created_at DESC`,
       );
       return res.rows;
     });
+  }
+
+  async setRateLimit(orgId: string, id: string, rateLimitPerMin: number) {
+    const row = await withOrgContext(this.pool, orgId, async (c) => {
+      const res = await c.query<ApiKeyRow>(
+        `UPDATE api_keys SET rate_limit_per_min = $2
+         WHERE id = $1 AND revoked_at IS NULL
+         RETURNING ${COLS}`,
+        [id, rateLimitPerMin],
+      );
+      return res.rows[0];
+    });
+    if (!row) throw new NotFoundException('API key not found');
+    return row;
   }
 
   async revoke(orgId: string, id: string) {
@@ -61,13 +78,19 @@ export class ApiKeysService {
 
   // Pre-context lookup by hash via the SECURITY DEFINER function; also stamps
   // last_used_at. Returns the owning org, or null if unknown/revoked.
-  async verify(rawKey: string): Promise<{ orgId: string } | null> {
-    const res = await this.pool.query<{ org_id: string }>(
-      `SELECT org_id FROM verify_api_key($1)`,
-      [this.hash(rawKey)],
-    );
-    return res.rowCount && res.rowCount > 0
-      ? { orgId: res.rows[0].org_id }
+  async verify(
+    rawKey: string,
+  ): Promise<{ id: string; orgId: string; rateLimit: number } | null> {
+    const res = await this.pool.query<{
+      id: string;
+      org_id: string;
+      rate_limit_per_min: number;
+    }>(`SELECT id, org_id, rate_limit_per_min FROM verify_api_key($1)`, [
+      this.hash(rawKey),
+    ]);
+    const r = res.rows[0];
+    return r
+      ? { id: r.id, orgId: r.org_id, rateLimit: r.rate_limit_per_min }
       : null;
   }
 }

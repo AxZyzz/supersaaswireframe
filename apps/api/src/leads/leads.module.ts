@@ -18,9 +18,11 @@ import { SegmentsController } from './segments/segments.controller';
 import { SegmentsService } from './segments/segments.service';
 import { TagsController } from './tags.controller';
 import { TagsService } from './tags.service';
+import { ThrottlerStorageModule } from '../auth/redis-throttler.storage';
 
 @Module({
   imports: [
+    ThrottlerStorageModule,
     BullModule.registerQueue(
       { name: LEAD_IMPORT_QUEUE },
       { name: SEGMENT_REFRESH_QUEUE },

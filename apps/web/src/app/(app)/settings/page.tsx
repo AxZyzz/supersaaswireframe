@@ -8,8 +8,10 @@ import {
   CreatedApiKey,
   listApiKeys,
   revokeApiKey,
+  setApiKeyRateLimit,
 } from "@/lib/api-keys";
 import { api } from "@/lib/api";
+import { toast } from "@/components/feedback";
 import { SendersSection } from "@/components/senders-section";
 import { KnowledgeSection } from "@/components/knowledge-section";
 import { WorkspaceSection } from "@/components/workspace-section";
@@ -55,6 +57,13 @@ export default function SettingsPage() {
     setFresh(created);
     setName("");
     setCreating(false);
+    await load();
+  }
+  async function setLimit(k: ApiKey, value: string) {
+    const n = Number(value);
+    if (!Number.isInteger(n) || n < 1 || n > 6000 || n === k.rate_limit_per_min) return;
+    await setApiKeyRateLimit(k.id, n);
+    toast(`${k.name}: ${n} requests/min.`);
     await load();
   }
   async function revoke(id: string) {
@@ -155,19 +164,22 @@ export default function SettingsPage() {
                 <th className="px-4 py-2.5 font-medium">Name</th>
                 <th className="px-4 py-2.5 font-medium">Key</th>
                 <th className="px-4 py-2.5 font-medium">Last used</th>
+                <th className="px-4 py-2.5 font-medium" title="Requests per minute this key may make">
+                  Limit / min
+                </th>
                 <th className="px-4 py-2.5" />
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-muted">
+                  <td colSpan={5} className="px-4 py-8 text-center text-muted">
                     Loading…
                   </td>
                 </tr>
               ) : keys.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-muted">
+                  <td colSpan={5} className="px-4 py-8 text-center text-muted">
                     No API keys yet.
                   </td>
                 </tr>
@@ -187,6 +199,18 @@ export default function SettingsPage() {
                       {k.last_used_at
                         ? new Date(k.last_used_at).toLocaleString()
                         : "never"}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <input
+                        type="number"
+                        min={1}
+                        max={6000}
+                        defaultValue={k.rate_limit_per_min}
+                        onBlur={(e) => void setLimit(k, e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                        aria-label={`Requests per minute for ${k.name}`}
+                        className="w-20 rounded border border-line-mid px-2 py-1 text-tiny"
+                      />
                     </td>
                     <td className="px-4 py-2.5">
                       <div className="flex justify-end">

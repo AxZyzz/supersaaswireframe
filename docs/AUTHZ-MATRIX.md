@@ -23,6 +23,7 @@
 | `GET /api-keys` | login | ✅ | ✅ | ⛔ |
 | `POST /api-keys` | login | ✅ | ✅ | ⛔ |
 | `DELETE /api-keys/:id` | login | ✅ | ✅ | ⛔ |
+| `PATCH /api-keys/:id` | login | ✅ | ✅ | ⛔ |
 | `POST /auth/login` | public | — | — | — |
 | `POST /auth/logout` | public | — | — | — |
 | `DELETE /auth/me` | login | ✅ | ✅ | ✅ |
