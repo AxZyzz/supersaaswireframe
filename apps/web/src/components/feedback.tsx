@@ -99,5 +99,9 @@ export function LoadError({
   );
 }
 
-export const loadErrorText = (e: unknown) =>
-  errorMessage(e, "Couldn't load this. Check your connection and try again.");
+export const loadErrorText = (e: unknown) => {
+  // The on-screen text is generic; keep the real cause (network failure, API
+  // down, a 5xx) visible in the browser console for debugging.
+  console.error("Load failed:", e);
+  return errorMessage(e, "Couldn't load this. Check your connection and try again.");
+};

@@ -138,7 +138,9 @@ export default function CampaignsPage() {
   async function addStepTo(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!selected) return;
-    const f = new FormData(e.currentTarget);
+    // Keep the form: React clears e.currentTarget once we await.
+    const form = e.currentTarget;
+    const f = new FormData(form);
     const variants = String(f.get("variants") || "")
       .split(",")
       .map((v) => v.trim())
@@ -149,7 +151,7 @@ export default function CampaignsPage() {
       condition: String(f.get("condition") || "always") as StepCondition,
       subjectVariants: variants.length ? variants : undefined,
     });
-    e.currentTarget.reset();
+    form.reset();
     await open(selected.id);
   }
 
