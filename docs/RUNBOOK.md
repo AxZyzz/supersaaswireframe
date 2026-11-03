@@ -142,7 +142,12 @@ npm run operator -w apps/api -- list
 
 ## 8. Monitoring (T10.5, pending accounts)
 
-- Uptime check on `GET /health/ready` every minute (any external pinger).
+- Uptime check on `GET /health/ready` every minute (any external pinger —
+  UptimeRobot / Better Stack free tiers work; alert to email + phone).
+- Built-in fallback: `.github/workflows/uptime.yml` probes every 30 min once
+  the repo variable `UPTIME_URL` is set (Settings → Secrets and variables →
+  Actions → Variables). A failed run emails the repo owner. Skipped (no
+  minutes billed) while the variable is unset.
 - Error tracking: Sentry DSN for API + web (hook point: `apps/web/src/app/error.tsx`).
 - Cost alarms: AWS Budgets for SES + Bedrock.
 - Weekly: Operator console failures feed, queue `failed` counts, `npm audit`.
