@@ -26,6 +26,7 @@
 | `POST /api-keys` | login | ✅ | ✅ | ⛔ |
 | `DELETE /api-keys/:id` | login | ✅ | ✅ | ⛔ |
 | `PATCH /api-keys/:id` | login | ✅ | ✅ | ⛔ |
+| `GET /auth/google/callback` | public | — | — | — |
 | `POST /auth/login` | public | — | — | — |
 | `POST /auth/logout` | public | — | — | — |
 | `DELETE /auth/me` | login | ✅ | ✅ | ✅ |
@@ -123,6 +124,8 @@
 | `POST /senders/:id/test` | login | ✅ | ✅ | ⛔ |
 | `POST /senders/:id/verify` | login | ✅ | ✅ | ⛔ |
 | `GET /senders/dns-check` | login | ✅ | ✅ | ✅ |
+| `POST /senders/gmail/connect` | login | ✅ | ✅ | ⛔ |
+| `GET /senders/gmail/status` | login | ✅ | ✅ | ✅ |
 | `POST /sending/tick` | login | ✅ | ✅ | ⛔ |
 | `GET /t/c/:trackingId` | public | — | — | — |
 | `GET /t/o/:trackingId` | public | — | — | — |

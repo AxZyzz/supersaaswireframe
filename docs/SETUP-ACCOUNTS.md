@@ -141,8 +141,9 @@ feeding the suppression list. Claude can't wire these until SES is verified.
 
 - **Bedrock model access granted** → Claude flips AI to real Claude and tunes
   prompts against live output (the E6 code is already built on a mock).
-- **Google client id/secret in** → Claude wires Gmail sender (T3.3) + Sheets
-  sync (T2.8).
+- **Google client id/secret in** → Gmail sender (T3.3) is built: Settings →
+  Sender accounts → **Connect Gmail**. It also asks for `openid` + `email`
+  (non-sensitive) to learn which address was connected. Sheets sync (T2.8) next.
 - **AWS keys + domain verified** → Claude wires the SES sender (T3.2), SNS
   bounces, and inbound reply ingestion (§4). Production access unblocks real
   beta sending (the send engine itself is built and tested).

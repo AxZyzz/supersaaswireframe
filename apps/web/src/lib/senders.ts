@@ -67,6 +67,17 @@ export const testSender = (id: string, to: string) =>
     { method: "POST", body: JSON.stringify({ to }) },
   );
 
+/** Whether this server has Google OAuth set up (T3.3). */
+export const gmailStatus = () =>
+  api<{ enabled: boolean }>("/senders/gmail/status");
+
+/** Google consent URL; navigate the browser to it. */
+export const gmailConnect = (fromName?: string) =>
+  api<{ url: string }>("/senders/gmail/connect", {
+    method: "POST",
+    body: JSON.stringify(fromName ? { fromName } : {}),
+  });
+
 export const dnsCheck = (domain: string) =>
   api<DnsCheckResult>(`/senders/dns-check?domain=${encodeURIComponent(domain)}`);
 

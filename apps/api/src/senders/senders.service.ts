@@ -13,6 +13,8 @@ import {
   ProviderResolver,
 } from './providers/provider.resolver';
 import type { CreateSenderDto, UpdateSenderDto } from './sender.dto';
+import type { SendResult } from './providers/email-provider';
+import { GmailAuthError } from './providers/gmail.provider';
 import { UsageService } from '../usage/usage.service';
 import { effectiveLimitSql } from './warmup';
 
@@ -54,6 +56,12 @@ interface StoredConfig {
     secure: boolean;
     user: string;
     passEnc: string;
+  };
+  // Gmail (T3.3): Google refresh token, AES-256-GCM encrypted.
+  gmail?: {
+    refreshTokenEnc: string;
+    scope: string;
+    connectedAt: string;
   };
 }
 
@@ -210,7 +218,13 @@ export class SendersService {
   ) {
     const { sender, config } = await this.loadForSend(orgId, senderId);
     const provider = this.resolver.resolve(sender, config);
-    const res = await provider.send(msg);
+    let res: SendResult;
+    try {
+      res = await provider.send(msg);
+    } catch (err) {
+      await this.flagIfAuthError(orgId, senderId, err);
+      throw err;
+    }
     return {
       messageId: res.messageId,
       provider: res.provider,
@@ -222,12 +236,18 @@ export class SendersService {
   async testSend(orgId: string, id: string, to: string) {
     const { sender, config } = await this.loadForSend(orgId, id);
     const provider = this.resolver.resolve(sender, config);
-    const res = await provider.send({
-      to,
-      subject: 'SuperSaaS test email',
-      text: `This is a test send from sender ${sender.from_email}.`,
-      html: `<p>This is a test send from <strong>${sender.from_email}</strong>.</p>`,
-    });
+    let res: SendResult;
+    try {
+      res = await provider.send({
+        to,
+        subject: 'SuperSaaS test email',
+        text: `This is a test send from sender ${sender.from_email}.`,
+        html: `<p>This is a test send from <strong>${sender.from_email}</strong>.</p>`,
+      });
+    } catch (err) {
+      await this.flagIfAuthError(orgId, id, err);
+      throw err;
+    }
     return { sent: true, messageId: res.messageId, provider: res.provider };
   }
 
@@ -247,17 +267,89 @@ export class SendersService {
   }
 
   private decryptConfig(stored: StoredConfig): DecryptedSenderConfig {
+    const out: DecryptedSenderConfig = {};
     if (stored?.smtp) {
-      return {
-        smtp: {
-          host: stored.smtp.host,
-          port: stored.smtp.port,
-          secure: stored.smtp.secure,
-          user: stored.smtp.user,
-          pass: this.crypto.decrypt(stored.smtp.passEnc),
-        },
+      out.smtp = {
+        host: stored.smtp.host,
+        port: stored.smtp.port,
+        secure: stored.smtp.secure,
+        user: stored.smtp.user,
+        pass: this.crypto.decrypt(stored.smtp.passEnc),
       };
     }
-    return {};
+    if (stored?.gmail) {
+      out.gmail = {
+        refreshToken: this.crypto.decrypt(stored.gmail.refreshTokenEnc),
+      };
+    }
+    return out;
+  }
+
+  /**
+   * Creates or reconnects a Gmail sender after the Google OAuth callback
+   * (T3.3). Reconnecting an existing Gmail sender keeps its settings and
+   * warm-up progress and only swaps the token. An address already used by an
+   * SMTP/SES sender is a conflict: we never silently change a provider.
+   */
+  connectGmail(
+    orgId: string,
+    input: {
+      email: string;
+      fromName: string;
+      refreshToken: string;
+      scope: string;
+    },
+  ) {
+    const email = input.email.trim().toLowerCase();
+    const config: StoredConfig = {
+      gmail: {
+        refreshTokenEnc: this.crypto.encrypt(input.refreshToken),
+        scope: input.scope,
+        connectedAt: new Date().toISOString(),
+      },
+    };
+    return withOrgContext(this.pool, orgId, async (c) => {
+      const existing = await c.query<{ id: string; provider: string }>(
+        `SELECT id, provider FROM sender_accounts WHERE lower(from_email) = $1`,
+        [email],
+      );
+      const row = existing.rows[0];
+      if (row && row.provider !== 'gmail') {
+        throw new ConflictException(
+          `${email} is already set up as a ${row.provider.toUpperCase()} sender. Delete it first to switch it to Gmail.`,
+        );
+      }
+      if (row) {
+        const res = await c.query<SenderRow>(
+          `UPDATE sender_accounts
+             SET config = $2::jsonb, status = 'verified', updated_at = now()
+           WHERE id = $1 RETURNING ${COLS}`,
+          [row.id, JSON.stringify(config)],
+        );
+        return { sender: res.rows[0], reconnected: true };
+      }
+      await this.usage.assertCanAdd(c, orgId, 'senders');
+      const res = await c.query<SenderRow>(
+        `INSERT INTO sender_accounts
+           (org_id, provider, from_name, from_email, config, status)
+         VALUES ($1, 'gmail', $2, $3, $4::jsonb, 'verified')
+         RETURNING ${COLS}`,
+        [orgId, input.fromName.trim() || email, email, JSON.stringify(config)],
+      );
+      return { sender: res.rows[0], reconnected: false };
+    });
+  }
+
+  // A revoked/expired Google token can only be fixed by reconnecting, so flag
+  // the sender (the dashboard surfaces unverified senders) and rethrow.
+  private async flagIfAuthError(orgId: string, id: string, err: unknown) {
+    if (err instanceof GmailAuthError) {
+      await withOrgContext(this.pool, orgId, (c) =>
+        c.query(
+          `UPDATE sender_accounts SET status = 'unverified', updated_at = now() WHERE id = $1`,
+          [id],
+        ),
+      );
+    }
   }
 }

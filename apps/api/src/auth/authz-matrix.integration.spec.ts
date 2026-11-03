@@ -49,6 +49,7 @@ const PUBLIC_ALLOWLIST = [
   'POST /v1/leads', // API-key guarded instead of JWT
   'GET /beta/mode',
   'POST /waitlist',
+  'GET /auth/google/callback', // Google redirect; signed `state` names the workspace
 ];
 
 interface RouteInfo {

@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import type { SenderRow } from '../senders.service';
+import { GmailProvider } from './gmail.provider';
 import { MockProvider } from './mock.provider';
 import { NotConfiguredProvider } from './notconfigured.provider';
 import { ProviderResolver } from './provider.resolver';
@@ -24,10 +25,12 @@ const row = (provider: SenderRow['provider']): SenderRow => ({
   warmup_day: 1,
 });
 
-const resolver = (emailDriver?: string) =>
+const resolver = (emailDriver?: string, env: Record<string, string> = {}) =>
   new ProviderResolver({
-    get: (k: string) => (k === 'EMAIL_DRIVER' ? emailDriver : undefined),
+    get: (k: string) => (k === 'EMAIL_DRIVER' ? emailDriver : env[k]),
   } as unknown as ConfigService);
+
+const GOOGLE = { GOOGLE_CLIENT_ID: 'cid', GOOGLE_CLIENT_SECRET: 'csecret' };
 
 const SMTP = {
   host: 'smtp.example.com',
@@ -56,6 +59,21 @@ describe('ProviderResolver', () => {
     expect(resolver().resolve(row('gmail'), {})).toBeInstanceOf(
       NotConfiguredProvider,
     );
+  });
+
+  it('gmail: real GmailProvider only with server creds AND a connected token', async () => {
+    const connected = { gmail: { refreshToken: 'rt' } };
+    expect(
+      resolver(undefined, GOOGLE).resolve(row('gmail'), connected),
+    ).toBeInstanceOf(GmailProvider);
+    // connected sender, but the server has no Google OAuth app configured
+    const noCreds = resolver().resolve(row('gmail'), connected);
+    expect(noCreds).toBeInstanceOf(NotConfiguredProvider);
+    expect((await noCreds.verify()).detail).toMatch(/GOOGLE_CLIENT_ID/);
+    // server configured, but this sender never went through "Connect Gmail"
+    const notLinked = resolver(undefined, GOOGLE).resolve(row('gmail'), {});
+    expect(notLinked).toBeInstanceOf(NotConfiguredProvider);
+    expect((await notLinked.verify()).detail).toMatch(/Connect Gmail/);
   });
 
   it('EMAIL_DRIVER=mock overrides every provider with the mock backend', () => {

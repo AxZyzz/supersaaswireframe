@@ -126,7 +126,10 @@ Unknown tokens are left as-is so typos show up in the preview instead of silentl
     section: "Sending",
     title: "Sender accounts and limits",
     summary: "Connecting mailboxes, daily limits, send windows.",
-    body: `Each sender is a mailbox campaigns send from. SMTP mailboxes connect today; Amazon SES and Gmail connections are rolling out.
+    body: `Each sender is a mailbox campaigns send from. SMTP mailboxes and Gmail accounts connect today; Amazon SES is rolling out.
+
+## Connecting Gmail
+In **Settings → Sender accounts** choose **Connect Gmail** and sign in with Google. Keep the *Send email on your behalf* box ticked. SuperSaaS only asks for permission to send, not to read your mail. The account appears verified and starts on the warm-up ramp. If Google access is ever revoked, the sender turns *unverified*; choose **reconnect** next to it.
 
 ## Protecting your reputation
 - **Daily limit** per sender (default 50) caps how much it sends in a day.

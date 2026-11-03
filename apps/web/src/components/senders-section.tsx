@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Check,
   Mail,
@@ -21,10 +22,14 @@ import {
   testSender,
   verifySender,
   updateSender,
+  gmailConnect,
+  gmailStatus,
 } from "@/lib/senders";
+import { errorMessage } from "@/lib/api";
 import { HelpLink } from "@/components/help-link";
 
-type Provider = "ses" | "gmail" | "smtp";
+// Gmail isn't added by hand: it connects through Google sign-in (T3.3).
+type Provider = "ses" | "smtp";
 
 export function SendersSection({
   showDnsCheck = true,
@@ -41,15 +46,35 @@ export function SendersSection({
   const [provider, setProvider] = useState<Provider>("ses");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const [gmailEnabled, setGmailEnabled] = useState(false);
 
+  // `loading` starts true; reloads keep the table on screen instead of
+  // flashing "Loading…".
   const load = useCallback(async () => {
-    setLoading(true);
     try {
       setSenders(await listSenders());
     } finally {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    gmailStatus()
+      .then((r) => setGmailEnabled(r.enabled))
+      .catch(() => setGmailEnabled(false));
+  }, []);
+
+  async function connectGmail() {
+    setBusyId("gmail");
+    setNote(null);
+    try {
+      const { url } = await gmailConnect();
+      window.location.assign(url);
+    } catch (e) {
+      setNote({ ok: false, text: errorMessage(e, "Couldn't start Gmail sign-in.") });
+      setBusyId(null);
+    }
+  }
 
   useEffect(() => {
     void load();
@@ -118,6 +143,15 @@ export function SendersSection({
         </h2>
         <HelpLink slug="senders" />
         <div className="flex-1" />
+        {!readOnly && gmailEnabled && (
+          <button
+            onClick={() => void connectGmail()}
+            disabled={busyId === "gmail"}
+            className="flex items-center gap-1.5 rounded border border-line-mid px-3 py-1.5 text-sm font-medium text-ink2 hover:bg-panel disabled:opacity-60"
+          >
+            <Mail size={15} /> {busyId === "gmail" ? "Opening Google…" : "Connect Gmail"}
+          </button>
+        )}
         {!readOnly && (
           <button
             onClick={() => setAdding((v) => !v)}
@@ -128,9 +162,13 @@ export function SendersSection({
         )}
       </div>
       <p className="mb-4 text-sm text-muted">
-        The identities campaigns send from. SMTP verifies immediately; SES and
-        Gmail connect once those integrations are enabled.
+        The identities campaigns send from. SMTP verifies immediately; Gmail
+        connects by signing in with Google; SES connects once it&apos;s enabled.
       </p>
+
+      <Suspense fallback={null}>
+        <GmailConnectResult />
+      </Suspense>
 
       {adding && (
         <form
@@ -145,7 +183,6 @@ export function SendersSection({
               className={field}
             >
               <option value="ses">SES</option>
-              <option value="gmail">Gmail</option>
               <option value="smtp">SMTP</option>
             </select>
             <input
@@ -305,6 +342,17 @@ export function SendersSection({
                     >
                       {s.status}
                     </span>
+                    {s.provider === "gmail" &&
+                      s.status !== "verified" &&
+                      gmailEnabled &&
+                      !readOnly && (
+                        <button
+                          onClick={() => void connectGmail()}
+                          className="ml-2 text-tiny text-faint underline hover:text-ink"
+                        >
+                          reconnect
+                        </button>
+                      )}
                   </td>
                   <td className="px-4 py-2.5">
                     <div
@@ -414,6 +462,40 @@ function DnsCheckTool() {
           {row("DMARC", result.dmarc)}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Shows how "Connect Gmail" went. Google redirects back to
+ * /settings?gmail=connected|reconnected|error (see GET /auth/google/callback).
+ */
+function GmailConnectResult() {
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const result = params.get("gmail");
+  if (!result) return null;
+  const ok = result !== "error";
+  const text = ok
+    ? `Gmail ${result === "reconnected" ? "reconnected" : "connected"}: ${params.get("email") ?? ""}. It's verified and ready to send.`
+    : params.get("reason") || "Connecting Gmail failed.";
+  return (
+    <div
+      className={`mb-4 flex items-start gap-3 rounded-lg border px-3 py-2 text-sm ${
+        ok
+          ? "border-success-text/30 bg-success-bg text-success-text"
+          : "border-danger-text/30 bg-danger-bg text-danger-text"
+      }`}
+    >
+      <span className="flex-1">{text}</span>
+      <button
+        onClick={() => router.replace(pathname)}
+        title="Dismiss"
+        className="opacity-70 hover:opacity-100"
+      >
+        <X size={14} />
+      </button>
     </div>
   );
 }
