@@ -29,9 +29,9 @@ export class ImportProcessor extends WorkerHost {
   }
 
   async process(job: Job<ImportJobData>): Promise<void> {
-    const { jobId, orgId, csv, mapping, onDuplicate } = job.data;
+    const { jobId, orgId, csv, mapping, onDuplicate, source } = job.data;
     try {
-      await this.run(jobId, orgId, csv, mapping, onDuplicate);
+      await this.run(jobId, orgId, csv, mapping, onDuplicate, source ?? 'csv');
     } catch (err) {
       this.logger.error(`Import ${jobId} failed`, err as Error);
       await withOrgContext(this.pool, orgId, (c) =>
@@ -59,6 +59,7 @@ export class ImportProcessor extends WorkerHost {
     csv: string,
     mapping: Record<string, string>,
     onDuplicate: 'skip' | 'update',
+    defaultSource: string,
   ) {
     const parsed = Papa.parse<Record<string, string>>(csv, {
       header: true,
@@ -104,6 +105,7 @@ export class ImportProcessor extends WorkerHost {
             lead,
             onDuplicate,
             budget,
+            defaultSource,
           );
           await c.query('RELEASE SAVEPOINT row_sp');
           if (outcome === 'imported') imported++;
@@ -149,6 +151,8 @@ export class ImportProcessor extends WorkerHost {
     lead: Record<string, string | null>,
     onDuplicate: 'skip' | 'update',
     budget: { left: number },
+    /** Source for NEW leads without a mapped source column; updates keep theirs. */
+    defaultSource = 'csv',
   ): Promise<'imported' | 'updated' | 'skipped' | 'limit'> {
     if (lead.email) {
       const existing = await c.query<{ id: string }>(
@@ -192,7 +196,7 @@ export class ImportProcessor extends WorkerHost {
     const res = await c.query<{ id: string }>(
       `INSERT INTO leads
          (org_id, email, first_name, last_name, company, title, phone, status, score, source)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,'new'),$9,COALESCE($10,'csv'))
+       VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,'new'),$9,COALESCE($10,$11))
        RETURNING id`,
       [
         orgId,
@@ -205,6 +209,7 @@ export class ImportProcessor extends WorkerHost {
         lead.status ?? null,
         lead.score ?? null,
         lead.source ?? null,
+        defaultSource,
       ],
     );
     await this.event(c, orgId, res.rows[0].id, 'imported');

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import {
   Copy,
   Download,
@@ -12,7 +13,7 @@ import {
   Tag,
   Upload,
 } from "lucide-react";
-import { ImportModal } from "@/components/import-modal";
+import { ImportModal, ImportSource } from "@/components/import-modal";
 import { DuplicatesModal } from "@/components/duplicates-modal";
 import { canManage, useRole } from "@/lib/me";
 import { addSegmentMembers, listSegments, Segment } from "@/lib/segments";
@@ -34,6 +35,8 @@ import { StatusDot, useLeadStatuses } from "@/lib/lead-statuses";
 const PAGE = 50;
 const KANBAN_LIMIT = 200;
 
+const noopSubscribe = () => () => {};
+
 export default function LeadsPage() {
   const role = useRole();
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -47,6 +50,38 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importSource, setImportSource] = useState<ImportSource>("file");
+  const router = useRouter();
+
+  // Back from "Connect Google Sheets" (/leads?sheets=connected|error):
+  // reopen the importer on the Google Sheet tab, or say what went wrong.
+  const urlQuery = useSyncExternalStore(
+    noopSubscribe,
+    () => window.location.search,
+    () => "",
+  );
+  // (/leads?import=sheet, from Settings → Integrations, opens it directly.)
+  const query = new URLSearchParams(urlQuery);
+  const sheetsResult = query.get("sheets");
+  const pending = sheetsResult ?? (query.get("import") === "sheet" ? "open" : null);
+  const [handledSheets, setHandledSheets] = useState<string | null>(null);
+  if (pending && pending !== handledSheets) {
+    setHandledSheets(pending);
+    if (pending !== "error") {
+      setImportSource("sheet");
+      setImporting(true);
+    }
+  }
+  useEffect(() => {
+    if (!pending) return;
+    const p = new URLSearchParams(urlQuery);
+    if (pending === "error") {
+      toast(p.get("reason") || "Connecting Google Sheets failed.", "error");
+    } else if (pending !== "open") {
+      toast(`Google Sheets connected${p.get("email") ? `: ${p.get("email")}` : ""}`);
+    }
+    router.replace("/leads");
+  }, [pending, urlQuery, router]);
   const [dedup, setDedup] = useState(false);
   const [view, setView] = useState<"table" | "kanban">("table");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -254,7 +289,11 @@ export default function LeadsPage() {
 
       {importing && (
         <ImportModal
-          onClose={() => setImporting(false)}
+          initialSource={importSource}
+          onClose={() => {
+            setImporting(false);
+            setImportSource("file");
+          }}
           onImported={() => {
             setOffset(0);
             void load();

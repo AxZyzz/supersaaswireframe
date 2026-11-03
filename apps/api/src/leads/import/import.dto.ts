@@ -31,4 +31,6 @@ export interface ImportJobData {
   csv: string;
   mapping: Record<string, string>;
   onDuplicate: 'skip' | 'update';
+  /** leads.source for new rows when the mapping has no source column. */
+  source?: string;
 }

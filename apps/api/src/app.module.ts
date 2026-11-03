@@ -12,6 +12,7 @@ import { validateEnv } from './config/env.validation';
 import { CryptoModule } from './crypto/crypto.module';
 import { DbModule } from './db/db.module';
 import { InboxModule } from './inbox/inbox.module';
+import { IntegrationsModule } from './integrations/integrations.module';
 import { JobsModule } from './jobs/jobs.module';
 import { MailModule } from './mail/mail.module';
 import { LeadsModule } from './leads/leads.module';
@@ -51,6 +52,7 @@ import { UsageModule } from './usage/usage.module';
     SendingModule,
     AiModule,
     AnalyticsModule,
+    IntegrationsModule,
     JobsModule,
     InboxModule,
     NotificationsModule,

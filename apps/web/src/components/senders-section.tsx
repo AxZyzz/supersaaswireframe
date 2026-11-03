@@ -135,7 +135,7 @@ export function SendersSection({
     "rounded border border-line-mid bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-accent";
 
   return (
-    <section className="rounded-lg border border-line bg-surface p-5">
+    <section id="senders" className="rounded-lg border border-line bg-surface p-5">
       <div className="mb-1 flex items-center gap-2">
         <Mail size={16} className="text-faint" />
         <h2 className="text-section font-semibold text-ink2">

@@ -45,9 +45,14 @@ interface TokenResponse {
   error_description?: string;
 }
 
-async function accessToken(
+/**
+ * Access token for a Google refresh token, cached ~1h. Shared by Gmail
+ * sending and Sheets sync; `revoked` is the message for invalid_grant.
+ */
+export async function googleAccessToken(
   cfg: GmailConfig,
   fetchFn: FetchLike,
+  revoked = 'Google access for this Gmail account was revoked or has expired. Reconnect it.',
 ): Promise<string> {
   const key = cacheKey(cfg.refreshToken);
   const hit = tokenCache.get(key);
@@ -66,9 +71,7 @@ async function accessToken(
   const body = (await res.json().catch(() => ({}))) as TokenResponse;
   if (!res.ok || !body.access_token) {
     if (body.error === 'invalid_grant') {
-      throw new GmailAuthError(
-        'Google access for this Gmail account was revoked or has expired. Reconnect it.',
-      );
+      throw new GmailAuthError(revoked);
     }
     throw new Error(
       `Google token refresh failed: ${body.error_description ?? body.error ?? `HTTP ${res.status}`}`,
@@ -99,7 +102,7 @@ export class GmailProvider implements EmailProvider {
 
   async verify(): Promise<VerifyResult> {
     try {
-      await accessToken(this.cfg, this.fetchFn);
+      await googleAccessToken(this.cfg, this.fetchFn);
       return { ok: true, detail: `Connected to Gmail as ${this.from}` };
     } catch (err) {
       return {
@@ -128,7 +131,7 @@ export class GmailProvider implements EmailProvider {
       .compile()
       .build();
 
-    const token = await accessToken(this.cfg, this.fetchFn);
+    const token = await googleAccessToken(this.cfg, this.fetchFn);
     const res = await this.fetchFn(GMAIL_SEND_URL, {
       method: 'POST',
       headers: {

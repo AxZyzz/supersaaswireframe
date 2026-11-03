@@ -62,6 +62,10 @@
 | `POST /inbox/:id/reply` | login | ✅ | ✅ | ✅ |
 | `POST /inbox/simulate-reply` | login | ✅ | ✅ | ⛔ |
 | `GET /inbox/unread-count` | login | ✅ | ✅ | ✅ |
+| `GET /integrations` | login | ✅ | ✅ | ✅ |
+| `DELETE /integrations/google-sheets` | login | ✅ | ✅ | ⛔ |
+| `POST /integrations/google-sheets/connect` | login | ✅ | ✅ | ⛔ |
+| `POST /integrations/google-sheets/preview` | login | ✅ | ✅ | ⛔ |
 | `GET /invites/:token` | public | — | — | — |
 | `POST /invites/:token/accept` | login | ✅ | ✅ | ✅ |
 | `POST /invites/:token/register` | public | — | — | — |
@@ -132,6 +136,11 @@
 | `POST /senders/gmail/connect` | login | ✅ | ✅ | ⛔ |
 | `GET /senders/gmail/status` | login | ✅ | ✅ | ✅ |
 | `POST /sending/tick` | login | ✅ | ✅ | ⛔ |
+| `GET /sheet-syncs` | login | ✅ | ✅ | ✅ |
+| `POST /sheet-syncs` | login | ✅ | ✅ | ⛔ |
+| `DELETE /sheet-syncs/:id` | login | ✅ | ✅ | ⛔ |
+| `PATCH /sheet-syncs/:id` | login | ✅ | ✅ | ⛔ |
+| `POST /sheet-syncs/:id/run` | login | ✅ | ✅ | ⛔ |
 | `GET /t/c/:trackingId` | public | — | — | — |
 | `GET /t/o/:trackingId` | public | — | — | — |
 | `GET /tags` | login | ✅ | ✅ | ✅ |

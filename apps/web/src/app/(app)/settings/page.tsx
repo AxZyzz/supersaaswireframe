@@ -20,6 +20,7 @@ import { UsageSection } from "@/components/usage-section";
 import { NotificationPrefsSection } from "@/components/notification-prefs-section";
 import { PrivacySection } from "@/components/privacy-section";
 import { LeadStatusesSection } from "@/components/lead-statuses-section";
+import { IntegrationsSection } from "@/components/integrations-section";
 import { HelpLink } from "@/components/help-link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -98,6 +99,8 @@ export default function SettingsPage() {
       <NotificationPrefsSection />
 
       <SendersSection readOnly={role === "agent"} />
+
+      <IntegrationsSection canManage={canManage} />
 
       <KnowledgeSection readOnly={role === "agent"} />
 

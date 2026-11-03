@@ -2,6 +2,7 @@ import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
 import { WeeklySummaryService } from '../analytics/weekly-summary.service';
+import { SheetsService } from '../integrations/sheets.service';
 import { NotificationEmailService } from '../notifications/notification-email.service';
 import { SYSTEM_JOBS_QUEUE } from '../queue/queue.module';
 
@@ -10,6 +11,7 @@ import { SYSTEM_JOBS_QUEUE } from '../queue/queue.module';
  * instance (each runs once per tick, not once per instance):
  *  - notification-emails: every minute (T7.5)
  *  - weekly-summary: Mondays 08:00 UTC (T7.5)
+ *  - sheet-sync: every 15 min, runs Sheets syncs due hourly (T2.8)
  * Off under tests (NODE_ENV=test) and with JOBS_SCHEDULER=off: such an
  * instance neither registers nor removes schedules, and skips any tick it
  * receives. Tests call the services directly.
@@ -25,6 +27,7 @@ export class SystemJobsProcessor
     @InjectQueue(SYSTEM_JOBS_QUEUE) private readonly queue: Queue,
     private readonly notificationEmails: NotificationEmailService,
     private readonly weekly: WeeklySummaryService,
+    private readonly sheets: SheetsService,
   ) {
     super();
   }
@@ -39,6 +42,7 @@ export class SystemJobsProcessor
   static readonly SCHEDULES = {
     'notification-emails': { every: 60_000 },
     'weekly-summary': { pattern: '0 8 * * 1', tz: 'UTC' },
+    'sheet-sync': { every: 15 * 60_000 },
   } as const;
 
   async onApplicationBootstrap() {
@@ -67,6 +71,8 @@ export class SystemJobsProcessor
         await this.notificationEmails.flush();
       } else if (job.name === 'weekly-summary') {
         await this.weekly.run();
+      } else if (job.name === 'sheet-sync') {
+        await this.sheets.runDue(); // syncs not run in the last hour
       }
     } catch (err) {
       this.logger.error(

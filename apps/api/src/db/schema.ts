@@ -887,3 +887,67 @@ export const notifications = pgTable(
   },
   (t) => [index('notifications_user_idx').on(t.userId, t.createdAt)],
 );
+
+// Connected third-party accounts per workspace (T2.8/T9.2, 0044). config holds
+// encrypted secrets (refreshTokenEnc).
+export const integrations = pgTable(
+  'integrations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    provider: text('provider').notNull(),
+    accountEmail: text('account_email'),
+    config: jsonb('config')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    connectedBy: uuid('connected_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex('integrations_org_provider_idx').on(t.orgId, t.provider)],
+);
+
+// A Google Sheet tab synced into leads (T2.8, 0044).
+export const sheetSyncs = pgTable(
+  'sheet_syncs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    spreadsheetId: text('spreadsheet_id').notNull(),
+    spreadsheetTitle: text('spreadsheet_title').notNull(),
+    sheetTitle: text('sheet_title').notNull(),
+    mapping: jsonb('mapping').notNull(),
+    onDuplicate: text('on_duplicate').notNull().default('update'),
+    enabled: boolean('enabled').notNull().default(true),
+    lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+    lastStatus: text('last_status'),
+    lastError: text('last_error'),
+    lastJobId: uuid('last_job_id'),
+    createdBy: uuid('created_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('sheet_syncs_org_sheet_idx').on(
+      t.orgId,
+      t.spreadsheetId,
+      t.sheetTitle,
+    ),
+  ],
+);

@@ -37,6 +37,8 @@ export class ImportService {
     csv: string,
     mapping: Record<string, ImportableField>,
     onDuplicate: 'skip' | 'update',
+    /** 'csv' (file upload) or 'google_sheet' (T2.8 sync). */
+    source: 'csv' | 'google_sheet' = 'csv',
   ) {
     if (!csv.trim()) throw new BadRequestException('Empty file');
     if (!mapping || Object.values(mapping).length === 0) {
@@ -48,8 +50,8 @@ export class ImportService {
 
     const job = await withOrgContext(this.pool, orgId, async (c) => {
       const res = await c.query<{ id: string }>(
-        `INSERT INTO import_jobs (org_id, source, status) VALUES ($1, 'csv', 'pending') RETURNING id`,
-        [orgId],
+        `INSERT INTO import_jobs (org_id, source, status) VALUES ($1, $2, 'pending') RETURNING id`,
+        [orgId, source],
       );
       return res.rows[0];
     });
@@ -60,6 +62,7 @@ export class ImportService {
       csv,
       mapping,
       onDuplicate,
+      source,
     };
     await this.queue.add('import', data, {
       removeOnComplete: true,

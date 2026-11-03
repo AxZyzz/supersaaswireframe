@@ -40,9 +40,14 @@ Admins can do everything. Managers run campaigns, senders and templates. Agents 
   {
     slug: "import-leads",
     section: "Leads",
-    title: "Importing leads from CSV",
-    summary: "Column mapping, duplicates and limits.",
-    body: `On Leads, choose **Import CSV** (admins and managers), pick a CSV (up to 5 MB) and map each column to a lead field. Unmapped columns are skipped.
+    title: "Importing leads (CSV, Excel, Google Sheets)",
+    summary: "Column mapping, duplicates, limits and Sheets sync.",
+    body: `On Leads, choose **Import CSV** (admins and managers), pick a CSV or Excel file (up to 5 MB) and map each column to a lead field. Unmapped columns are skipped.
+
+## From Google Sheets
+In the same dialog choose **Google Sheet**. The first time, **Connect Google Sheets** and sign in: SuperSaaS only asks to *view* your spreadsheets. Paste the sheet's link, pick the tab, map the columns (the first row must be the column names) and import. The sheet must be owned by, or shared with, the connected Google account.
+
+Leave **Keep in sync** on to re-import new and changed rows every hour. Manage synced sheets in **Settings → Integrations**: *Sync now*, pause the hourly sync, or remove a sheet. Removing a sheet or disconnecting Google keeps the leads already imported.
 
 ## Duplicates
 Emails are matched case-insensitively. Choose **Skip** to leave existing leads untouched, or **Update** to fill them in from the file. Use **Duplicates** afterwards to review and merge matches (admins and managers).

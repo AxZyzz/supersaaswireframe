@@ -49,5 +49,7 @@ import { LeadStatusesController, LeadStatusesService } from './lead-statuses';
     ApiKeyGuard,
     LeadStatusesService,
   ],
+  // Sheets sync (T2.8) feeds rows through the same import pipeline.
+  exports: [ImportService],
 })
 export class LeadsModule {}
