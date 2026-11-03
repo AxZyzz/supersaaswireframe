@@ -13,6 +13,7 @@ import { Pool } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { MembershipCache } from './membership-cache.service';
+import { BetaService } from '../beta/beta.service';
 import { seedDefaultTags } from '../leads/default-tags';
 import { seedDefaultTemplates } from '../templates/default-templates';
 import type {
@@ -44,6 +45,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly memberships: MembershipCache,
+    private readonly beta: BetaService,
   ) {}
 
   private hashToken(raw: string): string {
@@ -93,7 +95,10 @@ export class AuthService {
     password: string;
     name: string;
     orgName: string;
+    inviteCode?: string;
   }) {
+    // invite-only beta: refuse before anything is created
+    await this.beta.assertInvite(input.email, input.inviteCode);
     const { id: userId, email } = await this.createUser(input);
 
     const orgId = randomUUID();
@@ -113,6 +118,7 @@ export class AuthService {
     });
 
     const tokens = await this.issueTokens(userId, orgId, 'admin');
+    await this.beta.markJoined(email);
     return {
       user: { id: userId, email, name: input.name.trim() },
       org: { id: orgId, name: input.orgName.trim(), slug },

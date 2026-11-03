@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/sidebar";
 import { NotificationBell } from "@/components/notification-bell";
 import { CommandPalette, openCommandPalette } from "@/components/command-palette";
 import { Toaster } from "@/components/feedback";
+import { FeedbackButton } from "@/components/feedback-button";
 import { Search } from "lucide-react";
 import { api, ApiError, getAccessToken } from "@/lib/api";
 import { applyBrand } from "@/lib/branding";
@@ -118,6 +119,7 @@ export default function AppLayout({
               <Search size={13} /> Jump to…
               <kbd className="rounded border border-line bg-panel px-1 text-micro">Ctrl K</kbd>
             </button>
+            <FeedbackButton />
             <NotificationBell />
             <span className="rounded-full bg-accent-soft px-2 py-0.5 text-micro font-medium capitalize text-accent">
               {me.role}

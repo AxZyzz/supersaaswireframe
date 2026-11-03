@@ -20,6 +20,13 @@ export function validateEnv(
     errors.push('APP_ENCRYPTION_KEY must be 64 hex chars (32 bytes)');
   }
 
+  if (
+    str('SIGNUP_MODE') &&
+    !['open', 'waitlist'].includes(str('SIGNUP_MODE'))
+  ) {
+    errors.push('SIGNUP_MODE must be "open" or "waitlist"');
+  }
+
   if (str('NODE_ENV') === 'production') {
     for (const k of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET']) {
       const v = str(k);

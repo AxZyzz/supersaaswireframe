@@ -267,6 +267,13 @@
       "when": 1785516840000,
       "tag": "0037_sender_warmup",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1785603240000,
+      "tag": "0038_beta",
+      "breakpoints": true
     }
   ]
 }

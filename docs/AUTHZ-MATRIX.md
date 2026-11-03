@@ -28,6 +28,7 @@
 | `POST /auth/refresh` | public | — | — | — |
 | `POST /auth/signup` | public | — | — | — |
 | `POST /auth/switch-org` | login | ✅ | ✅ | ✅ |
+| `GET /beta/mode` | public | — | — | — |
 | `GET /campaigns` | login | ✅ | ✅ | ✅ |
 | `POST /campaigns` | login | ✅ | ✅ | ⛔ |
 | `DELETE /campaigns/:id` | login | ✅ | ✅ | ⛔ |
@@ -44,6 +45,7 @@
 | `POST /campaigns/:id/steps` | login | ✅ | ✅ | ⛔ |
 | `DELETE /campaigns/steps/:stepId` | login | ✅ | ✅ | ⛔ |
 | `PATCH /campaigns/steps/:stepId` | login | ✅ | ✅ | ⛔ |
+| `POST /feedback` | login | ✅ | ✅ | ✅ |
 | `GET /health/ready` | public | — | — | — |
 | `GET /inbox` | login | ✅ | ✅ | ✅ |
 | `GET /inbox/:id` | login | ✅ | ✅ | ✅ |
@@ -74,11 +76,14 @@
 | `POST /notifications/read-all` | login | ✅ | ✅ | ✅ |
 | `GET /notifications/unread-count` | login | ✅ | ✅ | ✅ |
 | `GET /operator/failures` | operator | ⛔ | ⛔ | ⛔ |
+| `GET /operator/feedback` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /operator/health` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /operator/orgs` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /operator/orgs/:id` | operator | ⛔ | ⛔ | ⛔ |
 | `PATCH /operator/orgs/:id/plan` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /operator/overview` | operator | ⛔ | ⛔ | ⛔ |
+| `GET /operator/waitlist` | operator | ⛔ | ⛔ | ⛔ |
+| `POST /operator/waitlist/:id/approve` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /orgs/invites` | login | ✅ | ⛔ | ⛔ |
 | `POST /orgs/invites` | login | ✅ | ⛔ | ⛔ |
 | `DELETE /orgs/invites/:id` | login | ✅ | ⛔ | ⛔ |
@@ -130,3 +135,4 @@
 | `POST /u/:token` | public | — | — | — |
 | `GET /usage` | login | ✅ | ✅ | ✅ |
 | `POST /v1/leads` | API key | — | — | — |
+| `POST /waitlist` | public | — | — | — |

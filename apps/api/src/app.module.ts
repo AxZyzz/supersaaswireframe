@@ -6,6 +6,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { BetaModule } from './beta/beta.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
 import { validateEnv } from './config/env.validation';
 import { CryptoModule } from './crypto/crypto.module';
@@ -34,6 +35,7 @@ import { UsageModule } from './usage/usage.module';
     CryptoModule,
     QueueModule,
     UsageModule,
+    BetaModule,
     RealtimeModule,
     // readiness probe pings Redis through this queue's connection
     BullModule.registerQueue({ name: CAMPAIGN_SEND_QUEUE }),

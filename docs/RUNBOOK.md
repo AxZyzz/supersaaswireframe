@@ -110,6 +110,7 @@ npm run operator -w apps/api -- revoke you@a2b.ai
 npm run operator -w apps/api -- list
 ```
 
+- **Beta invites:** set `SIGNUP_MODE=waitlist` on the API. Sign-up then needs an invite; visitors join the waitlist instead. In the operator console, *Approve* a waitlist entry to get a single-use link bound to that email, and send it from your inbox. Feedback from the in-app button shows up next to the waitlist.
 - **Operator console** (`/operator` in the app): workspaces, sends, failures, queue health; switch a workspace between `beta` and `internal` (unlimited).
 - **GDPR requests** are self-service: export in Settings → Data & privacy, Lead → Forget for one person, Delete workspace/account. If a requester can't log in, an operator can act on their behalf (verify identity first).
 

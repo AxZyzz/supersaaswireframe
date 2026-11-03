@@ -1,6 +1,7 @@
 import {
   IsEmail,
   IsNotEmpty,
+  IsOptional,
   IsString,
   IsUUID,
   MaxLength,
@@ -26,6 +27,12 @@ export class SignupDto {
   @IsNotEmpty()
   @MaxLength(120)
   orgName!: string;
+
+  /** Required when SIGNUP_MODE=waitlist (from the operator's invite link). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  inviteCode?: string;
 }
 
 export class LoginDto {

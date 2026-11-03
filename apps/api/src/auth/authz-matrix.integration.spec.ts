@@ -47,6 +47,8 @@ const PUBLIC_ALLOWLIST = [
   'GET /invites/:token',
   'POST /invites/:token/register',
   'POST /v1/leads', // API-key guarded instead of JWT
+  'GET /beta/mode',
+  'POST /waitlist',
 ];
 
 interface RouteInfo {

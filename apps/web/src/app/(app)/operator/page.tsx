@@ -5,6 +5,7 @@ import { Activity, AlertTriangle, CheckCircle2, Server, XCircle } from "lucide-r
 import { api } from "@/lib/api";
 import { timeAgo } from "@/lib/analytics";
 import { LoadError, loadErrorText, toast } from "@/components/feedback";
+import { OperatorBeta } from "@/components/operator-beta";
 
 interface Totals {
   orgs: number;
@@ -172,6 +173,8 @@ export default function OperatorPage() {
           </div>
         </section>
       </div>
+
+      <OperatorBeta />
 
       <section className="overflow-hidden rounded-lg border border-line bg-white">
         <h2 className="border-b border-line px-4 py-3 text-sm font-semibold text-ink2">

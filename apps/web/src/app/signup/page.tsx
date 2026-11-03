@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { api, ApiError, setTokens } from "@/lib/api";
+import { useEffect, useState } from "react";
+import { api, ApiError, errorMessage, setTokens } from "@/lib/api";
+import { WaitlistForm } from "@/components/waitlist-form";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -15,6 +16,19 @@ export default function SignupPage() {
   });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Invite-only beta: ?code=… comes from the operator's invite link.
+  const [mode, setMode] = useState<"open" | "waitlist" | null>(null);
+  const [code, setCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    setCode(p.get("code"));
+    const invited = p.get("email");
+    if (invited) setForm((f) => ({ ...f, email: invited }));
+    api<{ mode: "open" | "waitlist" }>("/beta/mode")
+      .then((r) => setMode(r.mode))
+      .catch(() => setMode("open"));
+  }, []);
 
   function set<K extends keyof typeof form>(key: K, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -27,13 +41,18 @@ export default function SignupPage() {
     try {
       const res = await api<{ accessToken: string; refreshToken: string }>(
         "/auth/signup",
-        { method: "POST", body: JSON.stringify(form) },
+        {
+          method: "POST",
+          body: JSON.stringify({ ...form, inviteCode: code ?? undefined }),
+        },
       );
       setTokens(res.accessToken, res.refreshToken);
       router.replace("/dashboard");
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         setError("That email is already registered.");
+      } else if (err instanceof ApiError && err.status === 403) {
+        setError(errorMessage(err));
       } else if (err instanceof ApiError && err.status === 400) {
         setError("Check your details — password needs at least 8 characters.");
       } else {
@@ -45,6 +64,8 @@ export default function SignupPage() {
 
   const field =
     "w-full rounded border border-line-mid bg-white px-3 py-2 text-base outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
+
+  if (mode === "waitlist" && !code) return <WaitlistForm />;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-page px-4">
