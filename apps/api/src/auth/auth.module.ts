@@ -8,6 +8,10 @@ import { AuthService } from './auth.service';
 import { MembershipCache } from './membership-cache.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import {
+  RedisThrottlerStorage,
+  ThrottlerStorageModule,
+} from './redis-throttler.storage';
 
 @Module({
   imports: [
@@ -21,11 +25,17 @@ import { RolesGuard } from './guards/roles.guard';
         ),
       }),
     }),
-    ThrottlerModule.forRoot({
-      throttlers: [{ limit: 100, ttl: 60_000 }],
-      // Test-only escape hatch (route-sweep suites); env validation forbids
-      // it in production.
-      skipIf: () => process.env.THROTTLE_DISABLED === 'true',
+    ThrottlerModule.forRootAsync({
+      imports: [ThrottlerStorageModule],
+      inject: [RedisThrottlerStorage],
+      useFactory: (storage: RedisThrottlerStorage) => ({
+        throttlers: [{ limit: 100, ttl: 60_000 }],
+        // Shared across API instances (T1.3).
+        storage,
+        // Test-only escape hatch (route-sweep suites); env validation forbids
+        // it in production.
+        skipIf: () => process.env.THROTTLE_DISABLED === 'true',
+      }),
     }),
   ],
   controllers: [AuthController],

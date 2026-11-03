@@ -75,7 +75,8 @@ Order matters: **migrate → API → web**.
    ```
    Run it under a supervisor (systemd/PM2/container) with restart-on-failure.
    Multiple instances are safe: the send lease prevents double sends and the
-   Redis adapter shares realtime events. The load balancer must allow
+   Redis adapter shares realtime events and rate-limit counters (keys
+   `throttle:*`; fails open if Redis blips). The load balancer must allow
    WebSockets (the client uses the WebSocket transport only, so no sticky
    sessions are needed). Set `TRUST_PROXY=1` so rate limits see client IPs.
 5. Verify: `GET /health/ready` returns `{"status":"ok"}` (503 = DB or Redis unreachable).
