@@ -12,6 +12,7 @@ import { ArrayMaxSize, IsArray, IsIn } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../auth/types';
 import {
+  EMAIL_NOTIFICATION_TYPES,
   NOTIFICATION_TYPES,
   NotificationsService,
 } from './notifications.service';
@@ -20,6 +21,13 @@ class PreferencesDto {
   @IsArray()
   @ArrayMaxSize(20)
   @IsIn(Object.keys(NOTIFICATION_TYPES), { each: true })
+  muted!: string[];
+}
+
+class EmailPreferencesDto {
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsIn(Object.keys(EMAIL_NOTIFICATION_TYPES), { each: true })
   muted!: string[];
 }
 
@@ -41,6 +49,25 @@ export class NotificationsController {
   @Put('preferences')
   setPreferences(@CurrentUser() user: AuthUser, @Body() dto: PreferencesDto) {
     return this.notifications.setPreferences(
+      user.orgId,
+      user.userId,
+      dto.muted,
+    );
+  }
+
+  // Email channel (T7.5): which notification types (and the weekly summary)
+  // this member also gets by email in this workspace.
+  @Get('email-preferences')
+  emailPreferences(@CurrentUser() user: AuthUser) {
+    return this.notifications.emailPreferences(user.orgId, user.userId);
+  }
+
+  @Put('email-preferences')
+  setEmailPreferences(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: EmailPreferencesDto,
+  ) {
+    return this.notifications.setEmailPreferences(
       user.orgId,
       user.userId,
       dto.muted,

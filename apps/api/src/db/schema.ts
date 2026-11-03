@@ -84,6 +84,11 @@ export const memberships = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    // types (+ 'weekly_summary') this member doesn't want by email (0043)
+    emailMutedNotifications: text('email_muted_notifications')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -874,6 +879,8 @@ export const notifications = pgTable(
     body: text('body').notNull().default(''),
     link: text('link'),
     readAt: timestamp('read_at', { withTimezone: true }),
+    // NULL until the email worker has handled it (T7.5, 0043)
+    emailedAt: timestamp('emailed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

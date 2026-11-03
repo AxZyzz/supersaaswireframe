@@ -5,6 +5,8 @@ import { ConfigService } from '@nestjs/config';
 export const LEAD_IMPORT_QUEUE = 'lead-import';
 export const SEGMENT_REFRESH_QUEUE = 'segment-refresh';
 export const CAMPAIGN_SEND_QUEUE = 'campaign-send';
+/** Scheduled housekeeping: notification emails, weekly summary, Sheets sync. */
+export const SYSTEM_JOBS_QUEUE = 'system-jobs';
 
 /**
  * BullMQ infrastructure. One Redis connection shared by every queue; each

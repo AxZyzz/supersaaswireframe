@@ -35,3 +35,13 @@ export const setNotificationPrefs = (muted: string[]) =>
     method: "PUT",
     body: JSON.stringify({ muted }),
   });
+
+/** Email channel (T7.5): same types plus "weekly_summary". */
+export const getEmailNotificationPrefs = () =>
+  api<NotificationPref[]>("/notifications/email-preferences");
+
+export const setEmailNotificationPrefs = (muted: string[]) =>
+  api<NotificationPref[]>("/notifications/email-preferences", {
+    method: "PUT",
+    body: JSON.stringify({ muted }),
+  });

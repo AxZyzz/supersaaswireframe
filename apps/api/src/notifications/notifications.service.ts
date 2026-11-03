@@ -12,6 +12,12 @@ export const NOTIFICATION_TYPES = {
 } as const;
 export type NotificationType = keyof typeof NOTIFICATION_TYPES;
 
+/** What a member can turn off by email (T7.5): the same types + the digest. */
+export const EMAIL_NOTIFICATION_TYPES = {
+  ...NOTIFICATION_TYPES,
+  weekly_summary: 'Weekly summary on Mondays (admins and managers)',
+} as const;
+
 export interface NewNotification {
   type: string;
   title: string;
@@ -92,6 +98,35 @@ export class NotificationsService {
       ),
     );
     return this.preferences(orgId, userId);
+  }
+
+  /** Per-type email switches for the caller in this workspace (T7.5). */
+  emailPreferences(orgId: string, userId: string) {
+    return withOrgContext(this.pool, orgId, async (c) => {
+      const r = await c.query<{ email_muted_notifications: string[] }>(
+        `SELECT email_muted_notifications FROM memberships WHERE user_id = $1`,
+        [userId],
+      );
+      const muted = new Set(r.rows[0]?.email_muted_notifications ?? []);
+      return Object.entries(EMAIL_NOTIFICATION_TYPES).map(([type, label]) => ({
+        type,
+        label,
+        enabled: !muted.has(type),
+      }));
+    });
+  }
+
+  async setEmailPreferences(orgId: string, userId: string, muted: string[]) {
+    const known = new Set(Object.keys(EMAIL_NOTIFICATION_TYPES));
+    const clean = [...new Set(muted)].filter((t) => known.has(t));
+    await withOrgContext(this.pool, orgId, (c) =>
+      c.query(
+        `UPDATE memberships SET email_muted_notifications = $2, updated_at = now()
+         WHERE user_id = $1`,
+        [userId, clean],
+      ),
+    );
+    return this.emailPreferences(orgId, userId);
   }
 
   list(orgId: string, userId: string) {

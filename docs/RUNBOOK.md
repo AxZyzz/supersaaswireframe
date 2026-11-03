@@ -30,7 +30,9 @@ production** if any of these are wrong (see `apps/api/src/config/env.validation.
 - `APP_ENCRYPTION_KEY`: 64 hex chars (encrypts sender credentials)
 - `EMAIL_DRIVER` must not be `mock`; `THROTTLE_DISABLED` must not be set
 - Optional: `TRUST_PROXY` (hop count behind a load balancer), `SWAGGER=on`,
-  `SEND_SCHEDULER=off` (disable the scheduler on an instance), `AI_DRIVER=bedrock`
+  `SEND_SCHEDULER=off` (disable the scheduler on an instance), `JOBS_SCHEDULER=off`
+  (notification emails / weekly summary / Sheets sync), `AI_DRIVER=bedrock`,
+  `SYSTEM_SMTP_*` + `SYSTEM_EMAIL_FROM` (platform email: password resets, notifications)
 - Sessions: the refresh token is an httpOnly, Secure cookie scoped to `/auth`;
   the access token lives only in page memory. Serve web and API from the same
   site (e.g. `app.` + `api.` subdomains) so the default `COOKIE_SAMESITE=lax`

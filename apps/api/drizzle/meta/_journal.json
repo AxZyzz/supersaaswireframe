@@ -302,6 +302,13 @@
       "when": 1785603480000,
       "tag": "0042_password_resets",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1785603540000,
+      "tag": "0043_notification_email",
+      "breakpoints": true
     }
   ]
 }
