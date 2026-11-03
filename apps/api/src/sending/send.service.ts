@@ -171,8 +171,16 @@ export class SendService {
         status: string;
         unsub_token: string;
       }>(
-        `SELECT id, campaign_id, lead_id, current_step, status, unsub_token
-         FROM campaign_leads WHERE id = $1`,
+        // Claim with a lease: atomically push next_send_at out, but only if
+        // the lead is still due. Overlapping ticks (two instances, a slow
+        // scheduled tick + a manual "run due sends") serialise on this row;
+        // the loser sees it's no longer due and skips — no double sends.
+        // Phase 3 sets the real next_send_at; if we crash before that, the
+        // lease simply expires and the lead is retried.
+        `UPDATE campaign_leads
+         SET next_send_at = now() + interval '10 minutes'
+         WHERE id = $1 AND next_send_at IS NOT NULL AND next_send_at <= now()
+         RETURNING id, campaign_id, lead_id, current_step, status, unsub_token`,
         [leadStateId],
       );
       if (clRes.rowCount === 0) return { outcome: 'skipped' as Outcome };
