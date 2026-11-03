@@ -46,8 +46,12 @@ export function disconnectLive() {
 /** Calls `onChange` whenever the server says `topic` changed. Events carry
  *  no data — refetch through the normal API (which enforces permissions). */
 export function useLive(topic: LiveTopic, onChange: (e: LiveEvent) => void) {
+  // Latest callback, updated after render (refs must not be written while
+  // rendering) so the socket listener never calls a stale closure.
   const handler = useRef(onChange);
-  handler.current = onChange;
+  useEffect(() => {
+    handler.current = onChange;
+  });
 
   useEffect(() => {
     const s = getSocket();

@@ -77,11 +77,6 @@ export default function CampaignsPage() {
     void loadList();
   }, [loadList]);
 
-  const open = useCallback(async (id: string) => {
-    setNote(null);
-    await refresh(id);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Reload a campaign's detail without clearing the status note — used by
   // live updates, so "Processed: N sent" isn't wiped by its own event.
   const refresh = useCallback(async (id: string) => {
@@ -94,6 +89,14 @@ export default function CampaignsPage() {
     setAudience(aud.count);
     setStats(st);
   }, []);
+
+  const open = useCallback(
+    async (id: string) => {
+      setNote(null);
+      await refresh(id);
+    },
+    [refresh],
+  );
 
   // Live: sends, pauses and resumes from anywhere update this page.
   useLive("campaigns", () => {

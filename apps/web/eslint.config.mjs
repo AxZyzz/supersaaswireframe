@@ -1,16 +1,18 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
+// eslint-config-next 16 ships native flat configs (no FlatCompat needed).
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...nextVitals,
+  ...nextTs,
+  {
+    rules: {
+      // React Compiler advisory (react-hooks v7): flags our fetch-on-mount
+      // effects. Kept visible as a warning until data loading moves to a
+      // fetching hook; every other compiler rule stays an error.
+      "react-hooks/set-state-in-effect": "warn",
+    },
+  },
   {
     ignores: [
       "node_modules/**",
