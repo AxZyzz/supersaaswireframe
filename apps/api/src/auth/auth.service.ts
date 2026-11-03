@@ -307,6 +307,14 @@ export class AuthService {
     return { deleted: true, workspacesDeleted: soloOrgs.length };
   }
 
+  async isOperator(userId: string): Promise<boolean> {
+    const r = await this.pool.query<{ is_operator: boolean }>(
+      `SELECT is_operator FROM users WHERE id = $1`,
+      [userId],
+    );
+    return !!r.rows[0]?.is_operator;
+  }
+
   async membershipsOf(userId: string): Promise<MembershipInfo[]> {
     // Membership lookup must span orgs (pre-context), so it can't run under
     // RLS. SECURITY DEFINER function owned by the migration role does the

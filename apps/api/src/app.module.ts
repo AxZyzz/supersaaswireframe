@@ -13,6 +13,7 @@ import { DbModule } from './db/db.module';
 import { InboxModule } from './inbox/inbox.module';
 import { LeadsModule } from './leads/leads.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { OperatorModule } from './operator/operator.module';
 import { OrgsModule } from './orgs/orgs.module';
 import { CAMPAIGN_SEND_QUEUE, QueueModule } from './queue/queue.module';
 import { SendersModule } from './senders/senders.module';
@@ -45,6 +46,7 @@ import { UsageModule } from './usage/usage.module';
     AnalyticsModule,
     InboxModule,
     NotificationsModule,
+    OperatorModule,
   ],
   controllers: [AppController],
   providers: [AppService],

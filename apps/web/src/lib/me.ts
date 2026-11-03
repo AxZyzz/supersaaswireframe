@@ -7,6 +7,7 @@ export interface Me {
   userId: string;
   orgId: string;
   role: "admin" | "manager" | "agent";
+  isOperator: boolean;
 }
 
 // One /auth/me per access token, shared by every component that asks.
@@ -33,3 +34,12 @@ export function useRole(): Me["role"] | null {
 /** Admins and managers run campaigns, templates, imports and merges. */
 export const canManage = (role: Me["role"] | null) =>
   role === "admin" || role === "manager";
+
+/** A2B staff flag (operator console access). */
+export function useIsOperator(): boolean {
+  const [op, setOp] = useState(false);
+  useEffect(() => {
+    void getMe().then((m) => setOp(!!m.isOperator));
+  }, []);
+  return op;
+}

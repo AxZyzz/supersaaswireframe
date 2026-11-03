@@ -4,6 +4,8 @@
 > Do not edit by hand — run the API tests with `UPDATE_AUTHZ=1` to regenerate.
 
 ✅ allowed · ⛔ 403 Forbidden · — public (no login; API-key routes noted)
+`operator` = A2B staff console (users.is_operator), forbidden to every workspace role.
+
 
 | Route | Auth | Admin | Manager | Agent |
 |---|---|:-:|:-:|:-:|
@@ -67,6 +69,12 @@
 | `POST /notifications/:id/read` | login | ✅ | ✅ | ✅ |
 | `POST /notifications/read-all` | login | ✅ | ✅ | ✅ |
 | `GET /notifications/unread-count` | login | ✅ | ✅ | ✅ |
+| `GET /operator/failures` | operator | ⛔ | ⛔ | ⛔ |
+| `GET /operator/health` | operator | ⛔ | ⛔ | ⛔ |
+| `GET /operator/orgs` | operator | ⛔ | ⛔ | ⛔ |
+| `GET /operator/orgs/:id` | operator | ⛔ | ⛔ | ⛔ |
+| `PATCH /operator/orgs/:id/plan` | operator | ⛔ | ⛔ | ⛔ |
+| `GET /operator/overview` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /orgs/invites` | login | ✅ | ⛔ | ⛔ |
 | `POST /orgs/invites` | login | ✅ | ⛔ | ⛔ |
 | `DELETE /orgs/invites/:id` | login | ✅ | ⛔ | ⛔ |

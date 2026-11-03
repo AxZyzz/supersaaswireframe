@@ -50,6 +50,9 @@ export const users = pgTable(
     email: text('email').notNull(),
     passwordHash: text('password_hash').notNull(),
     name: text('name').notNull(),
+    // A2B staff with access to the cross-tenant operator console (T8.6).
+    // Granted only via `npm run operator:grant`, never through the API.
+    isOperator: boolean('is_operator').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -53,8 +53,8 @@ export class AuthController {
   }
 
   @Get('me')
-  me(@CurrentUser() user: AuthUser) {
-    return user;
+  async me(@CurrentUser() user: AuthUser) {
+    return { ...user, isOperator: await this.auth.isOperator(user.userId) };
   }
 
   /** Permanently delete your own account (password re-check). */

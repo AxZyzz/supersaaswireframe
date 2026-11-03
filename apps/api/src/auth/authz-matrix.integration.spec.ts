@@ -15,6 +15,7 @@ import request from 'supertest';
 import { AppModule } from '../app.module';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { OPERATOR_KEY } from '../operator/operator.guard';
 import { IS_PUBLIC_KEY } from './decorators/public.decorator';
 import { ROLES_KEY } from './decorators/roles.decorator';
 import type { Role } from './types';
@@ -53,6 +54,7 @@ interface RouteInfo {
   method: string;
   path: string;
   isPublic: boolean;
+  operator: boolean; // A2B staff only — forbidden to every workspace role
   roles: Role[] | null; // null = any authenticated member
 }
 
@@ -85,6 +87,10 @@ function discover(app: INestApplication): RouteInfo[] {
         ROLES_KEY,
         targets,
       );
+      const operator = !!reflector.getAllAndOverride<boolean>(
+        OPERATOR_KEY,
+        targets,
+      );
       for (const c of ctrlPaths) {
         for (const h of handlerPaths) {
           const path =
@@ -99,6 +105,7 @@ function discover(app: INestApplication): RouteInfo[] {
             method: verb,
             path,
             isPublic,
+            operator,
             roles: roles?.length ? roles : null,
           });
         }
@@ -110,9 +117,12 @@ function discover(app: INestApplication): RouteInfo[] {
   );
 }
 
+const allowedFor = (r: RouteInfo, role: Role) =>
+  !r.operator && (!r.roles || r.roles.includes(role));
+
 function renderMatrix(routes: RouteInfo[]): string {
   const cell = (r: RouteInfo, role: Role) =>
-    r.isPublic ? '—' : !r.roles || r.roles.includes(role) ? '✅' : '⛔';
+    r.isPublic ? '—' : allowedFor(r, role) ? '✅' : '⛔';
   const lines = [
     '# Authorization matrix',
     '',
@@ -120,17 +130,22 @@ function renderMatrix(routes: RouteInfo[]): string {
     '> Do not edit by hand — run the API tests with `UPDATE_AUTHZ=1` to regenerate.',
     '',
     '✅ allowed · ⛔ 403 Forbidden · — public (no login; API-key routes noted)',
+    '`operator` = A2B staff console (users.is_operator), forbidden to every workspace role.',
+    '',
     '',
     '| Route | Auth | Admin | Manager | Agent |',
     '|---|---|:-:|:-:|:-:|',
     ...routes.map(
       (r) =>
-        `| \`${r.key}\` | ${r.isPublic ? (r.path.startsWith('/v1/') ? 'API key' : 'public') : 'login'} | ${cell(r, 'admin')} | ${cell(r, 'manager')} | ${cell(r, 'agent')} |`,
+        `| \`${r.key}\` | ${r.isPublic ? (r.path.startsWith('/v1/') ? 'API key' : 'public') : r.operator ? 'operator' : 'login'} | ${cell(r, 'admin')} | ${cell(r, 'manager')} | ${cell(r, 'agent')} |`,
     ),
     '',
   ];
   return lines.join('\n');
 }
+
+// The sweeps make one request per route per role; well past Jest's 5s default.
+jest.setTimeout(60_000);
 
 describe('Authorization matrix', () => {
   let app: INestApplication;
@@ -231,7 +246,7 @@ describe('Authorization matrix', () => {
     const wrong: string[] = [];
     for (const r of routes.filter((x) => !x.isPublic)) {
       for (const role of ROLES) {
-        const allowed = !r.roles || r.roles.includes(role);
+        const allowed = allowedFor(r, role);
         const res = await call(r, tokens[role]);
         const forbidden = res.status === 403;
         if (allowed === forbidden) {

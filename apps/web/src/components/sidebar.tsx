@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   BarChart3,
   CircleHelp,
+  Gauge,
   FileText,
   Filter,
   Inbox,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import { clearTokens } from "@/lib/api";
 import { unreadCount } from "@/lib/inbox";
+import { useIsOperator } from "@/lib/me";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -37,6 +39,7 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const isOperator = useIsOperator();
   const initials = orgName
     .split(/\s+/)
     .map((w) => w[0])
@@ -115,6 +118,19 @@ export function Sidebar({
       </nav>
 
       <div className="space-y-0.5 border-t border-line px-2 py-2">
+        {isOperator && (
+          <Link
+            href="/operator"
+            className={`flex items-center gap-2.5 rounded px-2.5 py-1.5 text-sm ${
+              pathname.startsWith("/operator")
+                ? "bg-accent-soft font-medium text-accent"
+                : "text-muted hover:bg-hover hover:text-ink"
+            }`}
+          >
+            <Gauge size={17} strokeWidth={1.9} />
+            <span>Operator</span>
+          </Link>
+        )}
         <Link
           href="/help"
           className={`flex items-center gap-2.5 rounded px-2.5 py-1.5 text-sm ${

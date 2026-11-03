@@ -74,7 +74,12 @@ describe('Auth integration', () => {
       .get('/auth/me')
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200);
-    expect(me.body).toEqual({ userId, orgId, role: 'admin' });
+    expect(me.body).toEqual({
+      userId,
+      orgId,
+      role: 'admin',
+      isOperator: false,
+    });
 
     const org = await request(app.getHttpServer())
       .get('/orgs/me')

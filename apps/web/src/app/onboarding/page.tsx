@@ -11,7 +11,7 @@ import {
   Send,
   XCircle,
 } from "lucide-react";
-import { api, errorMessage, getAccessToken } from "@/lib/api";
+import { api, ApiError, errorMessage, getAccessToken } from "@/lib/api";
 import { getKnowledge, OrgKnowledge, saveKnowledge } from "@/lib/ai";
 import { applyBrand } from "@/lib/branding";
 import {
@@ -42,6 +42,7 @@ export default function OnboardingPage() {
   const [org, setOrg] = useState<Org | null>(null);
   const [step, setStep] = useState(0);
   const [finishing, setFinishing] = useState(false);
+  const [offline, setOffline] = useState(false);
 
   useEffect(() => {
     if (!getAccessToken()) {
@@ -58,7 +59,11 @@ export default function OnboardingPage() {
         applyBrand(o.brand_color);
         setOrg(o);
       })
-      .catch(() => router.replace("/login"));
+      .catch((e) => {
+        // only an auth failure means "sign in again" (see (app)/layout)
+        if (e instanceof ApiError && e.status === 401) router.replace("/login");
+        else setOffline(true);
+      });
   }, [router]);
 
   async function finish() {
@@ -70,7 +75,7 @@ export default function OnboardingPage() {
   if (!org) {
     return (
       <div className="flex h-screen items-center justify-center bg-page text-sm text-muted">
-        Loading…
+        {offline ? "Can't reach the server right now — refresh in a moment." : "Loading…"}
       </div>
     );
   }

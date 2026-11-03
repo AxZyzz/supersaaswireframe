@@ -7,7 +7,7 @@ import { NotificationBell } from "@/components/notification-bell";
 import { CommandPalette, openCommandPalette } from "@/components/command-palette";
 import { Toaster } from "@/components/feedback";
 import { Search } from "lucide-react";
-import { api, getAccessToken } from "@/lib/api";
+import { api, ApiError, getAccessToken } from "@/lib/api";
 import { applyBrand } from "@/lib/branding";
 import type { Org } from "@/lib/org";
 
@@ -26,6 +26,7 @@ const TITLES: [string, string][] = [
   ["/analytics", "Analytics"],
   ["/settings", "Settings"],
   ["/help", "Help"],
+  ["/operator", "Operator console"],
   ["/dashboard", "Dashboard"],
 ];
 
@@ -36,12 +37,15 @@ export default function AppLayout({
   const pathname = usePathname();
   const [org, setOrg] = useState<Org | null>(null);
   const [me, setMe] = useState<Me | null>(null);
+  const [offline, setOffline] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!getAccessToken()) {
       router.replace("/login");
       return;
     }
+    setOffline(false);
     Promise.all([api<Me>("/auth/me"), api<Org>("/orgs/me")])
       .then(([meRes, orgRes]) => {
         // New workspaces go through the setup wizard first (admins only —
@@ -54,8 +58,14 @@ export default function AppLayout({
         setMe(meRes);
         setOrg(orgRes);
       })
-      .catch(() => router.replace("/login"));
-  }, [router]);
+      .catch((e) => {
+        // Only a real auth failure means "sign in again". A network error or
+        // 5xx (API restarting, deploy in progress) keeps the session and
+        // offers a retry instead of bouncing every open tab to /login.
+        if (e instanceof ApiError && e.status === 401) router.replace("/login");
+        else setOffline(true);
+      });
+  }, [router, attempt]);
 
   // Settings saves broadcast the new org so the shell re-themes in place.
   useEffect(() => {
@@ -67,6 +77,21 @@ export default function AppLayout({
     window.addEventListener("org-updated", onUpdate);
     return () => window.removeEventListener("org-updated", onUpdate);
   }, []);
+
+  if (offline) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-3 bg-page text-center">
+        <p className="text-sm text-ink">Can&apos;t reach the server right now.</p>
+        <p className="text-tiny text-muted">You&apos;re still signed in. This usually clears in a few seconds.</p>
+        <button
+          onClick={() => setAttempt((a) => a + 1)}
+          className="rounded border border-line-mid bg-white px-3 py-1.5 text-sm text-ink hover:bg-hover"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
 
   if (!me || !org) {
     return (
