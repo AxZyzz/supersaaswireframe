@@ -133,6 +133,46 @@ describe('Segments integration', () => {
     expect(refreshed.member_count).toBe(1); // only H1 (hot + Acme)
   });
 
+  it('engagement rules: opened / never opened / replied / never emailed (T2.7)', async () => {
+    // h1 + h2 emailed; h1 opened; h2 replied; w1 never emailed.
+    await withOrgContext(pool, orgId, async (c) => {
+      const leads = await c.query<{ id: string; email: string }>(
+        `SELECT id, email FROM leads`,
+      );
+      const id = (e: string) => leads.rows.find((l) => l.email === e)!.id;
+      for (const e of ['h1@acme.com', 'h2@globex.com']) {
+        await c.query(
+          `INSERT INTO sent_emails (org_id, lead_id, to_email) VALUES ($1, $2, $3)`,
+          [orgId, id(e), e],
+        );
+      }
+      await c.query(
+        `INSERT INTO email_events (org_id, lead_id, type) VALUES ($1, $2, 'open'), ($1, $3, 'reply')`,
+        [orgId, id('h1@acme.com'), id('h2@globex.com')],
+      );
+    });
+
+    const count = async (op: string) => {
+      const seg = await request(app.getHttpServer())
+        .post('/segments')
+        .set(H())
+        .send({
+          name: `eng ${op}`,
+          type: 'smart',
+          rules: { match: 'all', conditions: [{ field: 'engagement', op }] },
+        })
+        .expect(201);
+      return (await waitRefreshed(seg.body.id)).member_count;
+    };
+    expect(await count('emailed')).toBe(2);
+    expect(await count('never_emailed')).toBe(1);
+    expect(await count('opened')).toBe(1);
+    expect(await count('never_opened')).toBe(1); // h2: emailed, no open
+    expect(await count('replied')).toBe(1);
+    expect(await count('not_replied')).toBe(1); // h1
+    expect(await count('clicked')).toBe(0);
+  });
+
   it('manual segment: add and remove members explicitly', async () => {
     const leads = await request(app.getHttpServer())
       .get('/leads')

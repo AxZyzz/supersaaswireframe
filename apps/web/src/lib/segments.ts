@@ -92,6 +92,19 @@ export const RULE_FIELDS: Record<
     ],
     value: "tag",
   },
+  engagement: {
+    label: "Engagement",
+    ops: [
+      { op: "emailed", label: "has been emailed" },
+      { op: "never_emailed", label: "never emailed" },
+      { op: "opened", label: "opened an email" },
+      { op: "never_opened", label: "emailed, never opened" },
+      { op: "clicked", label: "clicked a link" },
+      { op: "replied", label: "replied" },
+      { op: "not_replied", label: "emailed, no reply" },
+    ],
+    value: "none",
+  },
   created: {
     label: "Created",
     ops: [{ op: "within_days", label: "within (days)" }],

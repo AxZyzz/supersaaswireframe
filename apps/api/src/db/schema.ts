@@ -666,6 +666,7 @@ export const emailEvents = pgTable(
     index('email_events_org_idx').on(t.orgId, t.createdAt),
     index('email_events_sent_idx').on(t.sentEmailId),
     index('email_events_campaign_idx').on(t.campaignId, t.type),
+    index('email_events_lead_type_idx').on(t.leadId, t.type),
   ],
 );
 
