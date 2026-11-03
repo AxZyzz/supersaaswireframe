@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Headers,
   HttpCode,
   Param,
   Post,
@@ -55,11 +56,12 @@ export class TrackingController {
   @Get('t/o/:trackingId')
   async open(
     @Param('trackingId') trackingId: string,
+    @Headers('user-agent') userAgent: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
     if (UUID_RE.test(trackingId)) {
       try {
-        await this.tracking.recordOpen(trackingId);
+        await this.tracking.recordOpen(trackingId, userAgent);
       } catch {
         /* never fail an open pixel */
       }
@@ -78,12 +80,13 @@ export class TrackingController {
   async click(
     @Param('trackingId') trackingId: string,
     @Query('u') u: string,
+    @Headers('user-agent') userAgent: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
     const target = this.safeUrl(u);
     if (target && UUID_RE.test(trackingId)) {
       try {
-        await this.tracking.recordClick(trackingId, target);
+        await this.tracking.recordClick(trackingId, target, userAgent);
       } catch {
         /* redirect regardless of logging outcome */
       }

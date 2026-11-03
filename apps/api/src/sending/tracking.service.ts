@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Pool } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { botReason } from './bot-detect';
 
 interface TrackingRef {
   sent_email_id: string;
@@ -9,6 +10,8 @@ interface TrackingRef {
   campaign_id: string | null;
   lead_id: string | null;
 }
+
+type Tx = Parameters<Parameters<typeof withOrgContext>[2]>[0];
 
 interface UnsubRef {
   campaign_lead_id: string;
@@ -48,10 +51,47 @@ export class TrackingService {
     return r.rows[0] ?? null;
   }
 
-  async recordOpen(trackingId: string): Promise<void> {
+  /**
+   * Scanner/prefetch hits are kept as bot_open / bot_click (auditable) but
+   * never count as engagement: no stats, no step gates, no timeline entry.
+   */
+  private async logIfBot(
+    c: Tx,
+    t: TrackingRef,
+    kind: 'open' | 'click',
+    userAgent: string | undefined,
+    extra: Record<string, unknown> = {},
+  ): Promise<boolean> {
+    const se = await c.query<{ sent_at: Date }>(
+      `SELECT sent_at FROM sent_emails WHERE id = $1`,
+      [t.sent_email_id],
+    );
+    const reason = botReason(userAgent, se.rows[0]?.sent_at ?? null);
+    if (!reason) return false;
+    await c.query(
+      `INSERT INTO email_events (org_id, sent_email_id, campaign_id, lead_id, type, data)
+       VALUES ($1,$2,$3,$4,$5,$6::jsonb)`,
+      [
+        t.org_id,
+        t.sent_email_id,
+        t.campaign_id,
+        t.lead_id,
+        `bot_${kind}`,
+        JSON.stringify({
+          ...extra,
+          reason,
+          ua: (userAgent ?? '').slice(0, 200),
+        }),
+      ],
+    );
+    return true;
+  }
+
+  async recordOpen(trackingId: string, userAgent?: string): Promise<void> {
     const t = await this.resolveTracking(trackingId);
     if (!t) return;
     await withOrgContext(this.pool, t.org_id, async (c) => {
+      if (await this.logIfBot(c, t, 'open', userAgent)) return;
       await c.query(
         `INSERT INTO email_events (org_id, sent_email_id, campaign_id, lead_id, type, data)
          VALUES ($1,$2,$3,$4,'open','{}'::jsonb)`,
@@ -72,10 +112,15 @@ export class TrackingService {
     });
   }
 
-  async recordClick(trackingId: string, url: string): Promise<void> {
+  async recordClick(
+    trackingId: string,
+    url: string,
+    userAgent?: string,
+  ): Promise<void> {
     const t = await this.resolveTracking(trackingId);
     if (!t) return;
     await withOrgContext(this.pool, t.org_id, async (c) => {
+      if (await this.logIfBot(c, t, 'click', userAgent, { url })) return;
       await c.query(
         `INSERT INTO email_events (org_id, sent_email_id, campaign_id, lead_id, type, data)
          VALUES ($1,$2,$3,$4,'click',$5::jsonb)`,

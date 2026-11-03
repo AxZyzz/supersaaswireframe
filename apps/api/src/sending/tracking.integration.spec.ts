@@ -11,6 +11,9 @@ import { withOrgContext } from '../db/tenant-context';
 /** Tracking: open pixel + click redirect + unsubscribe record events under the
  *  right org (via the SECURITY DEFINER resolvers), suppress + stop the lead, and
  *  surface through campaign stats. Endpoints are public (no auth token). */
+const BROWSER =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
+
 describe('Tracking integration', () => {
   let app: INestApplication;
   let pool: Pool;
@@ -117,6 +120,11 @@ describe('Tracking integration', () => {
         [campaignId],
       );
       trackingId = se.rows[0].tracking_id;
+      // a person opens minutes later, not at delivery (see bot-detect.ts)
+      await c.query(
+        `UPDATE sent_emails SET sent_at = now() - interval '5 minutes' WHERE campaign_id = $1`,
+        [campaignId],
+      );
       const cl = await c.query(
         `SELECT unsub_token FROM campaign_leads WHERE campaign_id = $1`,
         [campaignId],
@@ -127,9 +135,47 @@ describe('Tracking integration', () => {
     expect(unsubToken).toBeTruthy();
   });
 
+  it('scanner fetches are logged as bot events, never as engagement (T5.4)', async () => {
+    await request(app.getHttpServer())
+      .get(`/t/o/${trackingId}`)
+      .set('User-Agent', 'Mozilla/5.0 (compatible; Barracuda Sentinel)')
+      .expect(200)
+      .expect('Content-Type', /image\/gif/);
+    const res = await request(app.getHttpServer())
+      .get(`/t/c/${trackingId}`)
+      .set('User-Agent', 'python-requests/2.31')
+      .query({ u: 'https://example.com/scan' })
+      .expect(302);
+    expect(res.headers.location).toBe('https://example.com/scan'); // still redirects
+    await request(app.getHttpServer())
+      .get(`/t/o/${trackingId}`)
+      .unset('User-Agent')
+      .expect(200);
+
+    await withOrgContext(pool, orgId, async (c) => {
+      const ev = await c.query(
+        `SELECT type, data->>'reason' AS reason FROM email_events
+         WHERE campaign_id = $1 AND type <> 'sent' ORDER BY created_at`,
+        [campaignId],
+      );
+      expect(ev.rows).toEqual([
+        { type: 'bot_open', reason: 'scanner_user_agent' },
+        { type: 'bot_click', reason: 'scanner_user_agent' },
+        { type: 'bot_open', reason: 'no_user_agent' },
+      ]);
+      const lt = await c.query(
+        `SELECT count(*)::int AS n FROM lead_events
+         WHERE lead_id = $1 AND type IN ('email_opened', 'email_clicked')`,
+        [leadId],
+      );
+      expect(lt.rows[0].n).toBe(0);
+    });
+  });
+
   it('open pixel returns a gif and records an open event', async () => {
     await request(app.getHttpServer())
       .get(`/t/o/${trackingId}`)
+      .set('User-Agent', BROWSER)
       .expect(200)
       .expect('Content-Type', /image\/gif/);
 
@@ -160,6 +206,7 @@ describe('Tracking integration', () => {
     const target = 'https://example.com/pricing';
     const res = await request(app.getHttpServer())
       .get(`/t/c/${trackingId}`)
+      .set('User-Agent', BROWSER)
       .query({ u: target })
       .expect(302);
     expect(res.headers.location).toBe(target);

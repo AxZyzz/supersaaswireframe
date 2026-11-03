@@ -109,8 +109,19 @@ describe('Analytics integration', () => {
         [campaignId],
       );
       trackingId = r.rows[0].tracking_id;
+      // opened by a person a few minutes after delivery (not a scanner)
+      await c.query(
+        `UPDATE sent_emails SET sent_at = now() - interval '5 minutes' WHERE campaign_id = $1`,
+        [campaignId],
+      );
     });
-    await request(app.getHttpServer()).get(`/t/o/${trackingId}`).expect(200);
+    await request(app.getHttpServer())
+      .get(`/t/o/${trackingId}`)
+      .set(
+        'User-Agent',
+        'Mozilla/5.0 (Macintosh) AppleWebKit/605.1.15 Safari/605.1.15',
+      )
+      .expect(200);
 
     const ov = await request(app.getHttpServer())
       .get('/analytics/overview')
