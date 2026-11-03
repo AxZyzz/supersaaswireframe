@@ -60,3 +60,30 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
 }
+
+/* Email HTML shown in-app (template preview + visual editor): restore the
+   list/link/paragraph styling Tailwind's preflight strips. */
+.prose-email p,
+.prose-email div {
+  margin: 0 0 0.6em;
+}
+.prose-email ul {
+  list-style: disc;
+  padding-left: 1.4em;
+  margin: 0 0 0.6em;
+}
+.prose-email ol {
+  list-style: decimal;
+  padding-left: 1.4em;
+  margin: 0 0 0.6em;
+}
+.prose-email a {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+.prose-email h1,
+.prose-email h2,
+.prose-email h3 {
+  font-weight: 600;
+  margin: 0 0 0.5em;
+}

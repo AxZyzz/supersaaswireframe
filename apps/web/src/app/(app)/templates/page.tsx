@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Copy, Plus, Send, Trash2 } from "lucide-react";
 import {
   createTemplate,
@@ -15,6 +15,8 @@ import {
 } from "@/lib/templates";
 import { listSenders, Sender } from "@/lib/senders";
 import { canManage, useRole } from "@/lib/me";
+import { sanitizeEmailHtml } from "@/lib/sanitize-html";
+import { RichEmailEditor, RichEmailEditorHandle } from "@/components/rich-email-editor";
 
 type Draft = {
   id: string | null; // null = unsaved new template
@@ -108,8 +110,14 @@ export default function TemplatesPage() {
     }
   }
 
-  // insert a token at the end of subject or body
+  const bodyEditor = useRef<RichEmailEditorHandle>(null);
+
+  // subject: append the token; body: insert at the caret
   function insertVar(v: string, field: "subject" | "bodyHtml") {
+    if (field === "bodyHtml" && bodyEditor.current) {
+      bodyEditor.current.insert(`{${v}}`);
+      return;
+    }
     setDraft((d) => ({ ...d, [field]: `${d[field]}{${v}}` }));
   }
 
@@ -117,8 +125,9 @@ export default function TemplatesPage() {
     () => renderSample(draft.subject),
     [draft.subject],
   );
+  // sanitized: templates are authored by teammates and render in-app
   const previewHtml = useMemo(
-    () => renderSample(draft.bodyHtml),
+    () => sanitizeEmailHtml(renderSample(draft.bodyHtml)),
     [draft.bodyHtml],
   );
 
@@ -126,9 +135,9 @@ export default function TemplatesPage() {
     "w-full rounded border border-line-mid bg-white px-2.5 py-1.5 text-sm outline-none focus:border-accent";
 
   return (
-    <div className="mx-auto flex max-w-shell gap-4">
+    <div className="mx-auto flex max-w-shell flex-col gap-4 lg:flex-row">
       {/* library */}
-      <aside className="w-64 shrink-0 space-y-2">
+      <aside className="w-full shrink-0 space-y-2 lg:w-64">
         {editable ? (
           <button
             onClick={() => {
@@ -171,7 +180,7 @@ export default function TemplatesPage() {
       </aside>
 
       {/* editor + preview */}
-      <div className="flex-1 space-y-4">
+      <div className="min-w-0 flex-1 space-y-4">
         <div className="space-y-3 rounded-lg border border-line bg-white p-4">
           <div className="flex items-center gap-2">
             <input
@@ -246,16 +255,15 @@ export default function TemplatesPage() {
           <div>
             <div className="mb-1 flex items-center justify-between">
               <label className="text-tiny font-medium uppercase tracking-wide text-faint">
-                Body (HTML)
+                Body
               </label>
               <VarChips onPick={(v) => insertVar(v, "bodyHtml")} />
             </div>
-            <textarea
+            <RichEmailEditor
+              ref={bodyEditor}
               value={draft.bodyHtml}
-              onChange={(e) => setDraft({ ...draft, bodyHtml: e.target.value })}
-              rows={12}
-              placeholder="<p>Hi {first_name|there},</p>"
-              className={`${field} font-mono text-xs`}
+              onChange={(bodyHtml) => setDraft((d) => ({ ...d, bodyHtml }))}
+              placeholder="Hi {first_name|there}, …"
             />
           </div>
         </div>
@@ -276,7 +284,7 @@ export default function TemplatesPage() {
               </span>
             </div>
             <div
-              className="prose-sm max-w-none text-sm text-ink"
+              className="prose-email max-w-none text-sm text-ink"
               dangerouslySetInnerHTML={{
                 __html: previewHtml || "<p class='text-muted'>(empty body)</p>",
               }}
