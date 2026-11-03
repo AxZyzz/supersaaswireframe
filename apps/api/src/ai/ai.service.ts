@@ -29,7 +29,13 @@ export class AiService {
   ): Promise<AIResult> {
     const provider = this.resolver.resolve();
     const result = await this.withRetry(() => provider.generate(opts));
-    void this.logUsage(orgId, feature, provider.name, result);
+    void this.logUsage(
+      orgId,
+      feature,
+      provider.name,
+      result,
+      opts.promptVersion,
+    );
     return result;
   }
 
@@ -57,13 +63,14 @@ export class AiService {
     feature: string,
     provider: string,
     result: AIResult,
+    promptVersion?: string,
   ): Promise<void> {
     try {
       await withOrgContext(this.pool, orgId, async (c) => {
         await c.query(
           `INSERT INTO ai_usage
-             (org_id, feature, provider, model, input_tokens, output_tokens)
-           VALUES ($1,$2,$3,$4,$5,$6)`,
+             (org_id, feature, provider, model, input_tokens, output_tokens, prompt_version)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
           [
             orgId,
             feature,
@@ -71,6 +78,7 @@ export class AiService {
             result.model,
             result.usage.inputTokens,
             result.usage.outputTokens,
+            promptVersion ?? null,
           ],
         );
       });

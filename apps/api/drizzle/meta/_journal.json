@@ -253,6 +253,13 @@
       "when": 1785344040000,
       "tag": "0035_notification_prefs",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1785430440000,
+      "tag": "0036_prompt_version",
+      "breakpoints": true
     }
   ]
 }

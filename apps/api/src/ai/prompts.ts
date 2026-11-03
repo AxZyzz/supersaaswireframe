@@ -38,6 +38,13 @@ export function knowledgeBlock(kb: OrgKnowledge | null | undefined): string {
   return `## Business context\nUse this to ground your output; do not invent facts that contradict it.\n${lines.join('\n')}`;
 }
 
+// Bump a version whenever its prompt text, schema or tier changes, then run
+// `npm run eval -w apps/api` against real Claude to compare before/after.
+export const PROMPT_VERSIONS = {
+  classifyReply: 'classify-reply@1',
+  sequence: 'sequence@1',
+} as const;
+
 // ── Reply classification (T6.4) ──────────────────────────────────────────
 export const REPLY_CLASSES = [
   'interested',
@@ -93,6 +100,7 @@ export function classifyReply(input: ClassifyReplyInput): AIGenerateOptions {
     tier: 'fast',
     maxTokens: 300,
     jsonSchema: CLASSIFY_SCHEMA,
+    promptVersion: PROMPT_VERSIONS.classifyReply,
   };
 }
 
@@ -158,5 +166,6 @@ export function sequencePrompt(brief: SequenceBrief): AIGenerateOptions {
     tier: 'powerful',
     maxTokens: 4000,
     jsonSchema: SEQUENCE_SCHEMA,
+    promptVersion: PROMPT_VERSIONS.sequence,
   };
 }

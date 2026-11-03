@@ -21,6 +21,9 @@ export interface AIGenerateOptions {
   // When set, the provider constrains output to this JSON Schema (structured
   // output) and `text` is a JSON string matching it.
   jsonSchema?: Record<string, unknown>;
+  // Which prompt template + revision produced this request (logged to
+  // ai_usage so output quality can be traced to a prompt change).
+  promptVersion?: string;
 }
 
 export interface AIUsage {
