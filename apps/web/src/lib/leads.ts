@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { api, authedFetch } from "./api";
 
 export interface Lead {
   id: string;
@@ -146,7 +146,6 @@ export const IMPORTABLE_FIELDS = [
   "source",
 ] as const;
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 // Multipart upload — separate from the JSON api() helper.
 export async function uploadImport(
@@ -154,19 +153,11 @@ export async function uploadImport(
   mapping: Record<string, string>,
   onDuplicate: "skip" | "update",
 ): Promise<{ jobId: string }> {
-  const token =
-    typeof window === "undefined"
-      ? null
-      : localStorage.getItem("ss.accessToken");
   const form = new FormData();
   form.append("file", file);
   form.append("mapping", JSON.stringify(mapping));
   form.append("onDuplicate", onDuplicate);
-  const res = await fetch(`${API_URL}/leads/import`, {
-    method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: form,
-  });
+  const res = await authedFetch("/leads/import", { method: "POST", body: form });
   if (!res.ok) throw new Error(`Import failed (${res.status})`);
   return res.json() as Promise<{ jobId: string }>;
 }
@@ -177,18 +168,12 @@ export const getImportStatus = (id: string) =>
 // Authenticated CSV download — fetch as blob (can't use a plain <a href> since
 // the endpoint needs the bearer token).
 export async function exportLeads(f: LeadFilters): Promise<void> {
-  const token =
-    typeof window === "undefined"
-      ? null
-      : localStorage.getItem("ss.accessToken");
   const q = new URLSearchParams();
   if (f.search) q.set("search", f.search);
   if (f.status) q.set("status", f.status);
   if (f.score) q.set("score", f.score);
   if (f.tagId) q.set("tagId", f.tagId);
-  const res = await fetch(`${API_URL}/leads/export?${q.toString()}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+  const res = await authedFetch(`/leads/export?${q.toString()}`);
   if (!res.ok) throw new Error(`Export failed (${res.status})`);
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);

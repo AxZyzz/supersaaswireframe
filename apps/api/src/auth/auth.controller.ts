@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, HttpCode, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -6,10 +17,14 @@ import { Public } from './decorators/public.decorator';
 import {
   DeleteAccountDto,
   LoginDto,
-  RefreshDto,
   SignupDto,
   SwitchOrgDto,
 } from './dto/auth.dto';
+import {
+  assertCsrfHeader,
+  clearRefreshCookie,
+  readRefreshCookie,
+} from './refresh-cookie';
 import type { AuthUser } from './types';
 
 @Controller('auth')
@@ -35,15 +50,24 @@ export class AuthController {
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @HttpCode(200)
   @Post('refresh')
-  refresh(@Body() dto: RefreshDto) {
-    return this.auth.refresh(dto.refreshToken);
+  refresh(@Req() req: Request) {
+    // Rotated token goes back out via RefreshCookieInterceptor. A failed
+    // refresh leaves the cookie alone: in a two-tab race the browser may
+    // already hold the newer token another tab just received.
+    assertCsrfHeader(req);
+    const token = readRefreshCookie(req);
+    if (!token) throw new UnauthorizedException('No session');
+    return this.auth.refresh(token);
   }
 
   @Public()
   @HttpCode(204)
   @Post('logout')
-  async logout(@Body() dto: RefreshDto) {
-    await this.auth.logout(dto.refreshToken);
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    assertCsrfHeader(req);
+    const token = readRefreshCookie(req);
+    if (token) await this.auth.logout(token);
+    clearRefreshCookie(res);
   }
 
   @HttpCode(200)

@@ -102,4 +102,12 @@ test('signup to classified reply, through the UI', async ({ page }) => {
   await expect(page.getByText('3 in the last 7 days', { exact: true })).toBeVisible(); // emails sent
   await expect(page.getByText('33.3%')).toBeVisible(); // 1 reply / 3 sent
   await expect(page.getByText(/Ana\s+email replied/)).toBeVisible();
+
+  // ── session hygiene: no tokens in page storage, logout really ends it ──
+  const stored = await page.evaluate(() => JSON.stringify(localStorage));
+  expect(stored).not.toMatch(/eyJ/); // no JWTs readable by page scripts
+  await page.getByRole('button', { name: 'Log out' }).click();
+  await expect(page).toHaveURL(/\/login/);
+  await page.goto('/dashboard');
+  await expect(page).toHaveURL(/\/login/); // cookie revoked, not just forgotten
 });

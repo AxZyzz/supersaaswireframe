@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Download, ShieldCheck, Trash2 } from "lucide-react";
-import { clearTokens, errorMessage } from "@/lib/api";
+import { errorMessage, logout } from "@/lib/api";
 import { HelpLink } from "@/components/help-link";
 import { getMe } from "@/lib/me";
 import { deleteAccount, deleteWorkspace, exportWorkspace, getOrg } from "@/lib/org";
@@ -55,9 +55,8 @@ export function PrivacySection() {
     });
 
   const goodbye = () => {
-    clearTokens();
     disconnectLive();
-    router.replace("/");
+    void logout().then(() => router.replace("/"));
   };
 
   if (!role) return null;

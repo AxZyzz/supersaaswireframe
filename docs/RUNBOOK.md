@@ -31,6 +31,10 @@ production** if any of these are wrong (see `apps/api/src/config/env.validation.
 - `EMAIL_DRIVER` must not be `mock`; `THROTTLE_DISABLED` must not be set
 - Optional: `TRUST_PROXY` (hop count behind a load balancer), `SWAGGER=on`,
   `SEND_SCHEDULER=off` (disable the scheduler on an instance), `AI_DRIVER=bedrock`
+- Sessions: the refresh token is an httpOnly, Secure cookie scoped to `/auth`;
+  the access token lives only in page memory. Serve web and API from the same
+  site (e.g. `app.` + `api.` subdomains) so the default `COOKIE_SAMESITE=lax`
+  works. Unrelated domains need `COOKIE_SAMESITE=none`. CORS allows only `WEB_URL`.
 
 Generate secrets:
 

@@ -16,7 +16,7 @@ import {
   Settings,
   Users,
 } from "lucide-react";
-import { clearTokens } from "@/lib/api";
+import { logout } from "@/lib/api";
 import { unreadCount } from "@/lib/inbox";
 import { useIsOperator } from "@/lib/me";
 import { disconnectLive, useLive } from "@/lib/realtime";
@@ -157,9 +157,8 @@ export function Sidebar({
         </Link>
         <button
           onClick={() => {
-            clearTokens();
             disconnectLive();
-            router.replace("/login");
+            void logout().then(() => router.replace("/login"));
           }}
           className="flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm text-muted hover:bg-hover hover:text-ink"
         >

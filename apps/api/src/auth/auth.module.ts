@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthController } from './auth.controller';
@@ -8,6 +8,7 @@ import { AuthService } from './auth.service';
 import { MembershipCache } from './membership-cache.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { RefreshCookieInterceptor } from './refresh-cookie';
 import {
   RedisThrottlerStorage,
   ThrottlerStorageModule,
@@ -46,6 +47,7 @@ import {
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_INTERCEPTOR, useClass: RefreshCookieInterceptor },
   ],
   exports: [AuthService, MembershipCache],
 })

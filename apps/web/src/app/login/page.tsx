@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { api, ApiError, setTokens } from "@/lib/api";
+import { api, ApiError, setSession } from "@/lib/api";
 
 /** Same-origin path from ?next= (e.g. back to an invite link). Anything that
  *  could leave the site (//host, /\host, absolute URLs) falls back. */
@@ -26,11 +26,11 @@ export default function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      const res = await api<{ accessToken: string; refreshToken: string }>(
+      const res = await api<{ accessToken: string }>(
         "/auth/login",
         { method: "POST", body: JSON.stringify({ email, password }) },
       );
-      setTokens(res.accessToken, res.refreshToken);
+      setSession(res.accessToken);
       router.replace(safeNext());
     } catch (err) {
       setError(

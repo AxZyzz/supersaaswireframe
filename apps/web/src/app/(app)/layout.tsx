@@ -8,7 +8,7 @@ import { CommandPalette, openCommandPalette } from "@/components/command-palette
 import { Toaster } from "@/components/feedback";
 import { FeedbackButton } from "@/components/feedback-button";
 import { Search } from "lucide-react";
-import { api, ApiError, getAccessToken } from "@/lib/api";
+import { api, ApiError, ensureSession } from "@/lib/api";
 import { applyBrand } from "@/lib/branding";
 import type { Org } from "@/lib/org";
 
@@ -42,13 +42,20 @@ export default function AppLayout({
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    if (!getAccessToken()) {
-      router.replace("/login");
-      return;
-    }
     setOffline(false);
-    Promise.all([api<Me>("/auth/me"), api<Org>("/orgs/me")])
-      .then(([meRes, orgRes]) => {
+    // A fresh page load has no access token in memory yet: restore it from
+    // the httpOnly refresh cookie (or send the visitor to /login).
+    ensureSession()
+      .then((ok) => {
+        if (!ok) {
+          router.replace("/login");
+          return null;
+        }
+        return Promise.all([api<Me>("/auth/me"), api<Org>("/orgs/me")]);
+      })
+      .then((res) => {
+        if (!res) return;
+        const [meRes, orgRes] = res;
         // New workspaces go through the setup wizard first (admins only —
         // they're the ones who can configure senders and branding).
         if (!orgRes.onboarded_at && meRes.role === "admin") {

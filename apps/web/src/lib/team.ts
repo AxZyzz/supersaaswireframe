@@ -37,8 +37,7 @@ export interface InvitePreview {
 }
 
 interface TokenPair {
-  accessToken: string;
-  refreshToken: string;
+  accessToken: string; // refresh token arrives as an httpOnly cookie
 }
 
 export const listTeam = () => api<TeamMember[]>("/orgs/members");

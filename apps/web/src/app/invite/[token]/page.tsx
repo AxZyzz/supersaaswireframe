@@ -5,10 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { MailCheck, XCircle } from "lucide-react";
 import {
-  clearTokens,
+  clearSession,
   errorMessage,
-  getAccessToken,
-  setTokens,
+  hasSessionHint,
+  setSession,
 } from "@/lib/api";
 import {
   acceptInvite,
@@ -33,18 +33,18 @@ export default function InvitePage() {
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    setSignedIn(!!getAccessToken());
+    setSignedIn(hasSessionHint());
     previewInvite(token)
       .then(setInv)
       .catch(() => setMissing(true));
   }, [token]);
 
-  async function finish(fn: () => Promise<{ accessToken: string; refreshToken: string }>) {
+  async function finish(fn: () => Promise<{ accessToken: string }>) {
     setBusy(true);
     setErr(null);
     try {
       const t = await fn();
-      setTokens(t.accessToken, t.refreshToken);
+      setSession(t.accessToken);
       router.replace("/dashboard");
     } catch (e) {
       setErr(errorMessage(e));
@@ -53,7 +53,7 @@ export default function InvitePage() {
   }
 
   function switchAccount() {
-    clearTokens();
+    clearSession();
     router.push(`/login?next=${encodeURIComponent(`/invite/${token}`)}`);
   }
 

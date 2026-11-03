@@ -68,6 +68,7 @@ export class AuthService {
       sub: userId,
       jti,
       type: 'refresh',
+      org: orgId,
     };
     const accessToken = await this.jwt.signAsync(accessPayload, {
       expiresIn: this.config.get('JWT_ACCESS_TTL', '15m'),
@@ -238,8 +239,11 @@ export class AuthService {
     if (memberships.length === 0) {
       throw new UnauthorizedException('No workspace membership');
     }
-    const first = memberships[0];
-    return this.issueTokens(row.user_id, first.orgId, first.role);
+    // Stay in the workspace the session was using (switch-org survives a
+    // page reload); fall back to the first if that membership is gone.
+    const active =
+      memberships.find((m) => m.orgId === payload.org) ?? memberships[0];
+    return this.issueTokens(row.user_id, active.orgId, active.role);
   }
 
   async logout(rawToken: string): Promise<void> {

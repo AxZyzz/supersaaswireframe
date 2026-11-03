@@ -19,7 +19,20 @@ describe('Auth integration', () => {
   const email = `auth-int-${randomUUID().slice(0, 8)}@test.local`;
   const password = 'correct-horse-42';
   let accessToken: string;
-  let refreshToken: string;
+  let refreshToken: string; // the ss_rt cookie pair, e.g. "ss_rt=eyJ…"
+
+  // The refresh token only ever travels as an httpOnly cookie.
+  const rtCookie = (res: request.Response): string => {
+    const raw = res.headers['set-cookie'] as unknown as string[] | undefined;
+    const c = (raw ?? []).find((v) => v.startsWith('ss_rt='));
+    if (!c) throw new Error('no ss_rt cookie set');
+    return c.split(';')[0];
+  };
+  const refreshWith = (cookie: string) =>
+    request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('Cookie', cookie)
+      .set('X-Requested-With', 'test');
   let orgId: string;
   let userId: string;
 
@@ -57,10 +70,17 @@ describe('Auth integration', () => {
       .send({ email, password, name: 'Int Test', orgName: 'Int Test Org' })
       .expect(201);
     expect(res.body.accessToken).toBeDefined();
-    expect(res.body.refreshToken).toBeDefined();
+    // never in the body — httpOnly cookie scoped to /auth only
+    expect(res.body.refreshToken).toBeUndefined();
+    const setCookie = (res.headers['set-cookie'] as unknown as string[]).find(
+      (v) => v.startsWith('ss_rt='),
+    )!;
+    expect(setCookie).toMatch(/HttpOnly/i);
+    expect(setCookie).toMatch(/Path=\/auth/i);
+    expect(setCookie).toMatch(/SameSite=Lax/i);
     expect(res.body.org.id).toBeDefined();
     accessToken = res.body.accessToken;
-    refreshToken = res.body.refreshToken;
+    refreshToken = rtCookie(res);
     orgId = res.body.org.id;
     userId = res.body.user.id;
   });
@@ -101,29 +121,35 @@ describe('Auth integration', () => {
   it('rejects a refresh token used as access token', async () => {
     await request(app.getHttpServer())
       .get('/auth/me')
-      .set('Authorization', `Bearer ${refreshToken}`)
+      .set('Authorization', `Bearer ${refreshToken.slice('ss_rt='.length)}`)
       .expect(401);
   });
 
-  it('rotates refresh tokens and detects reuse', async () => {
-    const first = await request(app.getHttpServer())
+  it('refresh needs the cookie and the CSRF header', async () => {
+    await request(app.getHttpServer())
       .post('/auth/refresh')
-      .send({ refreshToken })
-      .expect(200);
-    const rotated = first.body.refreshToken;
+      .set('X-Requested-With', 'test')
+      .expect(401);
+    await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .set('Cookie', refreshToken)
+      .expect(400);
+  });
+
+  it('rotates refresh tokens and detects reuse', async () => {
+    const first = await refreshWith(refreshToken).expect(200);
+    expect(first.body.accessToken).toBeDefined();
+    expect(first.body.refreshToken).toBeUndefined();
+    const rotated = rtCookie(first);
     expect(rotated).not.toBe(refreshToken);
 
     // Re-presenting it seconds later (parallel requests / two tabs racing)
     // is refused but NOT treated as theft — the rotated token keeps working.
-    await request(app.getHttpServer())
-      .post('/auth/refresh')
-      .send({ refreshToken })
-      .expect(401);
-    const again = await request(app.getHttpServer())
-      .post('/auth/refresh')
-      .send({ refreshToken: rotated })
-      .expect(200);
-    const newest = again.body.refreshToken;
+    const race = await refreshWith(refreshToken).expect(401);
+    // ...and the failed refresh must not clear the cookie the browser holds
+    expect(race.headers['set-cookie']).toBeUndefined();
+    const again = await refreshWith(rotated).expect(200);
+    const newest = rtCookie(again);
 
     // Replaying a token rotated out long ago IS theft: the family is revoked.
     await pool.query(
@@ -131,16 +157,10 @@ describe('Auth integration', () => {
        WHERE user_id = $1 AND revoked_at IS NOT NULL`,
       [userId],
     );
-    await request(app.getHttpServer())
-      .post('/auth/refresh')
-      .send({ refreshToken })
-      .expect(401);
+    await refreshWith(refreshToken).expect(401);
 
     // Family revoked → even the newest token is now dead.
-    await request(app.getHttpServer())
-      .post('/auth/refresh')
-      .send({ refreshToken: newest })
-      .expect(401);
+    await refreshWith(newest).expect(401);
 
     // Fresh login recovers.
     const login = await request(app.getHttpServer())
@@ -148,7 +168,7 @@ describe('Auth integration', () => {
       .send({ email, password })
       .expect(200);
     accessToken = login.body.accessToken;
-    refreshToken = login.body.refreshToken;
+    refreshToken = rtCookie(login);
   });
 
   it('blocks switch-org to an org the user is not a member of', async () => {
@@ -194,6 +214,14 @@ describe('Auth integration', () => {
       .set('Authorization', `Bearer ${switched.body.accessToken}`)
       .expect(403);
 
+    // a page reload refreshes the session — it must stay in the switched org
+    const reloaded = await refreshWith(rtCookie(switched)).expect(200);
+    const me = await request(app.getHttpServer())
+      .get('/auth/me')
+      .set('Authorization', `Bearer ${reloaded.body.accessToken}`)
+      .expect(200);
+    expect(me.body).toMatchObject({ orgId, role: 'agent' });
+
     // cleanup second user
     await withOrgContext(pool, agentOwnOrg, async (c) => {
       await c.query(`DELETE FROM orgs WHERE id = $1`, [agentOwnOrg]);
@@ -204,5 +232,18 @@ describe('Auth integration', () => {
       ]);
     });
     await pool.query(`DELETE FROM users WHERE id = $1`, [agentUserId]);
+  });
+
+  it('logout revokes the refresh token and clears the cookie', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/auth/logout')
+      .set('Cookie', refreshToken)
+      .set('X-Requested-With', 'test')
+      .expect(204);
+    const cleared = (res.headers['set-cookie'] as unknown as string[]).find(
+      (v) => v.startsWith('ss_rt='),
+    )!;
+    expect(cleared).toMatch(/Expires=Thu, 01 Jan 1970/);
+    await refreshWith(refreshToken).expect(401);
   });
 });

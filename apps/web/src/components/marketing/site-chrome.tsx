@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Send } from "lucide-react";
-import { getAccessToken } from "@/lib/api";
+import { hasSessionHint } from "@/lib/api";
 import { applyBrand } from "@/lib/branding";
 import { BRAND } from "@/lib/marketing";
 
@@ -22,7 +22,7 @@ export function SiteNav() {
   // Signed-in visitors get a way back into the app instead of sign-up CTAs.
   const [signedIn, setSignedIn] = useState(false);
   useEffect(() => {
-    setSignedIn(!!getAccessToken());
+    setSignedIn(hasSessionHint());
     // public pages wear our brand, not the last workspace's accent
     applyBrand(null);
   }, []);

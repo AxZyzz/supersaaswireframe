@@ -18,6 +18,7 @@ export interface RefreshTokenPayload {
   sub: string;
   jti: string; // refresh_tokens.id
   type: 'refresh';
+  org?: string; // workspace active when issued; refresh keeps it
 }
 
 export interface TokenPair {

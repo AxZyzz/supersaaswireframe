@@ -11,7 +11,7 @@ import {
   Send,
   XCircle,
 } from "lucide-react";
-import { api, ApiError, errorMessage, getAccessToken } from "@/lib/api";
+import { api, ApiError, ensureSession, errorMessage } from "@/lib/api";
 import { getKnowledge, OrgKnowledge, saveKnowledge } from "@/lib/ai";
 import { applyBrand } from "@/lib/branding";
 import {
@@ -45,12 +45,17 @@ export default function OnboardingPage() {
   const [offline, setOffline] = useState(false);
 
   useEffect(() => {
-    if (!getAccessToken()) {
-      router.replace("/login");
-      return;
-    }
-    Promise.all([api<{ role: string }>("/auth/me"), getOrg()])
-      .then(([me, o]) => {
+    ensureSession()
+      .then((ok) => {
+        if (!ok) {
+          router.replace("/login");
+          return null;
+        }
+        return Promise.all([api<{ role: string }>("/auth/me"), getOrg()]);
+      })
+      .then((res) => {
+        if (!res) return;
+        const [me, o] = res;
         // Wizard is admin-only and one-shot; everyone else goes straight in.
         if (me.role !== "admin" || o.onboarded_at) {
           router.replace("/dashboard");

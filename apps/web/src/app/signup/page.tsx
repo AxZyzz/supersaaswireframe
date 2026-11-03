@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { api, ApiError, errorMessage, setTokens } from "@/lib/api";
+import { api, ApiError, errorMessage, setSession } from "@/lib/api";
 import { WaitlistForm } from "@/components/waitlist-form";
 
 export default function SignupPage() {
@@ -39,14 +39,14 @@ export default function SignupPage() {
     setBusy(true);
     setError(null);
     try {
-      const res = await api<{ accessToken: string; refreshToken: string }>(
+      const res = await api<{ accessToken: string }>(
         "/auth/signup",
         {
           method: "POST",
           body: JSON.stringify({ ...form, inviteCode: code ?? undefined }),
         },
       );
-      setTokens(res.accessToken, res.refreshToken);
+      setSession(res.accessToken);
       router.replace("/dashboard");
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {

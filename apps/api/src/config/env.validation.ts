@@ -27,6 +27,13 @@ export function validateEnv(
     errors.push('SIGNUP_MODE must be "open" or "waitlist"');
   }
 
+  if (
+    str('COOKIE_SAMESITE') &&
+    !['lax', 'strict', 'none'].includes(str('COOKIE_SAMESITE'))
+  ) {
+    errors.push('COOKIE_SAMESITE must be "lax", "strict" or "none"');
+  }
+
   if (str('NODE_ENV') === 'production') {
     for (const k of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET']) {
       const v = str(k);

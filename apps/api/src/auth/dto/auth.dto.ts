@@ -46,12 +46,6 @@ export class LoginDto {
   password!: string;
 }
 
-export class RefreshDto {
-  @IsString()
-  @IsNotEmpty()
-  refreshToken!: string;
-}
-
 export class SwitchOrgDto {
   @IsUUID()
   orgId!: string;
