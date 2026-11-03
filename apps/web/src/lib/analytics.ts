@@ -61,6 +61,31 @@ export const getCampaignAnalytics = (r?: Range) =>
 export const getCampaignSteps = (id: string) =>
   api<StepAnalyticsRow[]>(`/analytics/campaigns/${id}/steps`);
 
+export interface TemplateAnalyticsRow {
+  id: string;
+  name: string;
+  campaigns: number;
+  sent: number;
+  opened: number;
+  clicked: number;
+  replied: number;
+}
+
+export interface SourceAnalyticsRow {
+  source: string;
+  leads: number;
+  emailed: number;
+  opened: number;
+  replied: number;
+  converted: number;
+}
+
+export const getTemplateAnalytics = (r?: Range) =>
+  api<TemplateAnalyticsRow[]>(`/analytics/templates${qs(r)}`);
+
+export const getSourceAnalytics = (r?: Range) =>
+  api<SourceAnalyticsRow[]>(`/analytics/sources${qs(r)}`);
+
 export const campaignReportPath = (r?: Range) => `/analytics/campaigns/export${qs(r)}`;
 
 /** Presets → window. Days back from the start of today, through now. */

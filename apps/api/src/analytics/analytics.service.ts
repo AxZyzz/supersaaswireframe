@@ -70,6 +70,25 @@ export interface CampaignAnalyticsRow {
   replied: number;
 }
 
+export interface TemplateAnalyticsRow {
+  id: string;
+  name: string;
+  campaigns: number;
+  sent: number;
+  opened: number;
+  clicked: number;
+  replied: number;
+}
+
+export interface SourceAnalyticsRow {
+  source: string;
+  leads: number;
+  emailed: number;
+  opened: number;
+  replied: number;
+  converted: number;
+}
+
 @Injectable()
 export class AnalyticsService {
   constructor(
@@ -226,6 +245,77 @@ export class AnalyticsService {
            (SELECT count(*)::int FROM email_events e WHERE e.campaign_id = c.id AND e.type = 'unsubscribe' AND ${win('e.created_at')}) AS unsubscribed
          FROM campaigns c
          ORDER BY c.created_at DESC`,
+        [range.from, range.to],
+      );
+      return res.rows;
+    });
+  }
+
+  /**
+   * Template performance across every campaign that used it (T8.3). Opens and
+   * clicks attach to the exact email; replies carry no sent_email_id, so a
+   * reply counts for a template when that lead replied in the same campaign
+   * after receiving it.
+   */
+  templates(
+    orgId: string,
+    range: DateRange = ALL_TIME,
+  ): Promise<TemplateAnalyticsRow[]> {
+    return withOrgContext(this.pool, orgId, async (c) => {
+      const res = await c.query<TemplateAnalyticsRow>(
+        `WITH sends AS (
+           SELECT se.id, se.lead_id, se.campaign_id, se.sent_at, s.template_id
+           FROM sent_emails se JOIN campaign_steps s ON s.id = se.step_id
+           WHERE se.status = 'sent' AND s.template_id IS NOT NULL
+             AND ($1::timestamptz IS NULL OR se.sent_at >= $1)
+             AND ($2::timestamptz IS NULL OR se.sent_at < $2)
+         )
+         SELECT t.id, t.name,
+           count(DISTINCT sd.campaign_id)::int AS campaigns,
+           count(DISTINCT sd.id)::int AS sent,
+           count(DISTINCT sd.id) FILTER (WHERE EXISTS (
+             SELECT 1 FROM email_events e WHERE e.sent_email_id = sd.id AND e.type = 'open'))::int AS opened,
+           count(DISTINCT sd.id) FILTER (WHERE EXISTS (
+             SELECT 1 FROM email_events e WHERE e.sent_email_id = sd.id AND e.type = 'click'))::int AS clicked,
+           count(DISTINCT sd.lead_id) FILTER (WHERE EXISTS (
+             SELECT 1 FROM email_events e
+             WHERE e.lead_id = sd.lead_id AND e.campaign_id = sd.campaign_id
+               AND e.type = 'reply' AND e.created_at >= sd.sent_at))::int AS replied
+         FROM templates t JOIN sends sd ON sd.template_id = t.id
+         GROUP BY t.id, t.name
+         ORDER BY sent DESC, t.name`,
+        [range.from, range.to],
+      );
+      return res.rows;
+    });
+  }
+
+  /**
+   * Lead-source funnel (T8.3): which list/source actually turns into replies
+   * and conversions. Lead counts are a snapshot; email activity honours the
+   * window.
+   */
+  sources(
+    orgId: string,
+    range: DateRange = ALL_TIME,
+  ): Promise<SourceAnalyticsRow[]> {
+    const win = (col: string) =>
+      `($1::timestamptz IS NULL OR ${col} >= $1) AND ($2::timestamptz IS NULL OR ${col} < $2)`;
+    return withOrgContext(this.pool, orgId, async (c) => {
+      const res = await c.query<SourceAnalyticsRow>(
+        `SELECT COALESCE(NULLIF(trim(l.source), ''), 'Unknown') AS source,
+           count(*)::int AS leads,
+           count(*) FILTER (WHERE EXISTS (SELECT 1 FROM sent_emails se
+             WHERE se.lead_id = l.id AND se.status = 'sent' AND ${win('se.sent_at')}))::int AS emailed,
+           count(*) FILTER (WHERE EXISTS (SELECT 1 FROM email_events e
+             WHERE e.lead_id = l.id AND e.type = 'open' AND ${win('e.created_at')}))::int AS opened,
+           count(*) FILTER (WHERE EXISTS (SELECT 1 FROM email_events e
+             WHERE e.lead_id = l.id AND e.type = 'reply' AND ${win('e.created_at')}))::int AS replied,
+           count(*) FILTER (WHERE l.status = 'converted')::int AS converted
+         FROM leads l
+         GROUP BY 1
+         ORDER BY leads DESC, source
+         LIMIT 100`,
         [range.from, range.to],
       );
       return res.rows;

@@ -16,6 +16,7 @@ import {
   StepAnalyticsRow,
 } from "@/lib/analytics";
 import { LoadError, loadErrorText } from "@/components/feedback";
+import { AnalyticsBreakdowns } from "@/components/analytics-breakdowns";
 import { useLive } from "@/lib/realtime";
 
 const PRESETS: { label: string; days: number | null }[] = [
@@ -308,6 +309,8 @@ export default function AnalyticsPage() {
           </div>
         )}
       </section>
+
+      <AnalyticsBreakdowns range={range} />
     </div>
   );
 }

@@ -71,6 +71,16 @@ export class AnalyticsController {
     );
   }
 
+  @Get('templates')
+  templates(@CurrentUser() user: AuthUser, @Query() q: RangeQuery) {
+    return this.analytics.templates(user.orgId, toRange(q));
+  }
+
+  @Get('sources')
+  sources(@CurrentUser() user: AuthUser, @Query() q: RangeQuery) {
+    return this.analytics.sources(user.orgId, toRange(q));
+  }
+
   @Get('campaigns/:id/steps')
   steps(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.analytics.steps(user.orgId, id);

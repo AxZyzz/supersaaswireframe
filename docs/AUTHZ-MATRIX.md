@@ -18,6 +18,8 @@
 | `GET /analytics/campaigns/:id/steps` | login | ✅ | ✅ | ✅ |
 | `GET /analytics/campaigns/export` | login | ✅ | ✅ | ✅ |
 | `GET /analytics/overview` | login | ✅ | ✅ | ✅ |
+| `GET /analytics/sources` | login | ✅ | ✅ | ✅ |
+| `GET /analytics/templates` | login | ✅ | ✅ | ✅ |
 | `GET /api-keys` | login | ✅ | ✅ | ⛔ |
 | `POST /api-keys` | login | ✅ | ✅ | ⛔ |
 | `DELETE /api-keys/:id` | login | ✅ | ✅ | ⛔ |

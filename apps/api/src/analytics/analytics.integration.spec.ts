@@ -184,6 +184,42 @@ describe('Analytics integration', () => {
     });
   });
 
+  it('reports template and lead-source performance (T8.3)', async () => {
+    const t = await request(app.getHttpServer())
+      .get('/analytics/templates')
+      .set('Authorization', auth())
+      .expect(200);
+    expect(t.body).toHaveLength(1);
+    expect(t.body[0]).toMatchObject({
+      campaigns: 1,
+      sent: 1,
+      opened: 1,
+      clicked: 0,
+      replied: 0,
+    });
+
+    const s = await request(app.getHttpServer())
+      .get('/analytics/sources')
+      .set('Authorization', auth())
+      .expect(200);
+    expect(s.body).toEqual([
+      {
+        source: expect.any(String),
+        leads: 1,
+        emailed: 1,
+        opened: 1,
+        replied: 0,
+        converted: 0,
+      },
+    ]);
+
+    const past = await request(app.getHttpServer())
+      .get('/analytics/templates?from=2020-01-01&to=2020-02-01')
+      .set('Authorization', auth())
+      .expect(200);
+    expect(past.body).toHaveLength(0);
+  });
+
   it('exports the campaign report as formula-safe CSV', async () => {
     await request(app.getHttpServer())
       .patch(`/campaigns/${campaignId}`)
