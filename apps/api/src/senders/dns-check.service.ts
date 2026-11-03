@@ -22,9 +22,13 @@ export interface DnsCheckResult {
  */
 @Injectable()
 export class DnsCheckService {
+  /** Swappable in tests (no network needed). */
+  resolveTxt: (name: string) => Promise<string[][]> = (name) =>
+    dns.resolveTxt(name);
+
   private async txt(name: string): Promise<string[]> {
     try {
-      const records = await dns.resolveTxt(name);
+      const records = await this.resolveTxt(name);
       // Each TXT record can be split into multiple strings — join them.
       return records.map((chunks) => chunks.join(''));
     } catch {

@@ -106,7 +106,12 @@ describe('Senders integration', () => {
       .expect(409);
   });
 
-  it('runs a live DNS check (google.com has SPF + DMARC)', async () => {
+  // Real public DNS. Runs in CI (GitHub sets CI=true) or with LIVE_DNS=1;
+  // skipped on offline machines. The parsing logic is covered without
+  // network in dns-check.service.spec.ts.
+  const liveDns = process.env.CI || process.env.LIVE_DNS ? it : it.skip;
+
+  liveDns('runs a live DNS check (google.com has SPF + DMARC)', async () => {
     const res = await request(app.getHttpServer())
       .get('/senders/dns-check?domain=google.com')
       .set(jwt())
