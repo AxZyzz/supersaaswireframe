@@ -32,6 +32,7 @@ import {
 import { errorMessage } from "@/lib/api";
 import { toast } from "@/components/feedback";
 import { timeAgo } from "@/lib/analytics";
+import { Campaign, listCampaigns } from "@/lib/campaigns";
 import { useLive } from "@/lib/realtime";
 
 const FILTERS: { key: string; label: string }[] = [
@@ -40,6 +41,15 @@ const FILTERS: { key: string; label: string }[] = [
   { key: "interested", label: "Interested" },
   { key: "question", label: "Questions" },
   { key: "manual_review", label: "Needs review" },
+];
+
+// T7.4: last-activity ranges; "from" is computed at query time.
+const RANGES: { key: string; label: string; days: number | null }[] = [
+  { key: "any", label: "Any time", days: null },
+  { key: "1", label: "Last 24 hours", days: 1 },
+  { key: "7", label: "Last 7 days", days: 7 },
+  { key: "30", label: "Last 30 days", days: 30 },
+  { key: "90", label: "Last 90 days", days: 90 },
 ];
 
 const field =
@@ -71,6 +81,9 @@ function Inbox() {
   const [filter, setFilter] = useState("all");
   const [status, setStatus] = useState<"open" | "closed">("open");
   const [q, setQ] = useState("");
+  const [campaignId, setCampaignId] = useState("");
+  const [range, setRange] = useState("any");
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [rows, setRows] = useState<ConversationRow[]>([]);
   const [selected, setSelected] = useState<ConversationDetail | null>(null);
   const [simOpen, setSimOpen] = useState(false);
@@ -87,8 +100,23 @@ function Inbox() {
   }, []);
 
   const load = useCallback(async () => {
-    setRows(await listConversations({ filter, status, q: q.trim() || undefined }));
-  }, [filter, status, q]);
+    const days = RANGES.find((r) => r.key === range)?.days;
+    setRows(
+      await listConversations({
+        filter,
+        status,
+        q: q.trim() || undefined,
+        campaignId: campaignId || undefined,
+        from: days ? new Date(Date.now() - days * 86_400_000).toISOString() : undefined,
+      }),
+    );
+  }, [filter, status, q, campaignId, range]);
+
+  useEffect(() => {
+    listCampaigns()
+      .then(setCampaigns)
+      .catch(() => setCampaigns([]));
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => void load(), 200); // debounce search typing
@@ -161,6 +189,34 @@ function Inbox() {
               placeholder="Search leads or subjects"
               className={`${field} w-full pl-8`}
             />
+          </div>
+          <div className="flex gap-1.5">
+            <select
+              aria-label="Filter by campaign"
+              value={campaignId}
+              onChange={(e) => setCampaignId(e.target.value)}
+              className={`${field} min-w-0 flex-1 py-1 text-tiny`}
+            >
+              <option value="">All campaigns</option>
+              <option value="none">No campaign</option>
+              {campaigns.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="Filter by last activity"
+              value={range}
+              onChange={(e) => setRange(e.target.value)}
+              className={`${field} py-1 text-tiny`}
+            >
+              {RANGES.map((r) => (
+                <option key={r.key} value={r.key}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex flex-wrap gap-1">
             {FILTERS.map((f) => (

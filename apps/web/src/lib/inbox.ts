@@ -81,11 +81,17 @@ export const listConversations = (p: {
   filter?: string;
   status?: string;
   q?: string;
+  campaignId?: string;
+  from?: string;
+  to?: string;
 }) => {
   const qs = new URLSearchParams();
   if (p.filter && p.filter !== "all") qs.set("filter", p.filter);
   if (p.status) qs.set("status", p.status);
   if (p.q) qs.set("q", p.q);
+  if (p.campaignId) qs.set("campaignId", p.campaignId);
+  if (p.from) qs.set("from", p.from);
+  if (p.to) qs.set("to", p.to);
   const s = qs.toString();
   return api<ConversationRow[]>(`/inbox${s ? `?${s}` : ""}`);
 };

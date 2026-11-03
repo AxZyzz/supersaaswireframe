@@ -60,7 +60,14 @@ export interface InboxFilter {
   filter?: string; // 'all' | 'unread' | a reply class
   status?: string; // 'open' | 'closed'
   q?: string;
+  campaignId?: string; // a campaign uuid, or 'none' for non-campaign threads
+  from?: string; // ISO date — last activity on/after
+  to?: string; // ISO date — last activity on/before (inclusive day)
 }
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const validDate = (v?: string) => !!v && !Number.isNaN(Date.parse(v));
 
 export interface ConversationListRow {
   id: string;
@@ -493,6 +500,26 @@ export class InboxService {
           OR l.last_name ILIKE $${params.length + 1} OR l.company ILIKE $${params.length + 1}
           OR c.subject ILIKE $${params.length + 1})`,
         `%${f.q.trim()}%`,
+      );
+    }
+    // T7.4: campaign + date-range filters
+    if (f.campaignId === 'none') where.push('c.campaign_id IS NULL');
+    else if (f.campaignId && UUID_RE.test(f.campaignId))
+      add('c.campaign_id = ?', f.campaignId);
+    else if (f.campaignId) throw new BadRequestException('Invalid campaignId');
+    if (f.from) {
+      if (!validDate(f.from))
+        throw new BadRequestException('Invalid from date');
+      add('c.last_message_at >= ?::timestamptz', f.from);
+    }
+    if (f.to) {
+      if (!validDate(f.to)) throw new BadRequestException('Invalid to date');
+      // date-only "to" covers the whole day
+      add(
+        /^\d{4}-\d{2}-\d{2}$/.test(f.to)
+          ? `c.last_message_at < ?::date + interval '1 day'`
+          : 'c.last_message_at <= ?::timestamptz',
+        f.to,
       );
     }
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';

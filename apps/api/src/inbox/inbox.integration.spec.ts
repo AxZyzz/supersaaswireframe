@@ -233,6 +233,34 @@ describe('Inbox integration', () => {
       .set('Authorization', auth());
     expect(search.body).toHaveLength(1);
 
+    // T7.4: campaign + date-range filters
+    const byCampaign = await http()
+      .get(`/inbox?campaignId=${campaignId}`)
+      .set('Authorization', auth())
+      .expect(200);
+    expect(byCampaign.body).toHaveLength(3);
+    const noCampaign = await http()
+      .get('/inbox?campaignId=none')
+      .set('Authorization', auth());
+    expect(noCampaign.body).toHaveLength(0);
+    const today = new Date().toISOString().slice(0, 10);
+    const inRange = await http()
+      .get(`/inbox?from=${today}&to=${today}`)
+      .set('Authorization', auth());
+    expect(inRange.body).toHaveLength(3);
+    const future = await http()
+      .get('/inbox?from=2999-01-01')
+      .set('Authorization', auth());
+    expect(future.body).toHaveLength(0);
+    await http()
+      .get('/inbox?campaignId=nope')
+      .set('Authorization', auth())
+      .expect(400);
+    await http()
+      .get('/inbox?from=yesterday-ish')
+      .set('Authorization', auth())
+      .expect(400);
+
     const thread = await http()
       .get(`/inbox/${conversationId}`)
       .set('Authorization', auth())

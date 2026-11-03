@@ -36,8 +36,18 @@ export class InboxController {
     @Query('filter') filter?: string,
     @Query('status') status?: string,
     @Query('q') q?: string,
+    @Query('campaignId') campaignId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
-    return this.inbox.list(user.orgId, { filter, status, q });
+    return this.inbox.list(user.orgId, {
+      filter,
+      status,
+      q,
+      campaignId,
+      from,
+      to,
+    });
   }
 
   // Declared before ':id' so it isn't captured as an id.
