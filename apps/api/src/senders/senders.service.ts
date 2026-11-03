@@ -14,9 +14,15 @@ import {
 } from './providers/provider.resolver';
 import type { CreateSenderDto, UpdateSenderDto } from './sender.dto';
 import { UsageService } from '../usage/usage.service';
+import { effectiveLimitSql } from './warmup';
 
 const COLS = `id, provider, from_name, from_email, reply_to, signature,
-  daily_limit, send_window_start, send_window_end, status, created_at, updated_at`;
+  daily_limit, send_window_start, send_window_end, status, created_at, updated_at,
+  warmup_enabled, warmup_started_at,
+  ${effectiveLimitSql()} AS effective_daily_limit,
+  CASE WHEN warmup_enabled AND now() - warmup_started_at < interval '30 days'
+       THEN floor(extract(epoch FROM now() - warmup_started_at) / 86400)::int + 1
+  END AS warmup_day`;
 
 export interface SenderRow {
   id: string;
@@ -31,6 +37,12 @@ export interface SenderRow {
   status: string;
   created_at: Date;
   updated_at: Date;
+  warmup_enabled: boolean;
+  warmup_started_at: Date;
+  /** min(daily_limit, warm-up step) — what the send engine actually allows. */
+  effective_daily_limit: number;
+  /** 1–30 while ramping, null once done or disabled. */
+  warmup_day: number | null;
 }
 
 // Shape of the encrypted-at-rest config jsonb. Secrets never leave here in
@@ -83,8 +95,8 @@ export class SendersService {
         const res = await c.query<SenderRow>(
           `INSERT INTO sender_accounts
              (org_id, provider, from_name, from_email, reply_to, signature,
-              daily_limit, send_window_start, send_window_end, config)
-           VALUES ($1,$2,$3,$4,$5,$6,COALESCE($7,50),$8,$9,COALESCE($10,'{}')::jsonb)
+              daily_limit, send_window_start, send_window_end, config, warmup_enabled)
+           VALUES ($1,$2,$3,$4,$5,$6,COALESCE($7,50),$8,$9,COALESCE($10,'{}')::jsonb,COALESCE($11,true))
            RETURNING ${COLS}`,
           [
             orgId,
@@ -97,6 +109,7 @@ export class SendersService {
             dto.sendWindowStart ?? null,
             dto.sendWindowEnd ?? null,
             configJson,
+            dto.warmupEnabled ?? null,
           ],
         );
         return res.rows[0];
@@ -126,6 +139,9 @@ export class SendersService {
       add('send_window_start', dto.sendWindowStart);
     if (dto.sendWindowEnd !== undefined)
       add('send_window_end', dto.sendWindowEnd);
+    if (dto.warmupEnabled !== undefined)
+      add('warmup_enabled', dto.warmupEnabled);
+    if (dto.restartWarmup) sets.push('warmup_started_at = now()');
     if (sets.length === 0) return this.get(orgId, id);
     sets.push('updated_at = now()');
     params.push(id);

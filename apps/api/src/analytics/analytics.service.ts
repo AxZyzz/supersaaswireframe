@@ -4,6 +4,7 @@ import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { RESOURCE_LABELS } from '../usage/plan-limits';
 import { UsageService } from '../usage/usage.service';
+import { effectiveLimitSql } from '../senders/warmup';
 
 // Org-wide analytics, computed live from the E2/E4/E5 tables (leads, campaigns,
 // sent_emails, email_events, lead_events). Beta data volumes are small, so
@@ -135,7 +136,7 @@ export class AnalyticsService {
         daily_limit: number;
         sent_today: number;
       }>(
-        `SELECT s.from_email, s.status, s.daily_limit,
+        `SELECT s.from_email, s.status, ${effectiveLimitSql('s')} AS daily_limit,
            (SELECT count(*)::int FROM sent_emails se
              WHERE se.sender_id = s.id AND se.status = 'sent'
                AND se.sent_at::date = current_date) AS sent_today

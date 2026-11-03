@@ -322,6 +322,11 @@ export const senderAccounts = pgTable(
     dailyLimit: integer('daily_limit').notNull().default(50),
     sendWindowStart: integer('send_window_start'),
     sendWindowEnd: integer('send_window_end'),
+    // Warm-up ramp (T5.2): caps daily volume over the first 30 days.
+    warmupEnabled: boolean('warmup_enabled').notNull().default(true),
+    warmupStartedAt: timestamp('warmup_started_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     status: text('status').notNull().default('unverified'),
     config: jsonb('config')
       .notNull()

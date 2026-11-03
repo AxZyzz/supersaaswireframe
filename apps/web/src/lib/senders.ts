@@ -8,6 +8,9 @@ export interface Sender {
   reply_to: string | null;
   signature: string | null;
   daily_limit: number;
+  effective_daily_limit: number;
+  warmup_enabled: boolean;
+  warmup_day: number | null;
   send_window_start: number | null;
   send_window_end: number | null;
   status: string;
@@ -66,3 +69,9 @@ export const testSender = (id: string, to: string) =>
 
 export const dnsCheck = (domain: string) =>
   api<DnsCheckResult>(`/senders/dns-check?domain=${encodeURIComponent(domain)}`);
+
+export const updateSender = (
+  id: string,
+  body: Partial<{ warmupEnabled: boolean; restartWarmup: boolean; dailyLimit: number }>,
+) =>
+  api<Sender>(`/senders/${id}`, { method: "PATCH", body: JSON.stringify(body) });

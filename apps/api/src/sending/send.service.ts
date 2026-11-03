@@ -9,6 +9,7 @@ import { varsFromLead } from '../templates/render';
 import { buildEmail } from './send-render';
 import { UsageService } from '../usage/usage.service';
 import { RealtimeService } from '../realtime/realtime.service';
+import { effectiveLimitSql } from '../senders/warmup';
 
 type Outcome =
   'sent' | 'failed' | 'skipped' | 'deferred' | 'completed' | 'suppressed';
@@ -26,6 +27,7 @@ interface SenderRow {
   from_name: string;
   from_email: string;
   daily_limit: number;
+  effective_daily_limit: number;
   send_window_start: number | null;
   send_window_end: number | null;
 }
@@ -288,12 +290,12 @@ export class SendService {
       // within send window, with remaining daily capacity. Pick the most-free.
       const sendersRes = senderIds.length
         ? await c.query<SenderRow>(
-            `SELECT id, from_name, from_email, daily_limit, send_window_start, send_window_end
+            `SELECT id, from_name, from_email, daily_limit, ${effectiveLimitSql()} AS effective_daily_limit, send_window_start, send_window_end
              FROM sender_accounts WHERE id = ANY($1::uuid[])`,
             [senderIds],
           )
         : await c.query<SenderRow>(
-            `SELECT id, from_name, from_email, daily_limit, send_window_start, send_window_end
+            `SELECT id, from_name, from_email, daily_limit, ${effectiveLimitSql()} AS effective_daily_limit, send_window_start, send_window_end
              FROM sender_accounts ORDER BY created_at`,
           );
       const hour = new Date().getHours();
@@ -308,7 +310,8 @@ export class SendService {
            WHERE sender_id = $1 AND status = 'sent' AND sent_at::date = current_date`,
           [s.id],
         );
-        const remaining = s.daily_limit - cnt.rows[0].n;
+        // warm-up ramp caps a young mailbox below its configured limit
+        const remaining = s.effective_daily_limit - cnt.rows[0].n;
         if (remaining > 0 && remaining > bestRemaining) {
           bestRemaining = remaining;
           chosen = s;

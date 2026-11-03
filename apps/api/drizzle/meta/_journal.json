@@ -260,6 +260,13 @@
       "when": 1785430440000,
       "tag": "0036_prompt_version",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1785516840000,
+      "tag": "0037_sender_warmup",
+      "breakpoints": true
     }
   ]
 }

@@ -20,6 +20,7 @@ import {
   Sender,
   testSender,
   verifySender,
+  updateSender,
 } from "@/lib/senders";
 import { HelpLink } from "@/components/help-link";
 
@@ -256,7 +257,44 @@ export function SendersSection({
                   <td className="px-4 py-2.5 uppercase text-muted">
                     {s.provider}
                   </td>
-                  <td className="px-4 py-2.5 text-muted">{s.daily_limit}</td>
+                  <td className="px-4 py-2.5 text-muted">
+                    <div>
+                      {s.effective_daily_limit}
+                      {s.effective_daily_limit < s.daily_limit && (
+                        <span className="text-faint"> / {s.daily_limit}</span>
+                      )}
+                    </div>
+                    {s.warmup_day !== null ? (
+                      <div className="text-tiny text-warning-text" title="New mailboxes ramp 20 → 50 → 100/day over 30 days to build reputation">
+                        Warming up · day {s.warmup_day}
+                        {!readOnly && (
+                          <button
+                            onClick={() =>
+                              void updateSender(s.id, { warmupEnabled: false }).then(load)
+                            }
+                            className="ml-1.5 text-faint underline hover:text-ink"
+                          >
+                            skip
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      !s.warmup_enabled &&
+                      !readOnly && (
+                        <button
+                          onClick={() =>
+                            void updateSender(s.id, {
+                              warmupEnabled: true,
+                              restartWarmup: true,
+                            }).then(load)
+                          }
+                          className="text-tiny text-faint underline hover:text-ink"
+                        >
+                          start warm-up
+                        </button>
+                      )
+                    )}
+                  </td>
                   <td className="px-4 py-2.5">
                     <span
                       className={`rounded-full px-2 py-0.5 text-tiny capitalize ${

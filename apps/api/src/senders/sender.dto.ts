@@ -34,6 +34,8 @@ export class CreateSenderDto {
   @IsOptional() @IsInt() @Min(1) @Max(2000) dailyLimit?: number;
   @IsOptional() @IsInt() @Min(0) @Max(23) sendWindowStart?: number;
   @IsOptional() @IsInt() @Min(0) @Max(23) sendWindowEnd?: number;
+  /** Ramp daily volume over the first 30 days (default on). */
+  @IsOptional() @IsBoolean() warmupEnabled?: boolean;
 
   // Only read when provider === 'smtp'. The password is AES-256 encrypted
   // before it touches the database.
@@ -44,12 +46,16 @@ export class CreateSenderDto {
 }
 
 export class UpdateSenderDto {
+  /** Start the 30-day ramp over (e.g. after a deliverability problem). */
+  @IsOptional() @IsBoolean() restartWarmup?: boolean;
   @IsOptional() @IsString() @MaxLength(120) fromName?: string;
   @IsOptional() @IsEmail() @MaxLength(320) replyTo?: string;
   @IsOptional() @IsString() @MaxLength(2000) signature?: string;
   @IsOptional() @IsInt() @Min(1) @Max(2000) dailyLimit?: number;
   @IsOptional() @IsInt() @Min(0) @Max(23) sendWindowStart?: number;
   @IsOptional() @IsInt() @Min(0) @Max(23) sendWindowEnd?: number;
+  /** Ramp daily volume over the first 30 days (default on). */
+  @IsOptional() @IsBoolean() warmupEnabled?: boolean;
 }
 
 export class TestSendDto {

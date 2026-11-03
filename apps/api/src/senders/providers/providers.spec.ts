@@ -18,6 +18,10 @@ const row = (provider: SenderRow['provider']): SenderRow => ({
   status: 'unverified',
   created_at: new Date(),
   updated_at: new Date(),
+  warmup_enabled: true,
+  warmup_started_at: new Date(),
+  effective_daily_limit: 20,
+  warmup_day: 1,
 });
 
 const resolver = (emailDriver?: string) =>

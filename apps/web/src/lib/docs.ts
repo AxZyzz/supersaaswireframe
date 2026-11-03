@@ -131,7 +131,7 @@ Unknown tokens are left as-is so typos show up in the preview instead of silentl
 ## Protecting your reputation
 - **Daily limit** per sender (default 50) caps how much it sends in a day.
 - **Send window** restricts sending to working hours.
-- New mailboxes should start low and ramp up over a few weeks.
+- **Warm-up**: new senders ramp automatically — 20/day for the first week, 50/day in week two, 100/day until day 30, then your daily limit. Already-established mailbox? Choose *skip* next to it in Sender accounts.
 
 The dashboard warns you when a sender is unverified or close to its daily limit.`,
   },
