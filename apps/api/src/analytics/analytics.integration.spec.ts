@@ -138,4 +138,69 @@ describe('Analytics integration', () => {
     expect(rows.body[0].opened).toBe(1);
     expect(rows.body[0].enrolled).toBe(1);
   });
+
+  it('honours a date window (a past window sees nothing)', async () => {
+    const past = '?from=2020-01-01&to=2020-02-01';
+    const ov = await request(app.getHttpServer())
+      .get(`/analytics/overview${past}`)
+      .set('Authorization', auth())
+      .expect(200);
+    expect(ov.body.sent.total).toBe(0);
+    expect(ov.body.engagement.opened).toBe(0);
+    expect(ov.body.leads.total).toBe(1); // snapshot, not windowed
+
+    const rows = await request(app.getHttpServer())
+      .get(`/analytics/campaigns${past}`)
+      .set('Authorization', auth())
+      .expect(200);
+    expect(rows.body[0]).toMatchObject({ sent: 0, opened: 0, enrolled: 1 });
+
+    await request(app.getHttpServer())
+      .get('/analytics/overview?from=2026-02-01&to=2026-01-01')
+      .set('Authorization', auth())
+      .expect(400);
+    await request(app.getHttpServer())
+      .get('/analytics/overview?from=yesterday')
+      .set('Authorization', auth())
+      .expect(400);
+  });
+
+  it('breaks a campaign down by step', async () => {
+    const r = await request(app.getHttpServer())
+      .get(`/analytics/campaigns/${campaignId}/steps`)
+      .set('Authorization', auth())
+      .expect(200);
+    expect(r.body).toHaveLength(1);
+    expect(r.body[0]).toMatchObject({
+      step_order: 0,
+      sent: 1,
+      opened: 1,
+      replied: 0,
+    });
+    expect(r.body[0].variants[0]).toMatchObject({
+      index: 0,
+      sent: 1,
+      opened: 1,
+    });
+  });
+
+  it('exports the campaign report as formula-safe CSV', async () => {
+    await request(app.getHttpServer())
+      .patch(`/campaigns/${campaignId}`)
+      .set('Authorization', auth())
+      .send({ name: '=HYPERLINK("http://evil.example")' })
+      .expect(200);
+    const r = await request(app.getHttpServer())
+      .get('/analytics/campaigns/export')
+      .set('Authorization', auth())
+      .expect(200);
+    expect(r.headers['content-type']).toMatch(/text\/csv/);
+    expect(r.headers['content-disposition']).toMatch(/campaign-report\.csv/);
+    const [header, line] = r.text.trim().split(/\r?\n/);
+    expect(header).toBe(
+      'campaign,status,enrolled,sent,opened,open_rate_pct,clicked,click_rate_pct,replied,reply_rate_pct,unsubscribed',
+    );
+    expect(line).toContain(`"'=HYPERLINK(""http://evil.example"")"`);
+    expect(line).toContain(',1,1,100.0,');
+  });
 });

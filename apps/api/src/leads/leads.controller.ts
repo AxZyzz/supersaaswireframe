@@ -77,6 +77,9 @@ export class LeadsController {
         created_at: r.created_at.toISOString(),
       })),
       {
+        // A cell like =HYPERLINK(...) from an imported CSV would run as a
+        // formula in Excel/Sheets; Papa prefixes those with a quote.
+        escapeFormulae: true,
         columns: [
           'email',
           'first_name',

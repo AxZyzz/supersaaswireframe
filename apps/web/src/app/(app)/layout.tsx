@@ -105,10 +105,10 @@ export default function AppLayout({
     TITLES.find(([prefix]) => pathname.startsWith(prefix))?.[1] ?? "Dashboard";
 
   return (
-    <div className="flex h-screen overflow-hidden bg-page">
+    <div className="flex h-screen overflow-hidden bg-page print:block print:h-auto print:overflow-visible">
       <Sidebar orgName={org.name} logo={org.logo_data} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-12 shrink-0 items-center justify-between border-b border-line bg-white px-5">
+        <header className="flex h-12 shrink-0 items-center justify-between border-b border-line bg-white px-5 print:hidden">
           <h1 className="text-base font-semibold text-ink2">{title}</h1>
           <div className="flex items-center gap-3">
             <button
@@ -124,7 +124,7 @@ export default function AppLayout({
             </span>
           </div>
         </header>
-        <main className="min-h-0 flex-1 overflow-y-auto p-5">{children}</main>
+        <main className="min-h-0 flex-1 overflow-y-auto p-5 print:overflow-visible print:p-0">{children}</main>
       </div>
       <CommandPalette />
       <Toaster />

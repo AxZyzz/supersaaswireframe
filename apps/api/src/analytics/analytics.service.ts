@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
@@ -38,6 +38,25 @@ export interface Overview {
   }[];
 }
 
+/** Optional reporting window; null = unbounded on that side. `to` is exclusive. */
+export interface DateRange {
+  from: Date | null;
+  to: Date | null;
+}
+export const ALL_TIME: DateRange = { from: null, to: null };
+
+export interface StepAnalyticsRow {
+  step_order: number;
+  template_name: string | null;
+  delay_hours: number;
+  condition: string;
+  sent: number;
+  opened: number;
+  clicked: number;
+  replied: number;
+  variants: { index: number; subject: string; sent: number; opened: number }[];
+}
+
 export interface CampaignAnalyticsRow {
   id: string;
   name: string;
@@ -47,6 +66,7 @@ export interface CampaignAnalyticsRow {
   opened: number;
   clicked: number;
   unsubscribed: number;
+  replied: number;
 }
 
 @Injectable()
@@ -56,7 +76,8 @@ export class AnalyticsService {
     private readonly usage: UsageService,
   ) {}
 
-  overview(orgId: string): Promise<Overview> {
+  overview(orgId: string, range: DateRange = ALL_TIME): Promise<Overview> {
+    const r = [range.from, range.to];
     return withOrgContext(this.pool, orgId, async (c) => {
       const leads = await c.query<{ total: number; new7: number }>(
         `SELECT count(*)::int AS total,
@@ -71,7 +92,10 @@ export class AnalyticsService {
       const sent = await c.query<{ total: number; last7: number }>(
         `SELECT count(*)::int AS total,
            count(*) FILTER (WHERE sent_at > now() - interval '7 days')::int AS last7
-         FROM sent_emails WHERE status = 'sent'`,
+         FROM sent_emails WHERE status = 'sent'
+           AND ($1::timestamptz IS NULL OR sent_at >= $1)
+           AND ($2::timestamptz IS NULL OR sent_at < $2)`,
+        r,
       );
       const eng = await c.query<{
         opened: number;
@@ -86,7 +110,10 @@ export class AnalyticsService {
            count(DISTINCT lead_id) FILTER (WHERE type = 'reply')::int AS replied,
            count(*) FILTER (WHERE type = 'unsubscribe')::int AS unsubscribed,
            count(*) FILTER (WHERE type IN ('bounce','failed'))::int AS bounced
-         FROM email_events`,
+         FROM email_events
+         WHERE ($1::timestamptz IS NULL OR created_at >= $1)
+           AND ($2::timestamptz IS NULL OR created_at < $2)`,
+        r,
       );
       const activity = await c.query<{
         type: string;
@@ -180,19 +207,100 @@ export class AnalyticsService {
     });
   }
 
-  campaigns(orgId: string): Promise<CampaignAnalyticsRow[]> {
+  campaigns(
+    orgId: string,
+    range: DateRange = ALL_TIME,
+  ): Promise<CampaignAnalyticsRow[]> {
+    // Engagement counts honour the window; enrolment is a current snapshot.
+    const win = (col: string) =>
+      `($1::timestamptz IS NULL OR ${col} >= $1) AND ($2::timestamptz IS NULL OR ${col} < $2)`;
     return withOrgContext(this.pool, orgId, async (c) => {
       const res = await c.query<CampaignAnalyticsRow>(
         `SELECT c.id, c.name, c.status,
            (SELECT count(*)::int FROM campaign_leads cl WHERE cl.campaign_id = c.id) AS enrolled,
-           (SELECT count(*)::int FROM sent_emails se WHERE se.campaign_id = c.id AND se.status = 'sent') AS sent,
-           (SELECT count(DISTINCT e.sent_email_id)::int FROM email_events e WHERE e.campaign_id = c.id AND e.type = 'open') AS opened,
-           (SELECT count(DISTINCT e.sent_email_id)::int FROM email_events e WHERE e.campaign_id = c.id AND e.type = 'click') AS clicked,
-           (SELECT count(*)::int FROM email_events e WHERE e.campaign_id = c.id AND e.type = 'unsubscribe') AS unsubscribed
+           (SELECT count(*)::int FROM sent_emails se WHERE se.campaign_id = c.id AND se.status = 'sent' AND ${win('se.sent_at')}) AS sent,
+           (SELECT count(DISTINCT e.sent_email_id)::int FROM email_events e WHERE e.campaign_id = c.id AND e.type = 'open' AND ${win('e.created_at')}) AS opened,
+           (SELECT count(DISTINCT e.sent_email_id)::int FROM email_events e WHERE e.campaign_id = c.id AND e.type = 'click' AND ${win('e.created_at')}) AS clicked,
+           (SELECT count(DISTINCT e.lead_id)::int FROM email_events e WHERE e.campaign_id = c.id AND e.type = 'reply' AND ${win('e.created_at')}) AS replied,
+           (SELECT count(*)::int FROM email_events e WHERE e.campaign_id = c.id AND e.type = 'unsubscribe' AND ${win('e.created_at')}) AS unsubscribed
          FROM campaigns c
          ORDER BY c.created_at DESC`,
+        [range.from, range.to],
       );
       return res.rows;
+    });
+  }
+
+  /** Per-step + per-subject-variant performance for one campaign. */
+  steps(orgId: string, campaignId: string): Promise<StepAnalyticsRow[]> {
+    return withOrgContext(this.pool, orgId, async (c) => {
+      const camp = await c.query(`SELECT 1 FROM campaigns WHERE id = $1`, [
+        campaignId,
+      ]);
+      if (!camp.rowCount) throw new NotFoundException('Campaign not found');
+      const steps = await c.query<{
+        id: string;
+        step_order: number;
+        template_name: string | null;
+        delay_hours: number;
+        condition: string;
+        sent: number;
+        opened: number;
+        clicked: number;
+        replied: number;
+      }>(
+        `SELECT s.id, s.step_order, t.name AS template_name, s.delay_hours, s.condition,
+           (SELECT count(*)::int FROM sent_emails se WHERE se.step_id = s.id AND se.status = 'sent') AS sent,
+           (SELECT count(DISTINCT e.sent_email_id)::int FROM email_events e
+              JOIN sent_emails se ON se.id = e.sent_email_id
+              WHERE se.step_id = s.id AND e.type = 'open') AS opened,
+           (SELECT count(DISTINCT e.sent_email_id)::int FROM email_events e
+              JOIN sent_emails se ON se.id = e.sent_email_id
+              WHERE se.step_id = s.id AND e.type = 'click') AS clicked,
+           (SELECT count(DISTINCT e.lead_id)::int FROM email_events e
+              JOIN sent_emails se ON se.id = e.sent_email_id
+              WHERE se.step_id = s.id AND e.type = 'reply') AS replied
+         FROM campaign_steps s
+         LEFT JOIN templates t ON t.id = s.template_id
+         WHERE s.campaign_id = $1
+         ORDER BY s.step_order`,
+        [campaignId],
+      );
+      const variants = await c.query<{
+        step_id: string;
+        variant_index: number;
+        subject: string;
+        sent: number;
+        opened: number;
+      }>(
+        `SELECT se.step_id, se.variant_index, min(se.subject) AS subject,
+           count(DISTINCT se.id)::int AS sent,
+           count(DISTINCT e.sent_email_id)::int AS opened
+         FROM sent_emails se
+         LEFT JOIN email_events e ON e.sent_email_id = se.id AND e.type = 'open'
+         WHERE se.campaign_id = $1 AND se.status = 'sent'
+         GROUP BY se.step_id, se.variant_index
+         ORDER BY se.variant_index`,
+        [campaignId],
+      );
+      return steps.rows.map((s) => ({
+        step_order: s.step_order,
+        template_name: s.template_name,
+        delay_hours: s.delay_hours,
+        condition: s.condition,
+        sent: s.sent,
+        opened: s.opened,
+        clicked: s.clicked,
+        replied: s.replied,
+        variants: variants.rows
+          .filter((v) => v.step_id === s.id)
+          .map((v) => ({
+            index: v.variant_index,
+            subject: v.subject,
+            sent: v.sent,
+            opened: v.opened,
+          })),
+      }));
     });
   }
 }

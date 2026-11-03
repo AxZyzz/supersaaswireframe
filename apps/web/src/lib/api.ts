@@ -106,3 +106,21 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const text = await res.text();
   return (text ? JSON.parse(text) : null) as T;
 }
+
+/** Authenticated file download (CSV etc.): fetches with the session token
+ *  and saves the response as `filename`. */
+export async function downloadFile(path: string, filename: string) {
+  let res = await rawRequest(path, {}, getAccessToken());
+  if (res.status === 401 && (await tryRefresh())) {
+    res = await rawRequest(path, {}, getAccessToken());
+  }
+  if (!res.ok) {
+    throw new ApiError(res.status, await res.json().catch(() => null));
+  }
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}

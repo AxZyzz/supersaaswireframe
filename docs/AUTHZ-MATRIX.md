@@ -15,6 +15,8 @@
 | `GET /ai/knowledge` | login | ✅ | ✅ | ✅ |
 | `PUT /ai/knowledge` | login | ✅ | ✅ | ⛔ |
 | `GET /analytics/campaigns` | login | ✅ | ✅ | ✅ |
+| `GET /analytics/campaigns/:id/steps` | login | ✅ | ✅ | ✅ |
+| `GET /analytics/campaigns/export` | login | ✅ | ✅ | ✅ |
 | `GET /analytics/overview` | login | ✅ | ✅ | ✅ |
 | `GET /api-keys` | login | ✅ | ✅ | ⛔ |
 | `POST /api-keys` | login | ✅ | ✅ | ⛔ |

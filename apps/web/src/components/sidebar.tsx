@@ -71,7 +71,7 @@ export function Sidebar({
   });
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-sidebar">
+    <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-sidebar print:hidden">
       <div className="flex items-center gap-2 px-3 py-3">
         {logo ? (
           <Link

@@ -12,7 +12,7 @@ export interface Overview {
     bounced: number;
   };
   activity: { type: string; createdAt: string; lead: string }[];
-  alerts: { kind: "sender_unverified" | "sender_near_limit"; message: string }[];
+  alerts: { kind: string; message: string }[];
 }
 
 export interface CampaignAnalyticsRow {
@@ -23,13 +23,54 @@ export interface CampaignAnalyticsRow {
   sent: number;
   opened: number;
   clicked: number;
+  replied: number;
   unsubscribed: number;
 }
 
-export const getOverview = () => api<Overview>("/analytics/overview");
+export interface StepAnalyticsRow {
+  step_order: number;
+  template_name: string | null;
+  delay_hours: number;
+  condition: string;
+  sent: number;
+  opened: number;
+  clicked: number;
+  replied: number;
+  variants: { index: number; subject: string; sent: number; opened: number }[];
+}
 
-export const getCampaignAnalytics = () =>
-  api<CampaignAnalyticsRow[]>("/analytics/campaigns");
+/** Reporting window as ISO strings; `to` is exclusive. Empty = all time. */
+export interface Range {
+  from?: string;
+  to?: string;
+}
+
+const qs = (r?: Range) => {
+  const p = new URLSearchParams();
+  if (r?.from) p.set("from", r.from);
+  if (r?.to) p.set("to", r.to);
+  const s = p.toString();
+  return s ? `?${s}` : "";
+};
+
+export const getOverview = (r?: Range) => api<Overview>(`/analytics/overview${qs(r)}`);
+
+export const getCampaignAnalytics = (r?: Range) =>
+  api<CampaignAnalyticsRow[]>(`/analytics/campaigns${qs(r)}`);
+
+export const getCampaignSteps = (id: string) =>
+  api<StepAnalyticsRow[]>(`/analytics/campaigns/${id}/steps`);
+
+export const campaignReportPath = (r?: Range) => `/analytics/campaigns/export${qs(r)}`;
+
+/** Presets → window. Days back from the start of today, through now. */
+export function presetRange(days: number | null): Range {
+  if (days === null) return {};
+  const from = new Date();
+  from.setHours(0, 0, 0, 0);
+  from.setDate(from.getDate() - (days - 1));
+  return { from: from.toISOString() };
+}
 
 // "12.3%" — or "—" when there's nothing to divide by.
 export const pct = (n: number, d: number) =>
