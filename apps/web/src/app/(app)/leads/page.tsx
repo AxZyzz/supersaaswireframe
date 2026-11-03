@@ -15,6 +15,9 @@ import {
 import { ImportModal } from "@/components/import-modal";
 import { DuplicatesModal } from "@/components/duplicates-modal";
 import { canManage, useRole } from "@/lib/me";
+import { addSegmentMembers, listSegments, Segment } from "@/lib/segments";
+import { errorMessage } from "@/lib/api";
+import { toast } from "@/components/feedback";
 import { LeadKanban } from "@/components/lead-kanban";
 import {
   bulkTag,
@@ -78,6 +81,31 @@ export default function LeadsPage() {
   useEffect(() => {
     void listTags().then(setTags);
   }, []);
+
+  // Manual segments the selection can be added to (admins/managers).
+  const [manualSegments, setManualSegments] = useState<Segment[]>([]);
+  const [bulkSegmentId, setBulkSegmentId] = useState("");
+  useEffect(() => {
+    if (!canManage(role)) return;
+    listSegments()
+      .then((s) => setManualSegments(s.filter((x) => x.type === "manual")))
+      .catch(() => setManualSegments([]));
+  }, [role]);
+
+  async function addSelectedToSegment() {
+    if (!bulkSegmentId || selected.size === 0) return;
+    const seg = manualSegments.find((s) => s.id === bulkSegmentId);
+    setBulkBusy(true);
+    try {
+      const r = await addSegmentMembers(bulkSegmentId, Array.from(selected));
+      toast(`Added to ${seg?.name ?? "segment"} · ${r.memberCount} in segment`);
+      setBulkSegmentId("");
+    } catch (e) {
+      toast(errorMessage(e, "Couldn't add to segment."), "error");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
 
   function toggle(id: string) {
     setSelected((s) => {
@@ -303,6 +331,30 @@ export default function LeadsPage() {
           >
             Remove tag
           </button>
+          {canManage(role) && manualSegments.length > 0 && (
+            <>
+              <span className="mx-1 h-5 w-px bg-line-mid" />
+              <select
+                value={bulkSegmentId}
+                onChange={(e) => setBulkSegmentId(e.target.value)}
+                className={field}
+              >
+                <option value="">Choose segment…</option>
+                {manualSegments.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                disabled={!bulkSegmentId || bulkBusy}
+                onClick={() => void addSelectedToSegment()}
+                className="rounded bg-accent px-3 py-1.5 font-medium text-white hover:bg-accent-hover disabled:opacity-40"
+              >
+                Add to segment
+              </button>
+            </>
+          )}
           <button
             onClick={() => setSelected(new Set())}
             className="text-muted hover:text-ink"

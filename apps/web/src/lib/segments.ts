@@ -51,6 +51,13 @@ export const listSegmentMembers = (id: string, limit = 50, offset = 0) =>
     `/segments/${id}/leads?limit=${limit}&offset=${offset}`,
   );
 
+/** Manual segments only; leads already in the segment are ignored. */
+export const addSegmentMembers = (id: string, leadIds: string[]) =>
+  api<{ memberCount: number }>(`/segments/${id}/members`, {
+    method: "POST",
+    body: JSON.stringify({ leadIds }),
+  });
+
 export const removeSegmentMember = (id: string, leadId: string) =>
   api<{ memberCount: number }>(`/segments/${id}/members/${leadId}`, {
     method: "DELETE",

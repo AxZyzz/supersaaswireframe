@@ -3,13 +3,17 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { LoadError, loadErrorText } from "@/components/feedback";
-import { ArrowLeft, RefreshCw } from "lucide-react";
+import { LoadError, loadErrorText, toast } from "@/components/feedback";
+import { AddSegmentLeadsModal } from "@/components/add-segment-leads-modal";
+import { ArrowLeft, RefreshCw, UserPlus, X } from "lucide-react";
+import { errorMessage } from "@/lib/api";
 import { SCORE_STYLES } from "@/lib/leads";
+import { canManage, useRole } from "@/lib/me";
 import {
   getSegment,
   listSegmentMembers,
   refreshSegment,
+  removeSegmentMember,
   Segment,
   SegmentMember,
 } from "@/lib/segments";
@@ -18,6 +22,8 @@ export default function SegmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [segment, setSegment] = useState<Segment | null>(null);
   const [members, setMembers] = useState<SegmentMember[]>([]);
+  const [adding, setAdding] = useState(false);
+  const role = useRole();
   const [total, setTotal] = useState(0);
 
   const [err, setErr] = useState<string | null>(null);
@@ -55,6 +61,18 @@ export default function SegmentDetailPage() {
   if (err) return <LoadError message={err} onRetry={() => void load()} />;
   if (!segment) return <p className="text-sm text-muted">Loading…</p>;
 
+  // Manual segments are curated by hand (admins/managers; the API enforces).
+  const editable = segment.type === "manual" && canManage(role);
+
+  async function remove(leadId: string) {
+    try {
+      await removeSegmentMember(id, leadId);
+      await load();
+    } catch (e) {
+      toast(errorMessage(e, "Couldn't remove the lead."), "error");
+    }
+  }
+
   return (
     <div className="mx-auto max-w-shell space-y-4">
       <Link
@@ -73,6 +91,14 @@ export default function SegmentDetailPage() {
           </p>
         </div>
         <div className="flex-1" />
+        {editable && (
+          <button
+            onClick={() => setAdding(true)}
+            className="flex items-center gap-1.5 rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover"
+          >
+            <UserPlus size={14} /> Add leads
+          </button>
+        )}
         {segment.type === "smart" && (
           <button
             onClick={() => void refresh()}
@@ -92,14 +118,26 @@ export default function SegmentDetailPage() {
               <th className="px-4 py-2.5 font-medium">Email</th>
               <th className="px-4 py-2.5 font-medium">Status</th>
               <th className="px-4 py-2.5 font-medium">Score</th>
+              {editable && <th className="w-10 px-4 py-2.5" />}
             </tr>
           </thead>
           <tbody>
             {members.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-muted">
+                <td colSpan={editable ? 6 : 5} className="px-4 py-10 text-center text-muted">
                   No members{" "}
                   {segment.type === "smart" ? "match the rules yet." : "yet."}
+                  {editable && (
+                    <>
+                      {" "}
+                      <button
+                        onClick={() => setAdding(true)}
+                        className="text-accent hover:underline"
+                      >
+                        Add leads
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ) : (
@@ -135,6 +173,17 @@ export default function SegmentDetailPage() {
                       "—"
                     )}
                   </td>
+                  {editable && (
+                    <td className="px-4 py-2.5 text-right">
+                      <button
+                        onClick={() => void remove(l.id)}
+                        title="Remove from segment"
+                        className="text-faint hover:text-danger-text"
+                      >
+                        <X size={14} />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))
             )}
@@ -142,6 +191,21 @@ export default function SegmentDetailPage() {
         </table>
       </div>
       <p className="text-sm text-muted">{total} total</p>
+
+      {adding && (
+        <AddSegmentLeadsModal
+          segmentId={id}
+          existing={new Set(members.map((m) => m.id))}
+          onClose={() => setAdding(false)}
+          onAdded={(count, added) => {
+            setAdding(false);
+            toast(
+              `Added ${added} lead${added === 1 ? "" : "s"} · ${count} in segment`,
+            );
+            void load();
+          }}
+        />
+      )}
     </div>
   );
 }
