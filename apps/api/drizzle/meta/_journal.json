@@ -246,6 +246,13 @@
       "when": 1785257640000,
       "tag": "0034_operator",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1785344040000,
+      "tag": "0035_notification_prefs",
+      "breakpoints": true
     }
   ]
 }

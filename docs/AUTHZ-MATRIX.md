@@ -69,6 +69,8 @@
 | `POST /leads/merge` | login | ✅ | ✅ | ⛔ |
 | `GET /notifications` | login | ✅ | ✅ | ✅ |
 | `POST /notifications/:id/read` | login | ✅ | ✅ | ✅ |
+| `GET /notifications/preferences` | login | ✅ | ✅ | ✅ |
+| `PUT /notifications/preferences` | login | ✅ | ✅ | ✅ |
 | `POST /notifications/read-all` | login | ✅ | ✅ | ✅ |
 | `GET /notifications/unread-count` | login | ✅ | ✅ | ✅ |
 | `GET /operator/failures` | operator | ⛔ | ⛔ | ⛔ |

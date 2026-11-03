@@ -15,6 +15,7 @@ import { KnowledgeSection } from "@/components/knowledge-section";
 import { WorkspaceSection } from "@/components/workspace-section";
 import { TeamSection } from "@/components/team-section";
 import { UsageSection } from "@/components/usage-section";
+import { NotificationPrefsSection } from "@/components/notification-prefs-section";
 import { PrivacySection } from "@/components/privacy-section";
 import { HelpLink } from "@/components/help-link";
 
@@ -83,6 +84,8 @@ export default function SettingsPage() {
       <TeamSection />
 
       <UsageSection />
+
+      <NotificationPrefsSection />
 
       <SendersSection readOnly={role === "agent"} />
 

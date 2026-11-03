@@ -77,6 +77,11 @@ export const memberships = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     role: roleEnum('role').notNull().default('agent'),
+    // notification types this member muted in this workspace (0035)
+    mutedNotifications: text('muted_notifications')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

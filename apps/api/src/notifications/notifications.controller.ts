@@ -1,14 +1,27 @@
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
 } from '@nestjs/common';
+import { ArrayMaxSize, IsArray, IsIn } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../auth/types';
-import { NotificationsService } from './notifications.service';
+import {
+  NOTIFICATION_TYPES,
+  NotificationsService,
+} from './notifications.service';
+
+class PreferencesDto {
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsIn(Object.keys(NOTIFICATION_TYPES), { each: true })
+  muted!: string[];
+}
 
 @Controller('notifications')
 export class NotificationsController {
@@ -17,6 +30,21 @@ export class NotificationsController {
   @Get()
   list(@CurrentUser() user: AuthUser) {
     return this.notifications.list(user.orgId, user.userId);
+  }
+
+  /** Per-member, per-workspace mute settings. */
+  @Get('preferences')
+  preferences(@CurrentUser() user: AuthUser) {
+    return this.notifications.preferences(user.orgId, user.userId);
+  }
+
+  @Put('preferences')
+  setPreferences(@CurrentUser() user: AuthUser, @Body() dto: PreferencesDto) {
+    return this.notifications.setPreferences(
+      user.orgId,
+      user.userId,
+      dto.muted,
+    );
   }
 
   @Get('unread-count')

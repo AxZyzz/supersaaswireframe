@@ -4,6 +4,14 @@ import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { RealtimeService } from '../realtime/realtime.service';
 
+/** Every notification type a member can mute, with its settings label. */
+export const NOTIFICATION_TYPES = {
+  reply: 'A lead replies to a campaign',
+  assigned: 'A conversation is assigned to me',
+  member_joined: 'Someone joins the workspace',
+} as const;
+export type NotificationType = keyof typeof NOTIFICATION_TYPES;
+
 export interface NewNotification {
   type: string;
   title: string;
@@ -35,7 +43,8 @@ export class NotificationsService {
   async notifyOrg(c: PoolClient, orgId: string, n: NewNotification) {
     await c.query(
       `INSERT INTO notifications (org_id, user_id, type, title, body, link)
-       SELECT $1, m.user_id, $2, $3, $4, $5 FROM memberships m`,
+       SELECT $1, m.user_id, $2, $3, $4, $5 FROM memberships m
+       WHERE NOT ($2 = ANY (m.muted_notifications))`,
       [orgId, n.type, n.title, n.body ?? '', n.link ?? null],
     );
   }
@@ -48,9 +57,41 @@ export class NotificationsService {
   ) {
     await c.query(
       `INSERT INTO notifications (org_id, user_id, type, title, body, link)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
+       SELECT $1, $2, $3, $4, $5, $6
+       WHERE NOT EXISTS (
+         SELECT 1 FROM memberships
+         WHERE user_id = $2 AND $3 = ANY (muted_notifications))`,
       [orgId, userId, n.type, n.title, n.body ?? '', n.link ?? null],
     );
+  }
+
+  /** The caller's per-type settings in this workspace. */
+  preferences(orgId: string, userId: string) {
+    return withOrgContext(this.pool, orgId, async (c) => {
+      const r = await c.query<{ muted_notifications: string[] }>(
+        `SELECT muted_notifications FROM memberships WHERE user_id = $1`,
+        [userId],
+      );
+      const muted = new Set(r.rows[0]?.muted_notifications ?? []);
+      return Object.entries(NOTIFICATION_TYPES).map(([type, label]) => ({
+        type,
+        label,
+        enabled: !muted.has(type),
+      }));
+    });
+  }
+
+  async setPreferences(orgId: string, userId: string, muted: string[]) {
+    const known = new Set(Object.keys(NOTIFICATION_TYPES));
+    const clean = [...new Set(muted)].filter((t) => known.has(t));
+    await withOrgContext(this.pool, orgId, (c) =>
+      c.query(
+        `UPDATE memberships SET muted_notifications = $2, updated_at = now()
+         WHERE user_id = $1`,
+        [userId, clean],
+      ),
+    );
+    return this.preferences(orgId, userId);
   }
 
   list(orgId: string, userId: string) {

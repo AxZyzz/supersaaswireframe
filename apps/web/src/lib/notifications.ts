@@ -20,3 +20,18 @@ export const markNotificationRead = (id: string) =>
 
 export const markAllNotificationsRead = () =>
   api<{ marked: number }>("/notifications/read-all", { method: "POST" });
+
+export interface NotificationPref {
+  type: string;
+  label: string;
+  enabled: boolean;
+}
+
+export const getNotificationPrefs = () =>
+  api<NotificationPref[]>("/notifications/preferences");
+
+export const setNotificationPrefs = (muted: string[]) =>
+  api<NotificationPref[]>("/notifications/preferences", {
+    method: "PUT",
+    body: JSON.stringify({ muted }),
+  });
