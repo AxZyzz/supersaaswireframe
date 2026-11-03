@@ -12,6 +12,7 @@ import { validateEnv } from './config/env.validation';
 import { CryptoModule } from './crypto/crypto.module';
 import { DbModule } from './db/db.module';
 import { InboxModule } from './inbox/inbox.module';
+import { MailModule } from './mail/mail.module';
 import { LeadsModule } from './leads/leads.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { OperatorModule } from './operator/operator.module';
@@ -33,6 +34,7 @@ import { UsageModule } from './usage/usage.module';
     }),
     DbModule,
     CryptoModule,
+    MailModule,
     QueueModule,
     UsageModule,
     BetaModule,

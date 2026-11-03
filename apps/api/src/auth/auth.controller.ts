@@ -16,7 +16,9 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
 import {
   DeleteAccountDto,
+  ForgotPasswordDto,
   LoginDto,
+  ResetPasswordDto,
   SignupDto,
   SwitchOrgDto,
 } from './dto/auth.dto';
@@ -58,6 +60,24 @@ export class AuthController {
     const token = readRefreshCookie(req);
     if (!token) throw new UnauthorizedException('No session');
     return this.auth.refresh(token);
+  }
+
+  // Password reset (T1.3). Same answer whether or not the email has an
+  // account; tight per-IP limits since each call can send an email.
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @HttpCode(200)
+  @Post('forgot-password')
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.auth.requestPasswordReset(dto.email);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(200)
+  @Post('reset-password')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.auth.resetPassword(dto.token, dto.password);
   }
 
   @Public()

@@ -8,12 +8,13 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { createHash, randomUUID } from 'crypto';
+import { createHash, randomBytes, randomUUID } from 'crypto';
 import { Pool } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { MembershipCache } from './membership-cache.service';
 import { BetaService } from '../beta/beta.service';
+import { SystemMailService } from '../mail/system-mail.service';
 import { seedDefaultTags } from '../leads/default-tags';
 import { seedDefaultTemplates } from '../templates/default-templates';
 import type {
@@ -25,6 +26,7 @@ import type {
 
 const BCRYPT_ROUNDS = 12;
 const REFRESH_TTL_DAYS = 30;
+const RESET_TTL_MINUTES = 60;
 // Window in which re-presenting a just-rotated refresh token is treated as a
 // concurrent-refresh race rather than token theft.
 const REUSE_GRACE_MS = 30_000;
@@ -46,6 +48,7 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly memberships: MembershipCache,
     private readonly beta: BetaService,
+    private readonly mail: SystemMailService,
   ) {}
 
   private hashToken(raw: string): string {
@@ -271,6 +274,92 @@ export class AuthService {
     const target = memberships.find((m) => m.orgId === orgId);
     if (!target) throw new UnauthorizedException('Not a member of that org');
     return this.issueTokens(userId, target.orgId, target.role);
+  }
+
+  /**
+   * "Forgot password" (T1.3). Always succeeds from the caller's view so the
+   * endpoint can't be used to find out which emails have accounts. For a real
+   * user: issue a 1-hour single-use token (only its hash is stored), retire
+   * any earlier unused ones, and email the reset link.
+   */
+  async requestPasswordReset(email: string): Promise<{ ok: true }> {
+    const normalized = email.trim().toLowerCase();
+    const res = await this.pool.query<{ id: string; name: string }>(
+      `SELECT id, name FROM users WHERE email = $1`,
+      [normalized],
+    );
+    const user = res.rows[0];
+    if (!user) return { ok: true };
+
+    const raw = randomBytes(32).toString('base64url');
+    await this.pool.query(
+      `UPDATE password_resets SET used_at = now()
+       WHERE user_id = $1 AND used_at IS NULL`,
+      [user.id],
+    );
+    await this.pool.query(
+      `INSERT INTO password_resets (user_id, token_hash, expires_at)
+       VALUES ($1, $2, now() + make_interval(mins => $3))`,
+      [user.id, this.hashToken(raw), RESET_TTL_MINUTES],
+    );
+    const webUrl = this.config
+      .get<string>('WEB_URL', 'http://localhost:3000')
+      .replace(/\/$/, '');
+    await this.mail.send({
+      to: normalized,
+      subject: 'Reset your SuperSaaS password',
+      text:
+        `Hi ${user.name},\n\n` +
+        `Someone asked to reset the password for your SuperSaaS account. ` +
+        `Use the link below within ${RESET_TTL_MINUTES} minutes to choose a new one.\n\n` +
+        `If this wasn't you, ignore this email: your password stays the same.`,
+      action: {
+        label: 'Choose a new password',
+        url: `${webUrl}/reset-password?token=${raw}`,
+      },
+    });
+    return { ok: true };
+  }
+
+  /**
+   * Sets a new password from a reset link. The token is burned on use, and
+   * every existing session (refresh token) is revoked so a stolen session
+   * dies with the old password.
+   */
+  async resetPassword(token: string, password: string): Promise<{ ok: true }> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const r = await client.query<{ id: string; user_id: string }>(
+        `UPDATE password_resets SET used_at = now()
+         WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()
+         RETURNING id, user_id`,
+        [this.hashToken(token)],
+      );
+      const row = r.rows[0];
+      if (!row) {
+        throw new BadRequestException(
+          'This reset link is invalid or has expired. Request a new one.',
+        );
+      }
+      const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+      await client.query(
+        `UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1`,
+        [row.user_id, hash],
+      );
+      await client.query(
+        `UPDATE refresh_tokens SET revoked_at = now()
+         WHERE user_id = $1 AND revoked_at IS NULL`,
+        [row.user_id],
+      );
+      await client.query('COMMIT');
+      return { ok: true };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   /**

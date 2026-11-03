@@ -128,6 +128,27 @@ export const invites = pgTable(
   ],
 );
 
+// Password reset tokens (T1.3, 0042): SHA-256 of the emailed token, single-use.
+export const passwordResets = pgTable(
+  'password_resets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('password_resets_token_idx').on(t.tokenHash),
+    index('password_resets_user_idx').on(t.userId, t.createdAt),
+  ],
+);
+
 export const refreshTokens = pgTable(
   'refresh_tokens',
   {

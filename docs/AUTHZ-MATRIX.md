@@ -26,12 +26,14 @@
 | `POST /api-keys` | login | ✅ | ✅ | ⛔ |
 | `DELETE /api-keys/:id` | login | ✅ | ✅ | ⛔ |
 | `PATCH /api-keys/:id` | login | ✅ | ✅ | ⛔ |
+| `POST /auth/forgot-password` | public | — | — | — |
 | `GET /auth/google/callback` | public | — | — | — |
 | `POST /auth/login` | public | — | — | — |
 | `POST /auth/logout` | public | — | — | — |
 | `DELETE /auth/me` | login | ✅ | ✅ | ✅ |
 | `GET /auth/me` | login | ✅ | ✅ | ✅ |
 | `POST /auth/refresh` | public | — | — | — |
+| `POST /auth/reset-password` | public | — | — | — |
 | `POST /auth/signup` | public | — | — | — |
 | `POST /auth/switch-org` | login | ✅ | ✅ | ✅ |
 | `GET /beta/mode` | public | — | — | — |

@@ -57,3 +57,21 @@ export class DeleteAccountDto {
   @MaxLength(128)
   password!: string;
 }
+
+export class ForgotPasswordDto {
+  @IsEmail()
+  @MaxLength(320)
+  email!: string;
+}
+
+export class ResetPasswordDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  token!: string;
+
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  password!: string;
+}

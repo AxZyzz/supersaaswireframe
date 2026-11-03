@@ -40,6 +40,8 @@ const PUBLIC_ALLOWLIST = [
   'POST /auth/login',
   'POST /auth/refresh',
   'POST /auth/logout',
+  'POST /auth/forgot-password',
+  'POST /auth/reset-password',
   'GET /t/o/:trackingId',
   'GET /t/c/:trackingId',
   'GET /u/:token',
