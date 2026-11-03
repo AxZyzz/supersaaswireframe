@@ -57,7 +57,7 @@ export function DuplicatesModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-      <div className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-lg border border-line bg-white shadow-float">
+      <div className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-lg border border-line bg-surface shadow-float">
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
           <h2 className="text-section font-semibold text-ink2">
             Duplicate leads
@@ -91,7 +91,7 @@ export function DuplicatesModal({
                       {group.leads.map((l) => (
                         <label
                           key={l.id}
-                          className="flex items-center gap-2 rounded bg-white px-2.5 py-1.5 text-sm"
+                          className="flex items-center gap-2 rounded bg-surface px-2.5 py-1.5 text-sm"
                         >
                           <input
                             type="radio"

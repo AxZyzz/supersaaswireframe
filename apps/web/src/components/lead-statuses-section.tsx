@@ -16,7 +16,7 @@ import {
 } from "@/lib/lead-statuses";
 
 const field =
-  "rounded border border-line-mid bg-white px-2 py-1 text-sm outline-none focus:border-accent";
+  "rounded border border-line-mid bg-surface px-2 py-1 text-sm outline-none focus:border-accent";
 
 /**
  * Settings → Lead statuses (T2.3). System statuses are locked (reply
@@ -65,7 +65,7 @@ export function LeadStatusesSection({ canEdit }: { canEdit: boolean }) {
   if (!list) return null;
 
   return (
-    <section className="rounded-lg border border-line bg-white p-5">
+    <section className="rounded-lg border border-line bg-surface p-5">
       <h2 className="flex items-center gap-2 text-section font-semibold text-ink2">
         <Tags size={16} className="text-faint" /> Lead statuses
       </h2>

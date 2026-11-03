@@ -21,7 +21,7 @@ import { Sender } from "@/lib/senders";
 const STEPS = ["Setup", "Sequence", "Senders", "Review"] as const;
 
 const field =
-  "rounded border border-line-mid bg-white px-2.5 py-1.5 text-sm outline-none focus:border-accent";
+  "rounded border border-line-mid bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-accent";
 
 export default function CampaignWizard({
   templates,
@@ -149,7 +149,7 @@ export default function CampaignWizard({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/30 p-4 sm:p-8">
-      <div className="w-full max-w-2xl rounded-xl border border-line bg-white shadow-lg">
+      <div className="w-full max-w-2xl rounded-xl border border-line bg-surface shadow-lg">
         {/* header + stepper */}
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
           <h2 className="text-section font-semibold text-ink2">New campaign</h2>

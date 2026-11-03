@@ -100,7 +100,7 @@ export default function OperatorPage() {
     <div className="mx-auto max-w-shell space-y-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map(([label, value, sub]) => (
-          <div key={label} className="rounded-lg border border-line bg-white p-4">
+          <div key={label} className="rounded-lg border border-line bg-surface p-4">
             <div className="text-sm text-muted">{label}</div>
             <div className="mt-2 text-title font-semibold text-ink2">{value}</div>
             <div className="mt-1 text-tiny text-faint">{sub}</div>
@@ -109,7 +109,7 @@ export default function OperatorPage() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-3">
-        <section className="rounded-lg border border-line bg-white p-4 lg:col-span-2">
+        <section className="rounded-lg border border-line bg-surface p-4 lg:col-span-2">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink2">
             <Activity size={15} className="text-faint" /> Sends, last 14 days
           </h2>
@@ -137,7 +137,7 @@ export default function OperatorPage() {
           </div>
         </section>
 
-        <section className="rounded-lg border border-line bg-white p-4">
+        <section className="rounded-lg border border-line bg-surface p-4">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink2">
             <Server size={15} className="text-faint" /> System health
           </h2>
@@ -176,7 +176,7 @@ export default function OperatorPage() {
 
       <OperatorBeta />
 
-      <section className="overflow-hidden rounded-lg border border-line bg-white">
+      <section className="overflow-hidden rounded-lg border border-line bg-surface">
         <h2 className="border-b border-line px-4 py-3 text-sm font-semibold text-ink2">
           Workspaces ({data.orgs.length})
         </h2>
@@ -208,7 +208,7 @@ export default function OperatorPage() {
                     <select
                       value={o.plan}
                       onChange={(e) => void setPlan(o.id, e.target.value)}
-                      className="rounded border border-line-mid bg-white px-1.5 py-0.5 text-tiny"
+                      className="rounded border border-line-mid bg-surface px-1.5 py-0.5 text-tiny"
                     >
                       <option value="beta">beta</option>
                       <option value="internal">internal</option>
@@ -233,7 +233,7 @@ export default function OperatorPage() {
         </div>
       </section>
 
-      <section className="rounded-lg border border-line bg-white p-4">
+      <section className="rounded-lg border border-line bg-surface p-4">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink2">
           <AlertTriangle size={15} className="text-faint" /> Recent failures
         </h2>

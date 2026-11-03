@@ -31,7 +31,7 @@ export function UsageSection() {
   if (!u) return null;
 
   return (
-    <section className="rounded-lg border border-line bg-white p-5">
+    <section className="rounded-lg border border-line bg-surface p-5">
       <div className="mb-1 flex items-center gap-2">
         <Gauge size={16} className="text-faint" />
         <h2 className="text-section font-semibold text-ink2">Plan & usage</h2>

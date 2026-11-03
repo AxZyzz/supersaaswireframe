@@ -142,7 +142,7 @@ export default function LandingPage() {
           <p className="mt-2 text-center text-sm text-muted">From sign-up to first campaign in one sitting.</p>
           <div className="mt-10 grid gap-5 md:grid-cols-3">
             {STEPS.map((s, i) => (
-              <div key={s.h} className="rounded-lg border border-line bg-white p-6">
+              <div key={s.h} className="rounded-lg border border-line bg-surface p-6">
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
                   {i + 1}
                 </span>
@@ -163,7 +163,7 @@ export default function LandingPage() {
           </p>
           <Link
             href="/signup"
-            className="inline-flex h-10 items-center gap-1.5 rounded bg-white px-5 text-sm font-medium text-accent hover:bg-white/90"
+            className="inline-flex h-10 items-center gap-1.5 rounded bg-surface px-5 text-sm font-medium text-accent hover:bg-surface/90"
           >
             Start free <ArrowRight size={16} />
           </Link>

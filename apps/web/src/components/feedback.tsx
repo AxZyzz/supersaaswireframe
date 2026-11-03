@@ -54,7 +54,7 @@ export function Toaster() {
       {toasts.map((t) => (
         <div
           key={t.id}
-          className="pointer-events-auto flex items-start gap-2 rounded-lg border border-line bg-white p-3 text-sm shadow-float"
+          className="pointer-events-auto flex items-start gap-2 rounded-lg border border-line bg-surface p-3 text-sm shadow-float"
         >
           {t.kind === "error" ? (
             <AlertTriangle size={16} className="mt-0.5 shrink-0 text-danger-text" />
@@ -84,7 +84,7 @@ export function LoadError({
   onRetry?: () => void;
 }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-lg border border-line bg-white px-4 py-10 text-center">
+    <div className="flex flex-col items-center gap-2 rounded-lg border border-line bg-surface px-4 py-10 text-center">
       <AlertTriangle size={20} className="text-danger-text" />
       <p className="text-sm text-ink">{message}</p>
       {onRetry && (

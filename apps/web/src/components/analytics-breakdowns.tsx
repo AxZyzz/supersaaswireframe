@@ -36,7 +36,7 @@ export function AnalyticsBreakdowns({ range }: { range: Range }) {
 
   return (
     <div className="grid gap-5 xl:grid-cols-2">
-      <section className="overflow-hidden rounded-lg border border-line bg-white">
+      <section className="overflow-hidden rounded-lg border border-line bg-surface">
         <h2 className="border-b border-line px-4 py-3 text-sm font-semibold text-ink2">
           Templates <span className="font-normal text-faint">· across every campaign using them</span>
         </h2>
@@ -77,7 +77,7 @@ export function AnalyticsBreakdowns({ range }: { range: Range }) {
         )}
       </section>
 
-      <section className="overflow-hidden rounded-lg border border-line bg-white">
+      <section className="overflow-hidden rounded-lg border border-line bg-surface">
         <h2 className="border-b border-line px-4 py-3 text-sm font-semibold text-ink2">
           Lead sources <span className="font-normal text-faint">· which lists turn into replies</span>
         </h2>

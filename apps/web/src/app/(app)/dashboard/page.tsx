@@ -107,7 +107,7 @@ export default function DashboardPage() {
           return (
             <div
               key={s.label}
-              className="rounded-lg border border-line bg-white p-4"
+              className="rounded-lg border border-line bg-surface p-4"
             >
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-sm text-muted">{s.label}</span>
@@ -123,7 +123,7 @@ export default function DashboardPage() {
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           {/* campaign status */}
-          <section className="overflow-hidden rounded-lg border border-line bg-white">
+          <section className="overflow-hidden rounded-lg border border-line bg-surface">
             <div className="flex items-center justify-between border-b border-line px-4 py-3">
               <h2 className="text-sm font-semibold text-ink2">Campaign status</h2>
               <Link
@@ -180,7 +180,7 @@ export default function DashboardPage() {
           </section>
 
           {/* recent activity */}
-          <section className="rounded-lg border border-line bg-white p-4">
+          <section className="rounded-lg border border-line bg-surface p-4">
             <h2 className="mb-3 text-sm font-semibold text-ink2">Recent activity</h2>
             {ov.activity.length === 0 ? (
               <p className="text-sm text-muted">Nothing yet — import leads to get started.</p>
@@ -208,7 +208,7 @@ export default function DashboardPage() {
         <div className="space-y-5">
           {/* start-here checklist — disappears once every step is done */}
           {setup && CHECKLIST.some((c) => !setup[c.key]) && (
-            <section className="rounded-lg border border-line bg-white p-4">
+            <section className="rounded-lg border border-line bg-surface p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-ink2">Start here</h2>
                 <span className="text-tiny text-faint">
@@ -242,7 +242,7 @@ export default function DashboardPage() {
           )}
 
           {/* alerts */}
-          <section className="rounded-lg border border-line bg-white p-4">
+          <section className="rounded-lg border border-line bg-surface p-4">
             <h2 className="mb-3 text-sm font-semibold text-ink2">Alerts</h2>
             {ov.alerts.length === 0 ? (
               <p className="text-sm text-muted">All clear.</p>
@@ -270,7 +270,7 @@ export default function DashboardPage() {
           </section>
 
           {/* quick actions */}
-          <section className="rounded-lg border border-line bg-white p-4">
+          <section className="rounded-lg border border-line bg-surface p-4">
             <h2 className="mb-3 text-sm font-semibold text-ink2">Quick actions</h2>
             <div className="grid gap-2">
               {[

@@ -112,7 +112,7 @@ export function RichEmailEditor({
   }
 
   return (
-    <div className="rounded border border-line-mid bg-white focus-within:border-accent">
+    <div className="rounded border border-line-mid bg-surface focus-within:border-accent">
       <div className="flex items-center gap-0.5 border-b border-line px-1.5 py-1">
         {effective === "visual" &&
           TOOLS.map(({ key, icon: Icon, label }) => (
@@ -145,7 +145,7 @@ export function RichEmailEditor({
                 setMode(m);
               }}
               className={`flex items-center gap-1 rounded px-2 py-0.5 disabled:opacity-40 ${
-                effective === m ? "bg-white font-medium text-ink shadow-sm" : "text-muted"
+                effective === m ? "bg-surface font-medium text-ink shadow-sm" : "text-muted"
               }`}
             >
               {m === "html" && <Code2 size={12} />}
@@ -175,7 +175,7 @@ export function RichEmailEditor({
             document.execCommand("insertText", false, e.clipboardData.getData("text/plain"));
             emit();
           }}
-          className="prose-email min-h-56 px-3 py-2 text-sm text-ink outline-none empty:before:text-faint empty:before:content-[attr(data-placeholder)]"
+          className="email-canvas prose-email min-h-56 px-3 py-2 text-sm outline-none empty:before:text-faint empty:before:content-[attr(data-placeholder)]"
         />
       ) : (
         <textarea

@@ -58,7 +58,7 @@ function Help() {
 
       <div className="min-w-0 flex-1">
         {article ? (
-          <article className="max-w-2xl rounded-lg border border-line bg-white p-6">
+          <article className="max-w-2xl rounded-lg border border-line bg-surface p-6">
             <Link
               href="/help"
               className="mb-4 inline-flex items-center gap-1 text-tiny text-muted hover:text-ink"
@@ -83,7 +83,7 @@ function Help() {
                 anywhere to jump to a page or article.
               </p>
             </div>
-            <label className="flex items-center gap-2 rounded border border-line-mid bg-white px-3 py-2 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-soft2">
+            <label className="flex items-center gap-2 rounded border border-line-mid bg-surface px-3 py-2 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent-soft2">
               <Search size={15} className="text-faint" />
               <input
                 value={q}
@@ -98,7 +98,7 @@ function Help() {
                 Nothing matches &ldquo;{q}&rdquo;.
               </p>
             ) : (
-              <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-white">
+              <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
                 {matches.map((d) => (
                   <li key={d.slug}>
                     <Link

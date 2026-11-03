@@ -10,7 +10,7 @@ import { deleteAccount, deleteWorkspace, exportWorkspace, getOrg } from "@/lib/o
 import { disconnectLive } from "@/lib/realtime";
 
 const field =
-  "w-full rounded border border-line-mid bg-white px-2.5 py-1.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
+  "w-full rounded border border-line-mid bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
 
 /** Export + irreversible deletions (GDPR access/erasure). */
 export function PrivacySection() {
@@ -63,7 +63,7 @@ export function PrivacySection() {
   const admin = role === "admin";
 
   return (
-    <section id="privacy" className="rounded-lg border border-line bg-white p-5">
+    <section id="privacy" className="rounded-lg border border-line bg-surface p-5">
       <div className="mb-1 flex items-center gap-2">
         <ShieldCheck size={16} className="text-faint" />
         <h2 className="text-section font-semibold text-ink2">Data & privacy</h2>

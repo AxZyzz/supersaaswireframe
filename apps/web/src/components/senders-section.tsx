@@ -107,10 +107,10 @@ export function SendersSection({
   }
 
   const field =
-    "rounded border border-line-mid bg-white px-2.5 py-1.5 text-sm outline-none focus:border-accent";
+    "rounded border border-line-mid bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-accent";
 
   return (
-    <section className="rounded-lg border border-line bg-white p-5">
+    <section className="rounded-lg border border-line bg-surface p-5">
       <div className="mb-1 flex items-center gap-2">
         <Mail size={16} className="text-faint" />
         <h2 className="text-section font-semibold text-ink2">
@@ -396,7 +396,7 @@ function DnsCheckTool() {
             onChange={(e) => setDomain(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void run()}
             placeholder="yourdomain.com"
-            className="w-full rounded border border-line-mid bg-white px-2.5 py-1.5 pl-8 text-sm outline-none focus:border-accent"
+            className="w-full rounded border border-line-mid bg-surface px-2.5 py-1.5 pl-8 text-sm outline-none focus:border-accent"
           />
         </div>
         <button
@@ -408,7 +408,7 @@ function DnsCheckTool() {
         </button>
       </div>
       {result && (
-        <div className="mt-3 rounded border border-line bg-white px-3">
+        <div className="mt-3 rounded border border-line bg-surface px-3">
           {row("SPF", result.spf)}
           {row("DKIM", result.dkim)}
           {row("DMARC", result.dmarc)}

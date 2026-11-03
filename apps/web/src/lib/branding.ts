@@ -8,8 +8,9 @@ const VARS: Record<string, (c: string) => string> = {
   "--color-accent": (c) => c,
   "--color-accent-hover": (c) => `color-mix(in srgb, ${c} 88%, black)`,
   "--color-accent-pressed": (c) => `color-mix(in srgb, ${c} 80%, black)`,
-  "--color-accent-soft": (c) => `color-mix(in srgb, ${c} 10%, white)`,
-  "--color-accent-soft2": (c) => `color-mix(in srgb, ${c} 20%, white)`,
+  // tints mix with the surface, so they read right in light and dark
+  "--color-accent-soft": (c) => `color-mix(in srgb, ${c} 14%, var(--color-surface))`,
+  "--color-accent-soft2": (c) => `color-mix(in srgb, ${c} 24%, var(--color-surface))`,
 };
 
 export const DEFAULT_ACCENT = "#3e63dd";

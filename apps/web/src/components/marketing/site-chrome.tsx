@@ -28,7 +28,7 @@ export function SiteNav() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-white/90 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-line bg-surface/90 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Logo />
         <nav className="hidden items-center gap-6 text-sm text-muted md:flex">
@@ -98,7 +98,7 @@ export function SiteFooter() {
     },
   ];
   return (
-    <footer className="border-t border-line bg-white">
+    <footer className="border-t border-line bg-surface">
       <div className="mx-auto grid max-w-6xl grid-cols-2 gap-8 px-4 py-12 sm:px-6 md:grid-cols-5">
         <div className="col-span-2">
           <Logo />

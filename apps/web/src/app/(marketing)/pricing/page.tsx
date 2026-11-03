@@ -37,7 +37,7 @@ export default function PricingPage() {
 
       {/* the beta plan */}
       <div className="mx-auto mt-10 grid max-w-3xl overflow-hidden rounded-lg border border-accent shadow-float md:grid-cols-2">
-        <div className="bg-white p-6">
+        <div className="bg-surface p-6">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-tiny font-medium text-accent">
             <Sparkles size={13} /> Public beta
           </span>
@@ -84,7 +84,7 @@ export default function PricingPage() {
           </p>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {PLANNED_TIERS.map((t) => (
-              <div key={t.name} className="rounded-lg border border-line bg-white p-5">
+              <div key={t.name} className="rounded-lg border border-line bg-surface p-5">
                 <div className="text-sm font-semibold text-ink2">{t.name}</div>
                 <div className="mt-0.5 text-tiny text-muted">{t.blurb}</div>
                 <div className="mt-3 flex items-end gap-1">

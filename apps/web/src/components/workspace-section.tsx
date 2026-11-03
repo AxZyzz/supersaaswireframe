@@ -20,7 +20,7 @@ export function announceOrg(org: Org) {
 }
 
 const field =
-  "w-full rounded border border-line-mid bg-white px-2.5 py-1.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2 disabled:bg-panel disabled:text-muted";
+  "w-full rounded border border-line-mid bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2 disabled:bg-panel disabled:text-muted";
 const label = "text-tiny font-medium uppercase tracking-wide text-faint";
 
 /** Logo picker + color picker with a live preview. Shared by Settings and
@@ -104,7 +104,7 @@ export function BrandingFields({
             disabled={disabled}
             value={color ?? DEFAULT_ACCENT}
             onChange={(e) => onColor(e.target.value)}
-            className="h-9 w-12 cursor-pointer rounded border border-line-mid bg-white p-0.5 disabled:cursor-not-allowed"
+            className="h-9 w-12 cursor-pointer rounded border border-line-mid bg-surface p-0.5 disabled:cursor-not-allowed"
             aria-label="Accent color"
           />
           <code className="text-sm text-muted">{color ?? DEFAULT_ACCENT}</code>
@@ -151,7 +151,7 @@ export function WorkspaceSection() {
 
   if (!org) {
     return (
-      <section className="rounded-lg border border-line bg-white p-5 text-sm text-muted">
+      <section className="rounded-lg border border-line bg-surface p-5 text-sm text-muted">
         Loading workspace…
       </section>
     );
@@ -187,7 +187,7 @@ export function WorkspaceSection() {
   }
 
   return (
-    <section className="rounded-lg border border-line bg-white p-5">
+    <section className="rounded-lg border border-line bg-surface p-5">
       <div className="mb-1 flex items-center gap-2">
         <Building2 size={16} className="text-faint" />
         <h2 className="text-section font-semibold text-ink2">Workspace</h2>

@@ -78,7 +78,7 @@ export default function SettingsPage() {
   }
 
   const field =
-    "rounded border border-line-mid bg-white px-2.5 py-1.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
+    "rounded border border-line-mid bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
 
   return (
     <div className="mx-auto max-w-shell space-y-6">
@@ -104,7 +104,7 @@ export default function SettingsPage() {
       <LeadStatusesSection canEdit={canManage} />
 
       {canManage && (
-      <section className="rounded-lg border border-line bg-white p-5">
+      <section className="rounded-lg border border-line bg-surface p-5">
         <div className="mb-1 flex items-center gap-2">
           <KeyRound size={16} className="text-faint" />
           <h2 className="text-section font-semibold text-ink2">API keys</h2>
@@ -123,7 +123,7 @@ export default function SettingsPage() {
               Copy your new key now — it won&apos;t be shown again.
             </p>
             <div className="flex items-center gap-2">
-              <code className="flex-1 truncate rounded bg-white px-2.5 py-1.5 text-sm">
+              <code className="flex-1 truncate rounded bg-surface px-2.5 py-1.5 text-sm">
                 {fresh.key}
               </code>
               <button

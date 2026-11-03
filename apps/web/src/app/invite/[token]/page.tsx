@@ -19,7 +19,7 @@ import {
 } from "@/lib/team";
 
 const field =
-  "w-full rounded border border-line-mid bg-white px-3 py-2 text-base outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
+  "w-full rounded border border-line-mid bg-surface px-3 py-2 text-base outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
 
 export default function InvitePage() {
   const { token } = useParams<{ token: string }>();
@@ -73,7 +73,7 @@ export default function InvitePage() {
 
   if (missing || (inv && inv.status !== "pending")) {
     return shell(
-      <div className="rounded-lg border border-line bg-white p-6">
+      <div className="rounded-lg border border-line bg-surface p-6">
         <XCircle size={22} className="text-danger-text" />
         <h1 className="mt-3 text-title font-semibold text-ink2">
           {inv?.status === "accepted"
@@ -104,7 +104,7 @@ export default function InvitePage() {
 
   return shell(
     <>
-      <div className="mb-6 rounded-lg border border-line bg-white p-4">
+      <div className="mb-6 rounded-lg border border-line bg-surface p-4">
         <MailCheck size={20} className="text-accent" />
         <h1 className="mt-2 text-title font-semibold text-ink2">
           Join {inv.orgName}

@@ -183,7 +183,7 @@ export default function CampaignsPage() {
     d === 0 ? "—" : `${Math.round((n / d) * 100)}%`;
 
   const field =
-    "rounded border border-line-mid bg-white px-2.5 py-1.5 text-sm outline-none focus:border-accent";
+    "rounded border border-line-mid bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-accent";
 
   return (
     <div className="mx-auto flex max-w-shell gap-4">
@@ -201,7 +201,7 @@ export default function CampaignsPage() {
         >
           <Sparkles size={15} /> AI draft
         </button>
-        <div className="overflow-hidden rounded-lg border border-line bg-white">
+        <div className="overflow-hidden rounded-lg border border-line bg-surface">
           {campaigns.length === 0 ? (
             <p className="px-3 py-6 text-center text-sm text-muted">
               No campaigns yet.
@@ -238,14 +238,14 @@ export default function CampaignsPage() {
       {/* detail */}
       <div className="flex-1">
         {!selected ? (
-          <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-line-mid bg-white">
+          <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-line-mid bg-surface">
             <p className="text-sm text-muted">
               Select or create a campaign to build its sequence.
             </p>
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center gap-3 rounded-lg border border-line bg-white p-4">
+            <div className="flex items-center gap-3 rounded-lg border border-line bg-surface p-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <h2 className="text-section font-semibold text-ink2">
@@ -321,7 +321,7 @@ export default function CampaignsPage() {
 
             {/* stats */}
             {stats && (
-              <div className="rounded-lg border border-line bg-white p-4">
+              <div className="rounded-lg border border-line bg-surface p-4">
                 <h3 className="mb-3 text-sm font-semibold text-ink2">
                   Performance
                 </h3>
@@ -407,7 +407,7 @@ export default function CampaignsPage() {
             )}
 
             {/* sequence */}
-            <div className="rounded-lg border border-line bg-white p-4">
+            <div className="rounded-lg border border-line bg-surface p-4">
               <h3 className="mb-3 text-sm font-semibold text-ink2">Sequence</h3>
               <div className="space-y-2">
                 {selected.steps.length === 0 ? (

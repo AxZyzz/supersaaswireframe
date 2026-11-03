@@ -106,7 +106,7 @@ export default function AnalyticsPage() {
     <div className="mx-auto max-w-shell space-y-5">
       {/* toolbar — hidden when printing */}
       <div className="flex flex-wrap items-center gap-2 print:hidden">
-        <div className="flex overflow-hidden rounded border border-line-mid bg-white">
+        <div className="flex overflow-hidden rounded border border-line-mid bg-surface">
           {PRESETS.map((p) => (
             <button
               key={p.label}
@@ -134,7 +134,7 @@ export default function AnalyticsPage() {
               value={custom.from}
               max={custom.to || undefined}
               onChange={(e) => setCustom((c) => ({ ...c, from: e.target.value }))}
-              className="rounded border border-line-mid bg-white px-2 py-1"
+              className="rounded border border-line-mid bg-surface px-2 py-1"
               aria-label="From"
             />
             <span className="text-faint">→</span>
@@ -143,7 +143,7 @@ export default function AnalyticsPage() {
               value={custom.to}
               min={custom.from || undefined}
               onChange={(e) => setCustom((c) => ({ ...c, to: e.target.value }))}
-              className="rounded border border-line-mid bg-white px-2 py-1"
+              className="rounded border border-line-mid bg-surface px-2 py-1"
               aria-label="To"
             />
           </div>
@@ -151,13 +151,13 @@ export default function AnalyticsPage() {
         <div className="flex-1" />
         <button
           onClick={() => void downloadFile(campaignReportPath(range), "campaign-report.csv")}
-          className="flex items-center gap-1.5 rounded border border-line-mid bg-white px-3 py-1.5 text-sm text-ink hover:bg-hover"
+          className="flex items-center gap-1.5 rounded border border-line-mid bg-surface px-3 py-1.5 text-sm text-ink hover:bg-hover"
         >
           <Download size={14} /> Export CSV
         </button>
         <button
           onClick={() => window.print()}
-          className="flex items-center gap-1.5 rounded border border-line-mid bg-white px-3 py-1.5 text-sm text-ink hover:bg-hover"
+          className="flex items-center gap-1.5 rounded border border-line-mid bg-surface px-3 py-1.5 text-sm text-ink hover:bg-hover"
           title="Opens the print dialog — choose “Save as PDF”"
         >
           <Printer size={14} /> Save as PDF
@@ -168,14 +168,14 @@ export default function AnalyticsPage() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {cards.map((c) => (
-          <div key={c.label} className="rounded-lg border border-line bg-white p-4">
+          <div key={c.label} className="rounded-lg border border-line bg-surface p-4">
             <div className="text-tiny uppercase tracking-wide text-faint">{c.label}</div>
             <div className="mt-1 text-title font-semibold text-ink2">{c.value}</div>
           </div>
         ))}
       </div>
 
-      <section className="rounded-lg border border-line bg-white p-5">
+      <section className="rounded-lg border border-line bg-surface p-5">
         <h2 className="mb-4 text-sm font-semibold text-ink2">
           Engagement funnel <span className="font-normal text-faint">· {windowLabel}</span>
         </h2>
@@ -202,7 +202,7 @@ export default function AnalyticsPage() {
         )}
       </section>
 
-      <section className="overflow-hidden rounded-lg border border-line bg-white">
+      <section className="overflow-hidden rounded-lg border border-line bg-surface">
         <h2 className="border-b border-line px-4 py-3 text-sm font-semibold text-ink2">
           Campaigns <span className="font-normal text-faint">· click a row for per-step results</span>
         </h2>
@@ -267,7 +267,7 @@ export default function AnalyticsPage() {
                                 Per-step results are lifetime totals for this campaign.
                               </p>
                               {steps[c.id].map((s) => (
-                                <div key={s.step_order} className="rounded border border-line bg-white p-2.5">
+                                <div key={s.step_order} className="rounded border border-line bg-surface p-2.5">
                                   <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                                     <span className="font-medium text-ink">
                                       Step {s.step_order + 1}

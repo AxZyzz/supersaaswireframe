@@ -59,7 +59,7 @@ export function LeadKanban({
                 <StatusDot color={colorOf(col)} />
                 {col}
               </span>
-              <span className="rounded-full bg-white px-1.5 text-tiny text-faint">
+              <span className="rounded-full bg-surface px-1.5 text-tiny text-faint">
                 {items.length}
               </span>
             </div>
@@ -69,7 +69,7 @@ export function LeadKanban({
                   key={l.id}
                   draggable
                   onDragStart={() => setDragId(l.id)}
-                  className="cursor-grab rounded border border-line bg-white p-2.5 text-sm active:cursor-grabbing"
+                  className="cursor-grab rounded border border-line bg-surface p-2.5 text-sm active:cursor-grabbing"
                 >
                   <Link
                     href={`/leads/${l.id}`}

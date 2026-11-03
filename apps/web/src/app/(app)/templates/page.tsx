@@ -132,7 +132,7 @@ export default function TemplatesPage() {
   );
 
   const field =
-    "w-full rounded border border-line-mid bg-white px-2.5 py-1.5 text-sm outline-none focus:border-accent";
+    "w-full rounded border border-line-mid bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-accent";
 
   return (
     <div className="mx-auto flex max-w-shell flex-col gap-4 lg:flex-row">
@@ -153,7 +153,7 @@ export default function TemplatesPage() {
             Templates are managed by admins and managers. You can browse and preview them.
           </p>
         )}
-        <div className="overflow-hidden rounded-lg border border-line bg-white">
+        <div className="overflow-hidden rounded-lg border border-line bg-surface">
           {templates.length === 0 ? (
             <p className="px-3 py-6 text-center text-sm text-muted">
               No templates yet.
@@ -181,7 +181,7 @@ export default function TemplatesPage() {
 
       {/* editor + preview */}
       <div className="min-w-0 flex-1 space-y-4">
-        <div className="space-y-3 rounded-lg border border-line bg-white p-4">
+        <div className="space-y-3 rounded-lg border border-line bg-surface p-4">
           <div className="flex items-center gap-2">
             <input
               value={draft.name}
@@ -269,7 +269,7 @@ export default function TemplatesPage() {
         </div>
 
         {/* live preview (sample data) */}
-        <div className="rounded-lg border border-line bg-white p-4">
+        <div className="rounded-lg border border-line bg-surface p-4">
           <div className="mb-2 flex items-center gap-2">
             <h3 className="text-sm font-semibold text-ink2">Preview</h3>
             <span className="text-tiny text-muted">
@@ -284,7 +284,7 @@ export default function TemplatesPage() {
               </span>
             </div>
             <div
-              className="prose-email max-w-none text-sm text-ink"
+              className="email-canvas prose-email max-w-none rounded p-3 text-sm"
               dangerouslySetInnerHTML={{
                 __html: previewHtml || "<p class='text-muted'>(empty body)</p>",
               }}

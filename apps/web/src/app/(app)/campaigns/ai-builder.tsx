@@ -11,7 +11,7 @@ import { Segment } from "@/lib/segments";
 import { AiEditBar } from "@/components/ai-edit-bar";
 
 const field =
-  "rounded border border-line-mid bg-white px-2.5 py-1.5 text-sm outline-none focus:border-accent";
+  "rounded border border-line-mid bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-accent";
 
 // AI campaign builder (T6.3): brief -> generate a sequence -> review/edit steps
 // (by hand or by asking the AI) -> approve into a draft campaign. The mock
@@ -97,7 +97,7 @@ export default function AiBuilder({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/30 p-4 sm:p-8">
-      <div className="w-full max-w-2xl rounded-xl border border-line bg-white shadow-lg">
+      <div className="w-full max-w-2xl rounded-xl border border-line bg-surface shadow-lg">
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
           <h2 className="flex items-center gap-2 text-section font-semibold text-ink2">
             <Sparkles size={16} className="text-accent" /> AI campaign builder

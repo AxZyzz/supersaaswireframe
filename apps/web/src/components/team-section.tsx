@@ -24,7 +24,7 @@ import { useLive } from "@/lib/realtime";
 const ROLES = Object.keys(ROLE_META) as Role[];
 
 const field =
-  "rounded border border-line-mid bg-white px-2.5 py-1.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
+  "rounded border border-line-mid bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
 
 export function TeamSection() {
   const [me, setMe] = useState<{ userId: string; role: Role } | null>(null);
@@ -91,7 +91,7 @@ export function TeamSection() {
   if (!me) return null;
 
   return (
-    <section id="team" className="rounded-lg border border-line bg-white p-5">
+    <section id="team" className="rounded-lg border border-line bg-surface p-5">
       <div className="mb-1 flex items-center gap-2">
         <Users size={16} className="text-faint" />
         <h2 className="text-section font-semibold text-ink2">Team</h2>
@@ -139,7 +139,7 @@ export function TeamSection() {
           <p className="mt-1.5 text-tiny text-faint">{ROLE_META[role].desc}.</p>
 
           {fresh && (
-            <div className="mt-3 rounded border border-accent-soft2 bg-white p-2.5">
+            <div className="mt-3 rounded border border-accent-soft2 bg-surface p-2.5">
               <p className="mb-1.5 text-tiny text-muted">
                 Send this link to <span className="font-medium text-ink">{fresh.email}</span>.
                 It works once and expires in 7 days — copy it now, it won&apos;t be shown again.

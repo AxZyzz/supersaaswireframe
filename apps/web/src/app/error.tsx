@@ -18,7 +18,7 @@ export default function ErrorPage({
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-page px-4">
-      <div className="w-full max-w-sm rounded-lg border border-line bg-white p-6 text-center">
+      <div className="w-full max-w-sm rounded-lg border border-line bg-surface p-6 text-center">
         <AlertTriangle size={24} className="mx-auto text-danger-text" />
         <h1 className="mt-3 text-title font-semibold text-ink2">Something broke</h1>
         <p className="mt-1.5 text-sm text-muted">

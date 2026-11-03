@@ -7,7 +7,7 @@ import { api, errorMessage } from "@/lib/api";
 import { BRAND } from "@/lib/marketing";
 
 const field =
-  "w-full rounded border border-line-mid bg-white px-3 py-2 text-base outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
+  "w-full rounded border border-line-mid bg-surface px-3 py-2 text-base outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
 
 /** Shown instead of sign-up while SIGNUP_MODE=waitlist and no invite code. */
 export function WaitlistForm() {
@@ -40,7 +40,7 @@ export function WaitlistForm() {
           <span className="text-section font-semibold text-ink2">{BRAND.name}</span>
         </div>
         {done ? (
-          <div className="rounded-lg border border-line bg-white p-6">
+          <div className="rounded-lg border border-line bg-surface p-6">
             <CheckCircle2 size={22} className="text-success-text" />
             <h1 className="mt-3 text-title font-semibold text-ink2">You&apos;re on the list</h1>
             <p className="mt-1.5 text-sm text-muted">

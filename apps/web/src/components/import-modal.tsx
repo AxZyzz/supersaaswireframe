@@ -94,11 +94,11 @@ export function ImportModal({
   }
 
   const field =
-    "rounded border border-line-mid bg-white px-2 py-1 text-sm outline-none focus:border-accent";
+    "rounded border border-line-mid bg-surface px-2 py-1 text-sm outline-none focus:border-accent";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-      <div className="w-full max-w-lg rounded-lg border border-line bg-white shadow-float">
+      <div className="w-full max-w-lg rounded-lg border border-line bg-surface shadow-float">
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
           <h2 className="text-section font-semibold text-ink2">Import leads</h2>
           <button onClick={onClose} className="text-faint hover:text-ink">

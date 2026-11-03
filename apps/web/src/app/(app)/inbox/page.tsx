@@ -55,7 +55,7 @@ const RANGES: { key: string; label: string; days: number | null }[] = [
 ];
 
 const field =
-  "rounded border border-line-mid bg-white px-2.5 py-1.5 text-sm outline-none focus:border-accent";
+  "rounded border border-line-mid bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-accent";
 
 function ClassBadge({ c }: { c: ReplyClass | null }) {
   if (!c) return null;
@@ -194,7 +194,7 @@ function Inbox() {
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-7rem)] max-w-shell overflow-hidden rounded-lg border border-line bg-white">
+    <div className="mx-auto flex h-[calc(100vh-7rem)] max-w-shell overflow-hidden rounded-lg border border-line bg-surface">
       {/* list */}
       <aside className="flex w-60 shrink-0 flex-col border-r border-line lg:w-80">
         <div className="space-y-2 border-b border-line p-3">
@@ -401,7 +401,7 @@ function Inbox() {
                   className={`max-w-[85%] rounded-lg border px-3 py-2 text-sm ${
                     m.direction === "outbound"
                       ? "ml-auto border-accent-soft2 bg-accent-soft"
-                      : "border-line bg-white"
+                      : "border-line bg-surface"
                   }`}
                 >
                   <div className="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-tiny text-faint">
@@ -610,7 +610,7 @@ function SimulateModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 p-8">
-      <div className="w-full max-w-md space-y-3 rounded-xl border border-line bg-white p-5 shadow-lg">
+      <div className="w-full max-w-md space-y-3 rounded-xl border border-line bg-surface p-5 shadow-lg">
         <div className="flex items-center justify-between">
           <h2 className="text-section font-semibold text-ink2">Test reply</h2>
           <button onClick={onClose} className="text-faint hover:text-ink" aria-label="Close">

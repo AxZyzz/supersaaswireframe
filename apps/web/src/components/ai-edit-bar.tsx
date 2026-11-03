@@ -63,7 +63,7 @@ export function AiEditBar({
             onKeyDown={(e) => e.key === "Enter" && void run(instruction)}
             placeholder="Ask AI to edit — e.g. mention our case study"
             disabled={busy}
-            className="w-full rounded border border-line-mid bg-white py-1.5 pl-8 pr-2.5 text-sm outline-none focus:border-accent disabled:opacity-60"
+            className="w-full rounded border border-line-mid bg-surface py-1.5 pl-8 pr-2.5 text-sm outline-none focus:border-accent disabled:opacity-60"
           />
         </div>
         <button
@@ -90,7 +90,7 @@ export function AiEditBar({
             key={q}
             onClick={() => void run(q)}
             disabled={busy}
-            className="rounded-full bg-white px-2 py-0.5 text-micro text-muted ring-1 ring-line hover:text-ink disabled:opacity-50"
+            className="rounded-full bg-surface px-2 py-0.5 text-micro text-muted ring-1 ring-line hover:text-ink disabled:opacity-50"
           >
             {q}
           </button>

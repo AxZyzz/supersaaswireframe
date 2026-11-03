@@ -52,7 +52,7 @@ export function FeedbackButton() {
           <div
             role="dialog"
             aria-label="Send feedback"
-            className="w-full max-w-md rounded-lg border border-line bg-white p-4 shadow-float"
+            className="w-full max-w-md rounded-lg border border-line bg-surface p-4 shadow-float"
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between">

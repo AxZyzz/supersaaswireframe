@@ -118,7 +118,7 @@ export default function LeadsPage() {
   }
 
   const field =
-    "rounded border border-line-mid bg-white px-2.5 py-1.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
+    "rounded border border-line-mid bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
 
   return (
     <div className="mx-auto max-w-shell space-y-4">
@@ -311,7 +311,7 @@ export default function LeadsPage() {
           </button>
         </div>
       )}
-      <div className="overflow-hidden rounded-lg border border-line bg-white">
+      <div className="overflow-hidden rounded-lg border border-line bg-surface">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line bg-panel text-left text-tiny uppercase tracking-wide text-faint">

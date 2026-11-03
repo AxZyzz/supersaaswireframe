@@ -1,8 +1,11 @@
 @import "tailwindcss";
 
 /* SuperSaaS design tokens — ported from the Phase 0 wireframe (Twenty CRM
-   design language, apps/wireframe/tailwind.config.js). Light-first UI. */
+   design language, apps/wireframe/tailwind.config.js). Light values here;
+   dark overrides under html.dark below. */
 @theme {
+  --color-surface: #ffffff; /* cards, inputs, menus (was literal bg-white) */
+  --color-neut-bg: #f1f1f1;
   --color-ink: #333333;
   --color-ink2: #1a1a1a;
   --color-muted: #666666;
@@ -55,10 +58,55 @@
   --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
+/* Dark theme (E9): same tokens, dark values. Set by the init script in the
+   root layout from the user's choice or the OS preference. Org brand colours
+   set inline by applyBrand still win over --color-accent here. */
+html.dark {
+  color-scheme: dark;
+  --color-surface: #18191c;
+  --color-neut-bg: #26282d;
+  --color-ink: #e2e4e8;
+  --color-ink2: #f3f4f6;
+  --color-muted: #a3a7ae;
+  --color-faint: #747880;
+  --color-page: #111214;
+  --color-panel: #1c1e21;
+  --color-hover: #25272b;
+  --color-sidebar: #141517;
+  --color-line: #2a2c31;
+  --color-line-mid: #34373d;
+  --color-line-faint: #3f4249;
+
+  --color-accent: #6b8cff;
+  --color-accent-hover: #7f9bff;
+  --color-accent-pressed: #5b7cf2;
+  --color-accent-soft: #1f2640;
+  --color-accent-soft2: #29325a;
+
+  --color-success-text: #5fca7d;
+  --color-success-bg: #142a1b;
+  --color-danger-text: #ff7075;
+  --color-danger-bg: #351a1c;
+  --color-warning-text: #efb84f;
+  --color-warning-bg: #2f2512;
+  --color-info-text: #7f9bff;
+  --color-info-bg: #1f2640;
+
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
 body {
   background: var(--color-page);
   color: var(--color-ink);
   font-family: var(--font-sans);
+}
+
+/* Email "paper": previews and the visual editor show mail the way most
+   recipients see it — dark text on white — even in the dark theme. */
+.email-canvas {
+  background: #ffffff;
+  color: #333333;
+  color-scheme: light;
 }
 
 /* Email HTML shown in-app (template preview + visual editor): restore the

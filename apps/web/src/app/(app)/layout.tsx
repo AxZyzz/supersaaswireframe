@@ -7,6 +7,7 @@ import { NotificationBell } from "@/components/notification-bell";
 import { CommandPalette, openCommandPalette } from "@/components/command-palette";
 import { Toaster } from "@/components/feedback";
 import { FeedbackButton } from "@/components/feedback-button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Search } from "lucide-react";
 import { api, ApiError, ensureSession } from "@/lib/api";
 import { applyBrand } from "@/lib/branding";
@@ -93,7 +94,7 @@ export default function AppLayout({
         <p className="text-tiny text-muted">You&apos;re still signed in. This usually clears in a few seconds.</p>
         <button
           onClick={() => setAttempt((a) => a + 1)}
-          className="rounded border border-line-mid bg-white px-3 py-1.5 text-sm text-ink hover:bg-hover"
+          className="rounded border border-line-mid bg-surface px-3 py-1.5 text-sm text-ink hover:bg-hover"
         >
           Try again
         </button>
@@ -116,7 +117,7 @@ export default function AppLayout({
     <div className="flex h-screen overflow-hidden bg-page print:block print:h-auto print:overflow-visible">
       <Sidebar orgName={org.name} logo={org.logo_data} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-12 shrink-0 items-center justify-between border-b border-line bg-white px-5 print:hidden">
+        <header className="flex h-12 shrink-0 items-center justify-between border-b border-line bg-surface px-5 print:hidden">
           <h1 className="text-base font-semibold text-ink2">{title}</h1>
           <div className="flex items-center gap-3">
             <button
@@ -127,6 +128,7 @@ export default function AppLayout({
               <kbd className="rounded border border-line bg-panel px-1 text-micro">Ctrl K</kbd>
             </button>
             <FeedbackButton />
+            <ThemeToggle />
             <NotificationBell />
             <span className="rounded-full bg-accent-soft px-2 py-0.5 text-micro font-medium capitalize text-accent">
               {me.role}

@@ -69,7 +69,7 @@ export default function SegmentsPage() {
         />
       )}
 
-      <div className="overflow-hidden rounded-lg border border-line bg-white">
+      <div className="overflow-hidden rounded-lg border border-line bg-surface">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line bg-panel text-left text-tiny uppercase tracking-wide text-faint">

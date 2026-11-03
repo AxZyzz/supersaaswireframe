@@ -69,7 +69,7 @@ export default function LeadProfilePage() {
   const name =
     [lead.first_name, lead.last_name].filter(Boolean).join(" ") || "Unnamed lead";
   const field =
-    "rounded border border-line-mid bg-white px-2.5 py-1.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
+    "rounded border border-line-mid bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
 
   return (
     <div className="mx-auto grid max-w-shell grid-cols-1 gap-5 lg:grid-cols-3">
@@ -81,7 +81,7 @@ export default function LeadProfilePage() {
           <ArrowLeft size={14} /> Leads
         </Link>
 
-        <div className="rounded-lg border border-line bg-white p-5">
+        <div className="rounded-lg border border-line bg-surface p-5">
           <div className="flex items-start justify-between gap-3">
             <h1 className="text-title font-semibold text-ink2">{name}</h1>
             {canManage(role) && (
@@ -177,7 +177,7 @@ export default function LeadProfilePage() {
           )}
         </div>
 
-        <div className="rounded-lg border border-line bg-white p-5">
+        <div className="rounded-lg border border-line bg-surface p-5">
           <h2 className="mb-3 text-section font-semibold text-ink2">Notes</h2>
           <form onSubmit={submitNote} className="mb-4 flex gap-2">
             <input
@@ -210,7 +210,7 @@ export default function LeadProfilePage() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-line bg-white p-5">
+      <div className="rounded-lg border border-line bg-surface p-5">
         <h2 className="mb-3 text-section font-semibold text-ink2">Activity</h2>
         <ol className="space-y-3">
           {lead.events.map((e) => (

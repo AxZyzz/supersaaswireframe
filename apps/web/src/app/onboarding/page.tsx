@@ -34,7 +34,7 @@ import { Toaster } from "@/components/feedback";
 const STEPS = ["Workspace", "AI memory", "Sender", "Domain", "Done"];
 
 const field =
-  "w-full rounded border border-line-mid bg-white px-2.5 py-1.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
+  "w-full rounded border border-line-mid bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
 const label = "text-tiny font-medium uppercase tracking-wide text-faint";
 
 export default function OnboardingPage() {
@@ -90,7 +90,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-page">
-      <header className="border-b border-line bg-white">
+      <header className="border-b border-line bg-surface">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-6">
           <div className="flex items-center gap-2">
             {org.logo_data ? (
@@ -191,7 +191,7 @@ export default function OnboardingPage() {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-line bg-white p-6 shadow-sm">{children}</div>
+    <div className="rounded-lg border border-line bg-surface p-6 shadow-sm">{children}</div>
   );
 }
 

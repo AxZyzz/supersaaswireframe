@@ -71,7 +71,7 @@ export function OperatorBeta() {
 
   return (
     <div className="grid gap-5 lg:grid-cols-2">
-      <section className="rounded-lg border border-line bg-white p-4">
+      <section className="rounded-lg border border-line bg-surface p-4">
         <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-ink2">
           <Inbox size={15} className="text-faint" /> Beta waitlist
           {pending > 0 && (
@@ -136,7 +136,7 @@ export function OperatorBeta() {
         )}
       </section>
 
-      <section className="rounded-lg border border-line bg-white p-4">
+      <section className="rounded-lg border border-line bg-surface p-4">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink2">
           <MessageSquare size={15} className="text-faint" /> Feedback
         </h2>

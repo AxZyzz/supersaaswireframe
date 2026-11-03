@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { THEME_INIT } from "@/lib/theme";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -18,7 +19,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    // the init script may add class="dark" before React hydrates
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+      </head>
       <body className={`${inter.variable} antialiased`}>{children}</body>
     </html>
   );

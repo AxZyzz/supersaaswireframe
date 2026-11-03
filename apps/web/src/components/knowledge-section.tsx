@@ -72,10 +72,10 @@ export function KnowledgeSection({ readOnly = false }: { readOnly?: boolean } = 
   }
 
   const field =
-    "w-full rounded border border-line-mid bg-white px-2.5 py-1.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
+    "w-full rounded border border-line-mid bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
 
   return (
-    <section className="rounded-lg border border-line bg-white p-5">
+    <section className="rounded-lg border border-line bg-surface p-5">
       <div className="mb-1 flex items-center gap-2">
         <BookOpen size={16} className="text-faint" />
         <h2 className="text-section font-semibold text-ink2">Knowledge base</h2>

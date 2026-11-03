@@ -108,7 +108,7 @@ export function CommandPalette() {
       <div
         role="dialog"
         aria-label="Command palette"
-        className="w-full max-w-lg overflow-hidden rounded-lg border border-line bg-white shadow-float"
+        className="w-full max-w-lg overflow-hidden rounded-lg border border-line bg-surface shadow-float"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 border-b border-line px-3">

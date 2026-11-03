@@ -16,7 +16,7 @@ export function AppPreview({
 }) {
   return (
     <div
-      className="overflow-hidden rounded-lg border border-line bg-white shadow-float"
+      className="overflow-hidden rounded-lg border border-line bg-surface shadow-float"
       aria-hidden="true"
     >
       <div className="flex items-center gap-1.5 border-b border-line bg-panel px-3 py-2">
