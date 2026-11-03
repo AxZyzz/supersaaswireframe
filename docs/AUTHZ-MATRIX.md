@@ -14,6 +14,8 @@
 | `POST /ai/generate-sequence` | login | ✅ | ✅ | ⛔ |
 | `GET /ai/knowledge` | login | ✅ | ✅ | ✅ |
 | `PUT /ai/knowledge` | login | ✅ | ✅ | ⛔ |
+| `POST /ai/refine` | login | ✅ | ✅ | ⛔ |
+| `POST /ai/reply-draft` | login | ✅ | ✅ | ✅ |
 | `GET /analytics/campaigns` | login | ✅ | ✅ | ✅ |
 | `GET /analytics/campaigns/:id/steps` | login | ✅ | ✅ | ✅ |
 | `GET /analytics/campaigns/export` | login | ✅ | ✅ | ✅ |

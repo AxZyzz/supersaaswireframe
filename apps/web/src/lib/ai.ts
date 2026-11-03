@@ -51,3 +51,17 @@ export const campaignFromSequence = (body: {
     "/ai/campaigns/from-sequence",
     { method: "POST", body: JSON.stringify(body) },
   );
+
+/** AI-suggested reply for an inbox conversation (T6.6) — a preview to edit. */
+export const draftReply = (conversationId: string, instruction?: string) =>
+  api<{ body: string }>("/ai/reply-draft", {
+    method: "POST",
+    body: JSON.stringify({ conversationId, instruction: instruction || undefined }),
+  });
+
+/** Revise one email by instruction (T6.3 chat editing). */
+export const refineEmail = (body: { subject: string; body: string; instruction: string }) =>
+  api<{ subject: string; body: string }>("/ai/refine", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });

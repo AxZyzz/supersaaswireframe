@@ -3,6 +3,7 @@ import {
   Inject,
   Injectable,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { Pool } from 'pg';
 import { PG_POOL } from '../db/db.module';
@@ -11,9 +12,17 @@ import { AiService } from './ai.service';
 import type {
   CampaignFromSequenceDto,
   GenerateSequenceDto,
+  RefineEmailDto,
+  ReplyDraftDto,
   UpsertKnowledgeDto,
 } from './ai.dto';
-import { OrgKnowledge, sequencePrompt } from './prompts';
+import {
+  OrgKnowledge,
+  refineEmailPrompt,
+  replyDraftPrompt,
+  sequencePrompt,
+  ThreadTurn,
+} from './prompts';
 import { UsageService } from '../usage/usage.service';
 
 const KB_COLS = `description, audience, offer, pain_points AS "painPoints",
@@ -78,6 +87,90 @@ export class AiContentService {
       );
       return res.rows[0];
     });
+  }
+
+  /** Parses a `{...}` JSON model answer, or throws a clean 502-ish error. */
+  private parseJson<T>(text: string, keys: (keyof T)[]): T {
+    try {
+      const v = JSON.parse(text) as T;
+      if (keys.every((k) => typeof v[k] === 'string')) return v;
+    } catch {
+      /* fall through */
+    }
+    throw new BadRequestException(
+      'The AI returned an unusable draft — try again',
+    );
+  }
+
+  // ── Reply drafting (T6.6) ────────────────────────────────────────────
+  // Preview only: the rep edits it in the composer and sends it themselves.
+  async draftReply(
+    orgId: string,
+    dto: ReplyDraftDto,
+  ): Promise<{ body: string }> {
+    const ctx = await withOrgContext(this.pool, orgId, async (c) => {
+      await this.usage.assertCanAdd(c, orgId, 'aiGenerationsPerMonth');
+      const conv = await c.query<{
+        subject: string;
+        lead_name: string | null;
+        lead_company: string | null;
+        sender_name: string | null;
+      }>(
+        `SELECT cv.subject,
+           NULLIF(trim(concat_ws(' ', l.first_name, l.last_name)), '') AS lead_name,
+           l.company AS lead_company,
+           COALESCE(s.from_name,
+             (SELECT from_name FROM sender_accounts ORDER BY created_at LIMIT 1)) AS sender_name
+         FROM conversations cv
+         JOIN leads l ON l.id = cv.lead_id
+         LEFT JOIN sender_accounts s ON s.id = cv.sender_id
+         WHERE cv.id = $1`,
+        [dto.conversationId],
+      );
+      if (!conv.rows[0]) throw new NotFoundException('Conversation not found');
+      const msgs = await c.query<ThreadTurn>(
+        `SELECT direction, COALESCE(body_text, '') AS body
+         FROM conversation_messages WHERE conversation_id = $1
+         ORDER BY created_at`,
+        [dto.conversationId],
+      );
+      return { conv: conv.rows[0], thread: msgs.rows };
+    });
+    const kb = await this.getKnowledge(orgId);
+    const result = await this.ai.generate(
+      orgId,
+      'reply-draft',
+      replyDraftPrompt({
+        subject: ctx.conv.subject,
+        leadName: ctx.conv.lead_name,
+        leadCompany: ctx.conv.lead_company,
+        senderName: ctx.conv.sender_name,
+        thread: ctx.thread.filter((t) => t.body.trim()),
+        instruction: dto.instruction,
+        kb,
+      }),
+    );
+    return this.parseJson<{ body: string }>(result.text, ['body']);
+  }
+
+  // ── Chat editing of a draft email (T6.3) ─────────────────────────────
+  async refineEmail(
+    orgId: string,
+    dto: RefineEmailDto,
+  ): Promise<{ subject: string; body: string }> {
+    await withOrgContext(this.pool, orgId, (c) =>
+      this.usage.assertCanAdd(c, orgId, 'aiGenerationsPerMonth'),
+    );
+    const kb = await this.getKnowledge(orgId);
+    const result = await this.ai.generate(
+      orgId,
+      'refine-email',
+      refineEmailPrompt({ ...dto, kb }),
+    );
+    return this.parseJson<{ subject: string; body: string }>(result.text, [
+      'subject',
+      'body',
+    ]);
   }
 
   // ── Sequence generation (T6.3) ───────────────────────────────────────

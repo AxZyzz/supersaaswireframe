@@ -156,4 +156,84 @@ describe('AI content integration', () => {
       .send({ name: 'Empty', steps: [] })
       .expect(400);
   });
+
+  it('drafts a reply for an inbox thread (T6.6)', async () => {
+    await request(app.getHttpServer())
+      .post('/senders')
+      .set('Authorization', auth())
+      .send({
+        provider: 'smtp',
+        fromName: 'Rhea Rep',
+        fromEmail: 'rhea@ai.local',
+      })
+      .expect(201);
+    const lead = await request(app.getHttpServer())
+      .post('/leads')
+      .set('Authorization', auth())
+      .send({ email: 'pat@prospect.local', firstName: 'Pat' })
+      .expect(201);
+    let conversationId = '';
+    await withOrgContext(pool, orgId, async (c) => {
+      const cv = await c.query(
+        `INSERT INTO conversations (org_id, lead_id, subject) VALUES ($1, $2, 'Quick idea') RETURNING id`,
+        [orgId, lead.body.id],
+      );
+      conversationId = cv.rows[0].id;
+      await c.query(
+        `INSERT INTO conversation_messages (org_id, conversation_id, direction, from_email, body_text)
+         VALUES ($1, $2, 'inbound', 'pat@prospect.local', 'Interesting - how does pricing work?')`,
+        [orgId, conversationId],
+      );
+    });
+
+    const r = await request(app.getHttpServer())
+      .post('/ai/reply-draft')
+      .set('Authorization', auth())
+      .send({ conversationId, instruction: 'offer a call' })
+      .expect(200);
+    expect(r.body.body).toContain('Rhea Rep'); // signed as the sender
+    expect(r.body.body.length).toBeGreaterThan(20);
+
+    // usage is logged fire-and-forget after the call returns
+    let logged = 0;
+    for (let i = 0; i < 20 && !logged; i++) {
+      await withOrgContext(pool, orgId, async (c) => {
+        const u = await c.query(
+          `SELECT count(*)::int AS n FROM ai_usage WHERE feature = 'reply-draft'`,
+        );
+        logged = u.rows[0].n;
+      });
+      if (!logged) await new Promise((r) => setTimeout(r, 100));
+    }
+    expect(logged).toBe(1);
+
+    await request(app.getHttpServer())
+      .post('/ai/reply-draft')
+      .set('Authorization', auth())
+      .send({ conversationId: randomUUID() })
+      .expect(404);
+  });
+
+  it('refines an email by instruction, keeping tokens (T6.3)', async () => {
+    const body =
+      'Hi {first_name|there},\n\nPara two.\n\nPara three.\n\nPara four.\n\n{sender_name}';
+    const r = await request(app.getHttpServer())
+      .post('/ai/refine')
+      .set('Authorization', auth())
+      .send({
+        subject: 'Idea for {company}',
+        body,
+        instruction: 'make it shorter',
+      })
+      .expect(200);
+    expect(r.body.subject).toBe('Idea for {company}');
+    expect(r.body.body).toContain('{first_name|there}');
+    expect(r.body.body.length).toBeLessThan(body.length);
+
+    await request(app.getHttpServer())
+      .post('/ai/refine')
+      .set('Authorization', auth())
+      .send({ subject: 'x', body: 'y' })
+      .expect(400); // instruction required
+  });
 });

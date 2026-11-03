@@ -11,6 +11,7 @@ import {
   Mail,
   MailOpen,
   Send,
+  Sparkles,
   Search,
   X,
 } from "lucide-react";
@@ -33,6 +34,7 @@ import { errorMessage } from "@/lib/api";
 import { toast } from "@/components/feedback";
 import { timeAgo } from "@/lib/analytics";
 import { Campaign, listCampaigns } from "@/lib/campaigns";
+import { draftReply } from "@/lib/ai";
 import { useLive } from "@/lib/realtime";
 
 const FILTERS: { key: string; label: string }[] = [
@@ -91,6 +93,7 @@ function Inbox() {
   const [note, setNote] = useState("");
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
+  const [drafting, setDrafting] = useState(false);
   const [mode, setMode] = useState<"reply" | "note">("reply");
 
   useEffect(() => {
@@ -145,6 +148,20 @@ function Inbox() {
     if (deepLink) void open(deepLink);
   }, [deepLink]);
 
+  // T6.6: AI drafts the reply; anything already typed is used as guidance.
+  async function aiDraft() {
+    if (!selected || drafting) return;
+    setDrafting(true);
+    try {
+      const d = await draftReply(selected.id, reply.trim() || undefined);
+      setReply(d.body);
+    } catch (e) {
+      toast(errorMessage(e, "Couldn't draft a reply."), "error");
+    } finally {
+      setDrafting(false);
+    }
+  }
+
   async function sendReply() {
     if (!selected || !reply.trim()) return;
     setSending(true);
@@ -179,7 +196,7 @@ function Inbox() {
   return (
     <div className="mx-auto flex h-[calc(100vh-7rem)] max-w-shell overflow-hidden rounded-lg border border-line bg-white">
       {/* list */}
-      <aside className="flex w-80 shrink-0 flex-col border-r border-line">
+      <aside className="flex w-60 shrink-0 flex-col border-r border-line lg:w-80">
         <div className="space-y-2 border-b border-line p-3">
           <div className="relative">
             <Search size={14} className="absolute left-2.5 top-2.5 text-faint" />
@@ -306,8 +323,8 @@ function Inbox() {
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-2 border-b border-line px-4 py-3">
-              <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
+              <div className="min-w-0 flex-1 basis-40">
                 <h2 className="truncate text-sm font-semibold text-ink2">
                   {selected.subject || "(no subject)"}
                 </h2>
@@ -387,7 +404,7 @@ function Inbox() {
                       : "border-line bg-white"
                   }`}
                 >
-                  <div className="mb-1 flex items-center justify-between gap-3 text-tiny text-faint">
+                  <div className="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-tiny text-faint">
                     <span>
                       {m.direction === "outbound" ? "You" : m.from_email} ·{" "}
                       {new Date(m.created_at).toLocaleString()}
@@ -441,10 +458,20 @@ function Inbox() {
                     placeholder={`Reply to ${selected.lead?.email ?? "the lead"}…`}
                     className={`${field} w-full`}
                   />
-                  <div className="flex items-center justify-between">
-                    <span className="text-tiny text-faint">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="min-w-0 text-tiny text-faint">
                       Sends from {selected.sender_email ?? "your first sender"}, threaded · Ctrl+Enter
                     </span>
+                    <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => void aiDraft()}
+                      disabled={drafting || sending}
+                      title="Draft with AI — type a few notes first to steer it"
+                      className="flex items-center gap-1.5 rounded border border-line-mid px-2.5 py-1.5 text-sm text-ink hover:bg-hover disabled:opacity-50"
+                    >
+                      <Sparkles size={13} className="text-accent" />{" "}
+                      {drafting ? "Drafting…" : reply.trim() ? "Rewrite with AI" : "Draft with AI"}
+                    </button>
                     <button
                       onClick={() => void sendReply()}
                       disabled={!reply.trim() || sending}
@@ -452,6 +479,7 @@ function Inbox() {
                     >
                       <Send size={13} /> {sending ? "Sending…" : "Send reply"}
                     </button>
+                    </div>
                   </div>
                 </div>
               ) : (

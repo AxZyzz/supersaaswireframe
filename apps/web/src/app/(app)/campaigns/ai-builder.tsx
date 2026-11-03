@@ -8,13 +8,14 @@ import {
   GeneratedStep,
 } from "@/lib/ai";
 import { Segment } from "@/lib/segments";
+import { AiEditBar } from "@/components/ai-edit-bar";
 
 const field =
   "rounded border border-line-mid bg-white px-2.5 py-1.5 text-sm outline-none focus:border-accent";
 
 // AI campaign builder (T6.3): brief -> generate a sequence -> review/edit steps
-// -> approve into a draft campaign. Works on the mock provider (returns no
-// steps — add manually); real copy needs AWS Bedrock creds.
+// (by hand or by asking the AI) -> approve into a draft campaign. The mock
+// provider returns realistic placeholder copy; real copy needs Bedrock creds.
 export default function AiBuilder({
   segments,
   onClose,
@@ -202,6 +203,10 @@ export default function AiBuilder({
                     placeholder="Email body (supports {first_name} tokens)"
                     rows={4}
                     className={`${field} w-full`}
+                  />
+                  <AiEditBar
+                    draft={{ subject: s.subject, body: s.body }}
+                    onChange={(d) => setStep(i, d)}
                   />
                 </div>
               ))}

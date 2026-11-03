@@ -52,3 +52,16 @@ export class CampaignFromSequenceDto {
   @Type(() => SequenceStepDto)
   steps!: SequenceStepDto[];
 }
+
+// Draft a reply for an inbox conversation (T6.6).
+export class ReplyDraftDto {
+  @IsUUID() conversationId!: string;
+  @IsOptional() @IsString() @MaxLength(500) instruction?: string;
+}
+
+// Revise one email by instruction (T6.3 chat editing).
+export class RefineEmailDto {
+  @IsString() @MaxLength(300) subject!: string;
+  @IsString() @MaxLength(20000) body!: string;
+  @IsString() @MaxLength(500) instruction!: string;
+}

@@ -71,6 +71,32 @@ function mockSequence(opts: AIGenerateOptions) {
   };
 }
 
+// Reply drafts / refinements: a readable, deterministic stand-in so the inbox
+// and builder flows demo end to end without a model.
+function mockDraft(opts: AIGenerateOptions): Record<string, string> | null {
+  const prompt = opts.messages.map((m) => m.content).join('\n');
+  if (opts.promptVersion?.startsWith('reply-draft')) {
+    const sign = /Sign off as (.+?)\./.exec(opts.system ?? '')?.[1];
+    return {
+      body: `Thanks for getting back to me! Happy to walk you through it — would a 15-minute call on Tuesday or Wednesday work?${sign ? `\n\n${sign}` : ''}`,
+    };
+  }
+  if (opts.promptVersion?.startsWith('refine-email')) {
+    const subject = /^Subject: (.*)$/m.exec(prompt)?.[1] ?? '';
+    const body = /<email>\n([\s\S]*?)\n<\/email>/.exec(prompt)?.[1] ?? '';
+    const change = /Change: (.*)$/m.exec(prompt)?.[1] ?? '';
+    // "shorter" keeps the first paragraph + sign-off; anything else is noted
+    const paras = body.split(/\n\n+/);
+    const revised = /short|brief|concise/i.test(change)
+      ? [paras[0], paras[1], paras[paras.length - 1]]
+          .filter((p, i, a) => p && a.indexOf(p) === i)
+          .join('\n\n')
+      : `${body}\n\n(mock edit: ${change})`;
+    return { subject, body: revised };
+  }
+  return null;
+}
+
 // Deterministic AI provider for dev + tests (AI_DRIVER=mock). No network, no
 // credentials. Structured requests return schema-valid JSON; free-form requests
 // echo a stable, recognizable string.
@@ -79,7 +105,7 @@ export class MockAIProvider implements AIProvider {
   readonly name = 'mock';
 
   generate(opts: AIGenerateOptions): Promise<AIResult> {
-    const sequence = mockSequence(opts);
+    const sequence = mockSequence(opts) ?? mockDraft(opts);
     const text = sequence
       ? JSON.stringify(sequence)
       : opts.jsonSchema
