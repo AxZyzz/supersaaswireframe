@@ -16,6 +16,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { OperatorModule } from './operator/operator.module';
 import { OrgsModule } from './orgs/orgs.module';
 import { CAMPAIGN_SEND_QUEUE, QueueModule } from './queue/queue.module';
+import { RealtimeModule } from './realtime/realtime.module';
 import { SendersModule } from './senders/senders.module';
 import { SendingModule } from './sending/sending.module';
 import { TemplatesModule } from './templates/templates.module';
@@ -33,6 +34,7 @@ import { UsageModule } from './usage/usage.module';
     CryptoModule,
     QueueModule,
     UsageModule,
+    RealtimeModule,
     // readiness probe pings Redis through this queue's connection
     BullModule.registerQueue({ name: CAMPAIGN_SEND_QUEUE }),
     AuthModule,

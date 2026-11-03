@@ -7,6 +7,7 @@ import { clearTokens, errorMessage } from "@/lib/api";
 import { HelpLink } from "@/components/help-link";
 import { getMe } from "@/lib/me";
 import { deleteAccount, deleteWorkspace, exportWorkspace, getOrg } from "@/lib/org";
+import { disconnectLive } from "@/lib/realtime";
 
 const field =
   "w-full rounded border border-line-mid bg-white px-2.5 py-1.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft2";
@@ -55,6 +56,7 @@ export function PrivacySection() {
 
   const goodbye = () => {
     clearTokens();
+    disconnectLive();
     router.replace("/");
   };
 

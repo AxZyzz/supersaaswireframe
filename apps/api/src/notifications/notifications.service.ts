@@ -2,6 +2,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool, PoolClient } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { RealtimeService } from '../realtime/realtime.service';
 
 export interface NewNotification {
   type: string;
@@ -25,7 +26,10 @@ export interface NotificationRow {
 // event that caused it.
 @Injectable()
 export class NotificationsService {
-  constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
+  constructor(
+    @Inject(PG_POOL) private readonly pool: Pool,
+    private readonly realtime: RealtimeService,
+  ) {}
 
   // Fan out to every member of the org (one row each → per-user read state).
   async notifyOrg(c: PoolClient, orgId: string, n: NewNotification) {
@@ -72,8 +76,8 @@ export class NotificationsService {
     });
   }
 
-  markRead(orgId: string, userId: string, id: string) {
-    return withOrgContext(this.pool, orgId, async (c) => {
+  async markRead(orgId: string, userId: string, id: string) {
+    const r = await withOrgContext(this.pool, orgId, async (c) => {
       const r = await c.query(
         `UPDATE notifications SET read_at = COALESCE(read_at, now())
          WHERE id = $1 AND user_id = $2`,
@@ -83,10 +87,13 @@ export class NotificationsService {
         throw new NotFoundException('Notification not found');
       return { read: true };
     });
+    // keep the bell in sync across this user's other tabs
+    this.realtime.toUser(userId, { type: 'notifications' });
+    return r;
   }
 
-  markAllRead(orgId: string, userId: string) {
-    return withOrgContext(this.pool, orgId, async (c) => {
+  async markAllRead(orgId: string, userId: string) {
+    const r = await withOrgContext(this.pool, orgId, async (c) => {
       const r = await c.query(
         `UPDATE notifications SET read_at = now()
          WHERE user_id = $1 AND read_at IS NULL`,
@@ -94,5 +101,7 @@ export class NotificationsService {
       );
       return { marked: r.rowCount ?? 0 };
     });
+    this.realtime.toUser(userId, { type: 'notifications' });
+    return r;
   }
 }

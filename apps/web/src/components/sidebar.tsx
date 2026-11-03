@@ -19,6 +19,7 @@ import {
 import { clearTokens } from "@/lib/api";
 import { unreadCount } from "@/lib/inbox";
 import { useIsOperator } from "@/lib/me";
+import { disconnectLive, useLive } from "@/lib/realtime";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -47,8 +48,8 @@ export function Sidebar({
     .slice(0, 2)
     .toUpperCase();
 
-  // Unread inbox badge — polled (and refreshed on navigation) until the live
-  // socket gateway (T7.2) lands.
+  // Unread inbox badge — pushed live over the socket; the 30s poll and
+  // per-navigation refresh are the fallback if the socket is down.
   const [unread, setUnread] = useState(0);
   useEffect(() => {
     let live = true;
@@ -63,6 +64,11 @@ export function Sidebar({
       clearInterval(t);
     };
   }, [pathname]);
+  useLive("inbox", () => {
+    void unreadCount()
+      .then((r) => setUnread(r.unread))
+      .catch(() => undefined);
+  });
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-sidebar">
@@ -152,6 +158,7 @@ export function Sidebar({
         <button
           onClick={() => {
             clearTokens();
+            disconnectLive();
             router.replace("/login");
           }}
           className="flex w-full items-center gap-2.5 rounded px-2.5 py-1.5 text-sm text-muted hover:bg-hover hover:text-ink"

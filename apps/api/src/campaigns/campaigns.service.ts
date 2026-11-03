@@ -14,6 +14,7 @@ import type {
   UpdateCampaignDto,
   UpdateStepDto,
 } from './campaign.dto';
+import { RealtimeService } from '../realtime/realtime.service';
 
 const CAMPAIGN_COLS = `id, name, status, segment_id, sender_ids, scheduled_at,
   started_at, archived_at, created_at, updated_at`;
@@ -49,6 +50,7 @@ export class CampaignsService {
   constructor(
     @Inject(PG_POOL) private readonly pool: Pool,
     private readonly usage: UsageService,
+    private readonly realtime: RealtimeService,
   ) {}
 
   private run<T>(orgId: string, fn: (c: PoolClient) => Promise<T>) {
@@ -235,12 +237,19 @@ export class CampaignsService {
     });
   }
 
-  pause(orgId: string, id: string) {
-    return this.setStatus(orgId, id, 'paused', ['active', 'scheduled']);
+  async pause(orgId: string, id: string) {
+    const c = await this.setStatus(orgId, id, 'paused', [
+      'active',
+      'scheduled',
+    ]);
+    this.realtime.toOrg(orgId, { type: 'campaigns', id });
+    return c;
   }
 
-  resume(orgId: string, id: string) {
-    return this.setStatus(orgId, id, 'active', ['paused']);
+  async resume(orgId: string, id: string) {
+    const c = await this.setStatus(orgId, id, 'active', ['paused']);
+    this.realtime.toOrg(orgId, { type: 'campaigns', id });
+    return c;
   }
 
   // Schedule a future start: materialize the audience now with each lead's first

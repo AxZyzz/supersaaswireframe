@@ -8,6 +8,7 @@ import { SendersService } from '../senders/senders.service';
 import { varsFromLead } from '../templates/render';
 import { buildEmail } from './send-render';
 import { UsageService } from '../usage/usage.service';
+import { RealtimeService } from '../realtime/realtime.service';
 
 type Outcome =
   'sent' | 'failed' | 'skipped' | 'deferred' | 'completed' | 'suppressed';
@@ -38,6 +39,7 @@ export class SendService {
     private readonly senders: SendersService,
     private readonly config: ConfigService,
     private readonly usage: UsageService,
+    private readonly realtime: RealtimeService,
   ) {}
 
   private get baseUrl(): string {
@@ -62,6 +64,7 @@ export class SendService {
       completed: 0,
       suppressed: 0,
     };
+    const touched = new Set<string>();
     for (const row of due.rows) {
       try {
         const outcome = await this.processLead(
@@ -69,6 +72,8 @@ export class SendService {
           row.campaign_lead_id,
         );
         counts[outcome]++;
+        if (outcome !== 'deferred' && outcome !== 'skipped')
+          touched.add(row.org_id);
       } catch (err) {
         counts.failed++;
         this.logger.error(
@@ -77,6 +82,8 @@ export class SendService {
         );
       }
     }
+    // one "campaign stats changed" per workspace per tick, not per email
+    for (const org of touched) this.realtime.toOrg(org, { type: 'campaigns' });
     return counts;
   }
 

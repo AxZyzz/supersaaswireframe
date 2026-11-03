@@ -28,6 +28,7 @@ import {
   updateConversation,
 } from "@/lib/inbox";
 import { timeAgo } from "@/lib/analytics";
+import { useLive } from "@/lib/realtime";
 
 const FILTERS: { key: string; label: string }[] = [
   { key: "all", label: "All" },
@@ -95,6 +96,14 @@ function Inbox() {
       setRows((rs) => rs.map((r) => (r.id === id ? { ...r, unread: false } : r)));
     }
   }
+
+  // Live: new replies, assignment and notes from teammates appear instantly.
+  useLive("inbox", (e) => {
+    void load();
+    if (selected && e.id === selected.id) {
+      void getConversation(selected.id).then(setSelected);
+    }
+  });
 
   // Open a conversation linked from a notification (/inbox?c=<id>).
   useEffect(() => {

@@ -11,6 +11,7 @@ import {
   notificationUnread,
 } from "@/lib/notifications";
 import { timeAgo } from "@/lib/analytics";
+import { useLive } from "@/lib/realtime";
 
 // Header notification center (T7.5). Polls the unread count; the live socket
 // gateway (T7.2) will push instead.
@@ -43,6 +44,14 @@ export function NotificationBell() {
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
+
+  // Live: new notifications (and reads in other tabs) update the bell.
+  useLive("notifications", () => {
+    void notificationUnread()
+      .then((r) => setUnread(r.unread))
+      .catch(() => undefined);
+    if (open) void listNotifications().then(setItems);
+  });
 
   async function toggle() {
     const next = !open;

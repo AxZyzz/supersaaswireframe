@@ -16,6 +16,7 @@ import {
 } from '../ai/prompts';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { RealtimeService } from '../realtime/realtime.service';
 
 export interface IngestReplyInput {
   fromEmail: string;
@@ -109,6 +110,7 @@ export class InboxService {
     @Inject(PG_POOL) private readonly pool: Pool,
     private readonly ai: AiService,
     private readonly notifications: NotificationsService,
+    private readonly realtime: RealtimeService,
   ) {}
 
   async ingestReply(
@@ -170,7 +172,7 @@ export class InboxService {
       : await this.classify(orgId, input, kb);
 
     // Phase 3: thread + record + automations.
-    return withOrgContext(this.pool, orgId, async (c) => {
+    const result = await withOrgContext(this.pool, orgId, async (c) => {
       const existing = await c.query<{ id: string }>(
         `SELECT id FROM conversations
          WHERE lead_id = $1 AND campaign_id IS NOT DISTINCT FROM $2
@@ -270,6 +272,10 @@ export class InboxService {
 
       return { conversationId, classification, confidence, action };
     });
+    // after commit, so clients that refetch immediately see the reply
+    this.realtime.toOrg(orgId, { type: 'inbox', id: result.conversationId });
+    this.realtime.toOrg(orgId, { type: 'notifications' });
+    return result;
   }
 
   private async classify(
@@ -507,8 +513,8 @@ export class InboxService {
   }
 
   // Internal team note (never sent to the lead).
-  addNote(orgId: string, userId: string, id: string, body: string) {
-    return withOrgContext(this.pool, orgId, async (c) => {
+  async addNote(orgId: string, userId: string, id: string, body: string) {
+    const note = await withOrgContext(this.pool, orgId, async (c) => {
       const conv = await c.query(`SELECT 1 FROM conversations WHERE id = $1`, [
         id,
       ]);
@@ -522,6 +528,8 @@ export class InboxService {
       );
       return r.rows[0];
     });
+    this.realtime.toOrg(orgId, { type: 'inbox', id });
+    return note;
   }
 
   async update(
@@ -604,7 +612,12 @@ export class InboxService {
         }
       });
     }
-    return this.updateFields(orgId, id, patch);
+    const updated = await this.updateFields(orgId, id, patch);
+    this.realtime.toOrg(orgId, { type: 'inbox', id });
+    if (patch.assignedUserId) {
+      this.realtime.toUser(patch.assignedUserId, { type: 'notifications' });
+    }
+    return updated;
   }
 
   private updateFields(orgId: string, id: string, patch: ConversationPatch) {

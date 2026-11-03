@@ -16,6 +16,7 @@ import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { NotificationsService } from '../notifications/notifications.service';
 import { LimitReachedException, UsageService } from '../usage/usage.service';
+import { RealtimeService } from '../realtime/realtime.service';
 
 const INVITE_TTL_DAYS = 7;
 const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
@@ -64,6 +65,7 @@ export class TeamService {
     private readonly memberships: MembershipCache,
     private readonly notifications: NotificationsService,
     private readonly usage: UsageService,
+    private readonly realtime: RealtimeService,
   ) {}
 
   // ── Members ────────────────────────────────────────────────────────────
@@ -92,6 +94,7 @@ export class TeamService {
       );
     });
     this.memberships.invalidate(userId);
+    this.realtime.toOrg(orgId, { type: 'team' });
     return { userId, role };
   }
 
@@ -107,6 +110,7 @@ export class TeamService {
       );
     });
     this.memberships.invalidate(userId);
+    this.realtime.toOrg(orgId, { type: 'team' });
     return { removed: userId };
   }
 
@@ -302,5 +306,7 @@ export class TeamService {
       );
     });
     this.memberships.invalidate(userId);
+    this.realtime.toOrg(inv.org_id, { type: 'team' });
+    this.realtime.toOrg(inv.org_id, { type: 'notifications' });
   }
 }

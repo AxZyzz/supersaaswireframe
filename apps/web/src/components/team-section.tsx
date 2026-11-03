@@ -19,6 +19,7 @@ import {
   TeamMember,
 } from "@/lib/team";
 import { HelpLink } from "@/components/help-link";
+import { useLive } from "@/lib/realtime";
 
 const ROLES = Object.keys(ROLE_META) as Role[];
 
@@ -54,6 +55,11 @@ export function TeamSection() {
       if (m.role !== "agent") void load(m.role === "admin");
     });
   }, [load]);
+
+  // Live: joins, role changes and removals by other admins.
+  useLive("team", () => {
+    if (me && me.role !== "agent") void load(me.role === "admin");
+  });
 
   async function run(fn: () => Promise<unknown>) {
     setErr(null);

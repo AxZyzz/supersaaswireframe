@@ -4,6 +4,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { RedisIoAdapter } from './realtime/redis-io.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -35,6 +36,11 @@ async function bootstrap() {
     credentials: true,
   });
   app.enableShutdownHooks();
+
+  // Live updates fan out through Redis so every API instance sees them.
+  const io = new RedisIoAdapter(app);
+  io.connect(process.env.REDIS_URL ?? 'redis://localhost:6379');
+  app.useWebSocketAdapter(io);
 
   // API docs are a recon map — dev only unless explicitly switched on.
   if (!isProd || process.env.SWAGGER === 'on') {

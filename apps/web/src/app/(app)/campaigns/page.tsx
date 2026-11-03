@@ -37,6 +37,7 @@ import { listSegments, Segment } from "@/lib/segments";
 import { listSenders, Sender } from "@/lib/senders";
 import CampaignWizard from "./campaign-wizard";
 import AiBuilder from "./ai-builder";
+import { useLive } from "@/lib/realtime";
 
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-neut-bg text-muted",
@@ -78,6 +79,12 @@ export default function CampaignsPage() {
 
   const open = useCallback(async (id: string) => {
     setNote(null);
+    await refresh(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reload a campaign's detail without clearing the status note — used by
+  // live updates, so "Processed: N sent" isn't wiped by its own event.
+  const refresh = useCallback(async (id: string) => {
     const [detail, aud, st] = await Promise.all([
       getCampaign(id),
       campaignAudience(id),
@@ -87,6 +94,12 @@ export default function CampaignsPage() {
     setAudience(aud.count);
     setStats(st);
   }, []);
+
+  // Live: sends, pauses and resumes from anywhere update this page.
+  useLive("campaigns", () => {
+    void loadList();
+    if (selected) void refresh(selected.id);
+  });
 
   async function wizardDone(id: string) {
     setWizardOpen(false);
