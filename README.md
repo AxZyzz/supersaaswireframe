@@ -24,9 +24,13 @@ npm run dev:web             # Next.js on :3000
 npm run dev:wireframe       # Phase 0 prototype (Vite)
 ```
 
-Account prerequisites (AWS/SES, Google Cloud, Anthropic): see [`docs/SETUP-ACCOUNTS.md`](docs/SETUP-ACCOUNTS.md).
+Account prerequisites (AWS/SES + Bedrock, Google Cloud): see [`docs/SETUP-ACCOUNTS.md`](docs/SETUP-ACCOUNTS.md).
 
 ## Status
 
-E0 (setup) in progress. Execution plan lives in the A2B vault:
+V1 in progress. Built and tested: leads, campaigns, AI builder, send engine,
+inbox, analytics, team/onboarding, operator console, and SMTP + Gmail sending.
+Next up: Google Sheets sync (Google credentials are in place). Waiting on
+accounts or decisions: SES sending, bounce/complaint webhooks, inbound reply
+capture, real Claude via Bedrock, Sentry, hosting. Task-by-task status lives in the A2B vault:
 `Company/A2B AI Technologies/Products/SuperSaaS/V1 Task Breakdown.md`.

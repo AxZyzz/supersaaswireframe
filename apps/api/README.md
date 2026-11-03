@@ -1,98 +1,42 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# SuperSaaS API (`apps/api`)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS 11 backend: REST API, Socket.io (`/realtime`) and BullMQ workers in one
+process. Postgres 16 with row-level security for workspace isolation; Redis 7
+for queues, the send scheduler, rate limits and realtime fan-out.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Setup, environment variables, deploys and incident playbooks live in
+[`docs/RUNBOOK.md`](../../docs/RUNBOOK.md). Account prerequisites (AWS, Google)
+are in [`docs/SETUP-ACCOUNTS.md`](../../docs/SETUP-ACCOUNTS.md).
 
-## Description
+## Scripts (run from the repo root with `-w apps/api`)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+| Command | What |
+|---|---|
+| `npm run start:dev -w apps/api` | API on :4000 with reload (root shortcut: `npm run dev:api`) |
+| `npm run db:migrate -w apps/api` | Apply migrations (uses `MIGRATE_DATABASE_URL`, the owner role) |
+| `npm run db:seed -w apps/api` | Demo data |
+| `npm test -w apps/api` | Unit + integration tests (need Postgres + Redis) |
+| `npm run lint -w apps/api` | ESLint + Prettier, check only (what CI runs) |
+| `npm run lint:fix -w apps/api` | Same, applying fixes |
+| `npm run eval -w apps/api` | AI prompt eval set (`AI_DRIVER=bedrock` for real scores) |
+| `npm run operator -w apps/api -- grant <email>` | Give A2B staff the operator console |
 
-## Project setup
+Test switches: `LIVE_DNS=1` runs the real-DNS sender check offline machines
+skip (CI always runs it); `UPDATE_AUTHZ=1` regenerates
+`docs/AUTHZ-MATRIX.md`.
 
-```bash
-$ npm install
-```
+## Layout (`src/`)
 
-## Compile and run the project
+| Module | What |
+|---|---|
+| `auth`, `orgs`, `beta`, `operator` | Sign-in, sessions, workspaces, roles, invites, waitlist, A2B operator console |
+| `leads` | Leads, tags, statuses, CSV/Excel import, segments, public REST API + keys |
+| `senders` | Sender accounts, DNS checks, providers (SMTP, Gmail, SES stub, mock) |
+| `templates`, `campaigns`, `sending` | Templates, sequences, send scheduler, tracking, unsubscribe |
+| `ai` | Claude via Bedrock (or the mock driver), knowledge base, prompts + evals |
+| `inbox`, `notifications`, `realtime` | Unified inbox, notifications, Socket.io live updates |
+| `analytics`, `usage` | Dashboards, reports, plan limits |
+| `db`, `crypto`, `config`, `queue` | Schema + RLS context, AES-256 secrets, env validation, BullMQ |
 
-```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
-```
-
-## Run tests
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Every route's access rule is listed in
+[`docs/AUTHZ-MATRIX.md`](../../docs/AUTHZ-MATRIX.md) (generated by a test).

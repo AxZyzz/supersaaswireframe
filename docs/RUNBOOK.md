@@ -9,7 +9,7 @@ commands to the platform once chosen. Last reviewed 2026-11-03.
 
 | Piece | What | Notes |
 |---|---|---|
-| `apps/web` | Next.js 15 frontend | Static marketing pages + client app. Deployed on Vercel (root dir `apps/web`). Needs `NEXT_PUBLIC_API_URL` at **build** time. |
+| `apps/web` | Next.js 16 frontend | Static marketing pages + client app. Deployed on Vercel (root dir `apps/web`). Needs `NEXT_PUBLIC_API_URL` at **build** time. |
 | `apps/api` | NestJS 11 API + workers | One process serves HTTP, Socket.io (`/realtime`) and BullMQ workers (CSV import, segment refresh, send scheduler). |
 | Postgres 16 | All data | Row-level security on every tenant table. App connects as `supersaas_app` (restricted); migrations run as the owner role. |
 | Redis 7 | Queues + realtime fan-out | BullMQ jobs, the 30s send scheduler, Socket.io Redis adapter. Losing Redis loses queued jobs, not data. |
@@ -54,6 +54,8 @@ npm run dev:web                     # :3000
 ```
 
 - Tests: `npm test -w apps/api` (needs Docker) · browser E2E: `npm run e2e -w apps/e2e`
+- Lint is check-only (`npm run lint`); auto-fix with `npm run lint:fix -w apps/api`
+- The live-DNS sender test only runs in CI or with `LIVE_DNS=1` (offline machines skip it)
 - AI quality: `npm run eval -w apps/api` (mock = pipeline check; `AI_DRIVER=bedrock` = real scores)
 - **Docker Desktop won't start on Windows** ("cannot remove … dockerInference / engine.sock"):
   quit Docker, `wsl --shutdown`, rename `%LOCALAPPDATA%\Docker\run` and
