@@ -118,7 +118,7 @@ npm run operator -w apps/api -- list
 ```
 
 - **Beta invites:** set `SIGNUP_MODE=waitlist` on the API. Sign-up then needs an invite; visitors join the waitlist instead. In the operator console, *Approve* a waitlist entry to get a single-use link bound to that email, and send it from your inbox. Feedback from the in-app button shows up next to the waitlist.
-- **Operator console** (`/operator` in the app): workspaces, sends, failures, queue health; switch a workspace between `beta` and `internal` (unlimited).
+- **Operator console** (`/operator` in the app): workspaces, sends, failures, queue health; switch a workspace between `beta` and `internal` (unlimited); **Pause sending** stops all of a workspace's active and scheduled campaigns.
 - **GDPR requests** are self-service: export in Settings → Data & privacy, Lead → Forget for one person, Delete workspace/account. If a requester can't log in, an operator can act on their behalf (verify identity first).
 
 ## 7. Incident playbooks
@@ -133,7 +133,7 @@ npm run operator -w apps/api -- list
 
 **Duplicate emails reported**: shouldn't be possible (lease); check `sent_emails` for the lead. If real, stop the scheduler (`SEND_SCHEDULER=off` on all instances), then investigate.
 
-**Spike in bounces/complaints**: ask the workspace admin to pause the affected campaigns (operators can't pause other workspaces' campaigns yet), and review where the list came from. Once SES webhooks land, hard bounces and complaints auto-suppress.
+**Spike in bounces/complaints**: Operator console → the workspace's row → **Pause sending** (asks for a reason, which every member sees in their notifications). Drafts are untouched; the workspace resumes campaigns itself once the list is cleaned. Then review where the list came from. Once SES webhooks land, hard bounces and complaints auto-suppress.
 
 **Leaked secret**:
 - `JWT_*_SECRET`: rotate and restart. Everyone is signed out, nothing else is affected.

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Activity, AlertTriangle, CheckCircle2, Server, XCircle } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, errorMessage } from "@/lib/api";
 import { timeAgo } from "@/lib/analytics";
 import { LoadError, loadErrorText, toast } from "@/components/feedback";
 import { OperatorBeta } from "@/components/operator-beta";
@@ -90,6 +90,29 @@ export default function OperatorPage() {
     });
     toast("Plan updated.");
     load();
+  }
+
+  // Incident brake (RUNBOOK §7): pause all of a workspace's sending
+  // campaigns. The reason is shown to its members; they resume themselves.
+  async function pauseCampaigns(id: string, name: string) {
+    const reason = window.prompt(
+      `Pause every active and scheduled campaign in "${name}"?\n\nReason (shown to the workspace):`,
+    );
+    if (!reason || reason.trim().length < 5) return;
+    try {
+      const r = await api<{ paused: number }>(
+        `/operator/orgs/${id}/pause-campaigns`,
+        { method: "POST", body: JSON.stringify({ reason: reason.trim() }) },
+      );
+      toast(
+        r.paused
+          ? `Paused ${r.paused} campaign${r.paused === 1 ? "" : "s"} in ${name}.`
+          : `${name} had nothing sending.`,
+      );
+      load();
+    } catch (e) {
+      toast(errorMessage(e, "Couldn't pause campaigns."));
+    }
   }
 
   if (err) return <LoadError message={err} onRetry={() => load()} />;
@@ -200,6 +223,7 @@ export default function OperatorPage() {
                 <th className="px-3 py-2 text-right font-medium">Sent 7d</th>
                 <th className="px-3 py-2 text-right font-medium">Failed 7d</th>
                 <th className="px-4 py-2 font-medium">Last send</th>
+                <th className="px-4 py-2" />
               </tr>
             </thead>
             <tbody>
@@ -233,6 +257,15 @@ export default function OperatorPage() {
                   </td>
                   <td className="px-4 py-2 text-tiny text-muted">
                     {o.last_sent_at ? timeAgo(o.last_sent_at) : "—"}
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    <button
+                      onClick={() => void pauseCampaigns(o.id, o.name)}
+                      title="Pause all active and scheduled campaigns"
+                      className="whitespace-nowrap text-tiny text-faint underline hover:text-danger-text"
+                    >
+                      Pause sending
+                    </button>
                   </td>
                 </tr>
               ))}

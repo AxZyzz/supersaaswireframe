@@ -172,6 +172,71 @@ describe('Operator console integration', () => {
     expect(h.body.queues.send).toBeDefined();
   });
 
+  it('can pause every sending campaign in a workspace, and says why', async () => {
+    const ids = await withOrgContext(pool, custOrg, async (c) => {
+      const r = await c.query<{ id: string; status: string }>(
+        `INSERT INTO campaigns (org_id, name, status) VALUES
+           ($1, 'A', 'active'), ($1, 'S', 'scheduled'), ($1, 'D', 'draft')
+         RETURNING id, status`,
+        [custOrg],
+      );
+      return Object.fromEntries(r.rows.map((x) => [x.status, x.id]));
+    });
+
+    // workspace admins can't use the operator brake on anyone
+    await http()
+      .post(`/operator/orgs/${custOrg}/pause-campaigns`)
+      .set('Authorization', bearer(custToken))
+      .send({ reason: 'nope nope' })
+      .expect(403);
+    // a reason is required (it's what the workspace sees)
+    await http()
+      .post(`/operator/orgs/${custOrg}/pause-campaigns`)
+      .set('Authorization', bearer(opToken))
+      .send({})
+      .expect(400);
+
+    const res = await http()
+      .post(`/operator/orgs/${custOrg}/pause-campaigns`)
+      .set('Authorization', bearer(opToken))
+      .send({ reason: 'Bounce rate spiked to 12% in the last hour.' })
+      .expect(200);
+    expect(res.body).toEqual({ id: custOrg, paused: 2 });
+
+    const rows = await withOrgContext(pool, custOrg, (c) =>
+      c.query<{ id: string; status: string }>(
+        `SELECT id, status FROM campaigns WHERE id = ANY($1::uuid[])`,
+        [Object.values(ids)],
+      ),
+    );
+    const status = Object.fromEntries(rows.rows.map((r) => [r.id, r.status]));
+    expect(status[ids.active]).toBe('paused');
+    expect(status[ids.scheduled]).toBe('paused');
+    expect(status[ids.draft]).toBe('draft'); // drafts untouched
+
+    const notes = await http()
+      .get('/notifications')
+      .set('Authorization', bearer(custToken))
+      .expect(200);
+    expect(JSON.stringify(notes.body)).toContain(
+      'Bounce rate spiked to 12% in the last hour.',
+    );
+
+    // nothing left to pause: no second notification
+    const again = await http()
+      .post(`/operator/orgs/${custOrg}/pause-campaigns`)
+      .set('Authorization', bearer(opToken))
+      .send({ reason: 'Second pass, still spiking.' })
+      .expect(200);
+    expect(again.body.paused).toBe(0);
+
+    await http()
+      .post(`/operator/orgs/${randomUUID()}/pause-campaigns`)
+      .set('Authorization', bearer(opToken))
+      .send({ reason: 'unknown workspace' })
+      .expect(404);
+  });
+
   it('revoking takes effect immediately', async () => {
     await pool.query(`UPDATE users SET is_operator = false WHERE id = $1`, [
       users[0],

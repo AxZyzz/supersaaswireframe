@@ -91,6 +91,7 @@
 | `GET /operator/health` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /operator/orgs` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /operator/orgs/:id` | operator | ⛔ | ⛔ | ⛔ |
+| `POST /operator/orgs/:id/pause-campaigns` | operator | ⛔ | ⛔ | ⛔ |
 | `PATCH /operator/orgs/:id/plan` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /operator/overview` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /operator/waitlist` | operator | ⛔ | ⛔ | ⛔ |
