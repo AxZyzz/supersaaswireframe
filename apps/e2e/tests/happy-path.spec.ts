@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import path from 'path';
 
 /**
  * The V1 happy path, driven through the real UI end to end:
@@ -102,6 +103,17 @@ test('signup to classified reply, through the UI', async ({ page }) => {
   await expect(page.getByText('3 in the last 7 days', { exact: true })).toBeVisible(); // emails sent
   await expect(page.getByText('33.3%')).toBeVisible(); // 1 reply / 3 sent
   await expect(page.getByText(/Ana\s+email replied/)).toBeVisible();
+
+  // ── Excel import (T2.5): .xlsx is converted in the browser ──────────
+  await page.goto('/leads');
+  await page.getByRole('button', { name: 'Import CSV' }).click();
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles(path.join(__dirname, '..', 'fixtures', 'leads.xlsx'));
+  await page.getByRole('button', { name: 'Import', exact: true }).click();
+  await expect(page.getByText(/Imported\s+2/)).toBeVisible();
+  await page.getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByText('dana@xlsx.local')).toBeVisible();
 
   // ── session hygiene: no tokens in page storage, logout really ends it ──
   const stored = await page.evaluate(() => JSON.stringify(localStorage));

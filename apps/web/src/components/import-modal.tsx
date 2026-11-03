@@ -9,6 +9,7 @@ import {
   ImportJob,
   uploadImport,
 } from "@/lib/leads";
+import { isExcel, xlsxToCsvFile } from "@/lib/xlsx-to-csv";
 
 type Stage = "pick" | "map" | "running" | "done";
 
@@ -26,6 +27,20 @@ export function ImportModal({
   const [onDuplicate, setOnDuplicate] = useState<"skip" | "update">("skip");
   const [job, setJob] = useState<ImportJob | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  async function choose(f: File) {
+    setError(null);
+    if (!isExcel(f)) return pick(f);
+    try {
+      pick(await xlsxToCsvFile(f));
+    } catch (e) {
+      setError(
+        e instanceof Error && e.message.includes("10 MB")
+          ? e.message
+          : "Couldn't read that Excel file. Save it as .xlsx or CSV and try again.",
+      );
+    }
+  }
 
   function pick(f: File) {
     setFile(f);
@@ -92,14 +107,17 @@ export function ImportModal({
         </div>
 
         <div className="max-h-[70vh] overflow-y-auto p-5">
+          {stage === "pick" && error && (
+            <p className="mb-3 rounded bg-danger-bg px-3 py-2 text-sm text-danger-text">{error}</p>
+          )}
           {stage === "pick" && (
             <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed border-line-mid bg-panel py-10 text-sm text-muted hover:bg-hover">
-              <span>Choose a CSV file to import</span>
+              <span>Choose a CSV or Excel (.xlsx) file to import</span>
               <input
                 type="file"
-                accept=".csv,text/csv"
+                accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 className="hidden"
-                onChange={(e) => e.target.files?.[0] && pick(e.target.files[0])}
+                onChange={(e) => e.target.files?.[0] && void choose(e.target.files[0])}
               />
               <span className="rounded bg-accent px-3 py-1.5 text-white">
                 Select file
