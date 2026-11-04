@@ -27,6 +27,17 @@ import type {
 const BCRYPT_ROUNDS = 12;
 const REFRESH_TTL_DAYS = 30;
 const RESET_TTL_MINUTES = 60;
+// bcrypt only uses the first 72 BYTES of a password; anything after is
+// silently ignored (two passwords sharing those bytes would both work).
+// Refuse longer ones instead of quietly weakening them.
+const BCRYPT_MAX_BYTES = 72;
+function assertHashablePassword(password: string) {
+  if (Buffer.byteLength(password, 'utf8') > BCRYPT_MAX_BYTES) {
+    throw new BadRequestException(
+      'Password is too long: use at most 72 characters (fewer with emoji or accented letters).',
+    );
+  }
+}
 // Window in which re-presenting a just-rotated refresh token is treated as a
 // concurrent-refresh race rather than token theft.
 const REUSE_GRACE_MS = 30_000;
@@ -137,6 +148,7 @@ export class AuthService {
     name: string;
   }): Promise<{ id: string; email: string; name: string }> {
     const email = input.email.trim().toLowerCase();
+    assertHashablePassword(input.password);
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
 
     const existing = await this.pool.query(
@@ -327,6 +339,7 @@ export class AuthService {
    * dies with the old password.
    */
   async resetPassword(token: string, password: string): Promise<{ ok: true }> {
+    assertHashablePassword(password);
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');

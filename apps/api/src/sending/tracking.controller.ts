@@ -11,6 +11,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 import { Public } from '../auth/decorators/public.decorator';
+import { clickKey, verifyClick } from './link-signing';
 import { TrackingService } from './tracking.service';
 
 // 43-byte 1x1 transparent GIF served for every open-pixel hit.
@@ -76,22 +77,38 @@ export class TrackingController {
     res.end(PIXEL);
   }
 
+  // Only follows (and only records) links we put in an email: `s` is an HMAC
+  // of the tracking id + destination (link-signing.ts). Anything else lands
+  // on the app, so this can't be used as an open redirect on our domain, and
+  // forged clicks can't inflate stats.
   @Get('t/c/:trackingId')
   async click(
     @Param('trackingId') trackingId: string,
     @Query('u') u: string,
+    @Query('s') s: string | undefined,
     @Headers('user-agent') userAgent: string | undefined,
     @Res() res: Response,
   ): Promise<void> {
     const target = this.safeUrl(u);
-    if (target && UUID_RE.test(trackingId)) {
-      try {
-        await this.tracking.recordClick(trackingId, target, userAgent);
-      } catch {
-        /* redirect regardless of logging outcome */
-      }
+    const signed =
+      !!target &&
+      UUID_RE.test(trackingId) &&
+      verifyClick(
+        clickKey(this.config.get<string>('APP_ENCRYPTION_KEY') ?? ''),
+        trackingId,
+        u,
+        s,
+      );
+    if (!signed || !target) {
+      res.redirect(302, this.fallbackUrl());
+      return;
     }
-    res.redirect(302, target ?? this.fallbackUrl());
+    try {
+      await this.tracking.recordClick(trackingId, target, userAgent);
+    } catch {
+      /* redirect regardless of logging outcome */
+    }
+    res.redirect(302, target);
   }
 
   // Landing page: a GET has no side effects (mail scanners prefetch links, and a

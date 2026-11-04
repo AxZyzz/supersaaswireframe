@@ -213,7 +213,7 @@ export class TemplatesService {
       }
       return {
         subject: renderTemplate(tpl.subject, vars),
-        html: renderTemplate(tpl.body_html, vars),
+        html: renderTemplate(tpl.body_html, vars, { html: true }),
         text: tpl.body_text ? renderTemplate(tpl.body_text, vars) : null,
       };
     });
@@ -230,7 +230,7 @@ export class TemplatesService {
     return this.senders.sendMessage(orgId, senderId, {
       to,
       subject: renderTemplate(tpl.subject, vars) || '(no subject)',
-      html: renderTemplate(tpl.body_html, vars),
+      html: renderTemplate(tpl.body_html, vars, { html: true }),
       text: tpl.body_text ? renderTemplate(tpl.body_text, vars) : undefined,
     });
   }

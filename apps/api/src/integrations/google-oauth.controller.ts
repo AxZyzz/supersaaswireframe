@@ -1,7 +1,11 @@
-import { Controller, Get, Query, Res } from '@nestjs/common';
-import type { Response } from 'express';
+import { Controller, Get, Query, Req, Res } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { Public } from '../auth/decorators/public.decorator';
-import { stateType } from '../google/google-oauth';
+import {
+  clearBrowserBinding,
+  readBrowserBinding,
+  stateType,
+} from '../google/google-oauth';
 import { GmailOAuthService } from '../senders/gmail-oauth.service';
 import { SheetsOAuthService } from './sheets-oauth.service';
 
@@ -25,13 +29,16 @@ export class GoogleOAuthController {
     @Query('code') code: string | undefined,
     @Query('state') state: string | undefined,
     @Query('error') error: string | undefined,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     const q = { code, state, error };
+    const nonce = readBrowserBinding(req);
     const next =
       stateType(state) === 'sheets-connect'
-        ? await this.sheets.handleCallback(q)
-        : await this.gmail.handleCallback(q);
+        ? await this.sheets.handleCallback(q, nonce)
+        : await this.gmail.handleCallback(q, nonce);
+    clearBrowserBinding(res); // single use
     res.redirect(302, next);
   }
 }

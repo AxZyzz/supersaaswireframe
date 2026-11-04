@@ -116,9 +116,9 @@ export class TrackingService {
     trackingId: string,
     url: string,
     userAgent?: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const t = await this.resolveTracking(trackingId);
-    if (!t) return;
+    if (!t) return false;
     await withOrgContext(this.pool, t.org_id, async (c) => {
       if (await this.logIfBot(c, t, 'click', userAgent, { url })) return;
       await c.query(
@@ -154,6 +154,7 @@ export class TrackingService {
         );
       }
     });
+    return true;
   }
 
   // Suppress the recipient org-wide (so every campaign stops emailing them) and

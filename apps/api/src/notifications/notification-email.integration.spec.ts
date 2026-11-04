@@ -109,7 +109,9 @@ describe('Notification emails integration', () => {
 
   it('waits out the delay, then sends one email per notification', async () => {
     await notify('reply', 'Priya replied', 'Sounds good, call Tuesday?');
-    expect((await emails.flush(60)).handled).toBe(0); // too fresh
+    const beforeFresh = mine().length;
+    await emails.flush(60); // too fresh: nothing for this user yet
+    expect(mine().length).toBe(beforeFresh);
     expect(await pending()).toBe(1);
 
     const before = mine().length;

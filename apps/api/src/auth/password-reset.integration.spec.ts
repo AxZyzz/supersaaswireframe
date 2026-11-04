@@ -133,6 +133,27 @@ describe('Password reset integration', () => {
       .expect(400);
   });
 
+  it('refuses passwords bcrypt would truncate (> 72 bytes)', async () => {
+    const long = 'p'.repeat(73);
+    const r = await http()
+      .post('/auth/signup')
+      .send({
+        email: `long-${randomUUID().slice(0, 8)}@test.local`,
+        password: long,
+        name: 'L',
+        orgName: 'L',
+      })
+      .expect(400);
+    expect(r.body.message).toMatch(/too long/);
+    // 72 ASCII bytes is fine; 30 emoji (120 bytes) is not
+    await http().post('/auth/forgot-password').send({ email }).expect(200);
+    const token = lastResetToken();
+    await http()
+      .post('/auth/reset-password')
+      .send({ token, password: '😀'.repeat(30) })
+      .expect(400);
+  });
+
   it('rejects an expired link', async () => {
     await http().post('/auth/forgot-password').send({ email }).expect(200);
     const token = lastResetToken();

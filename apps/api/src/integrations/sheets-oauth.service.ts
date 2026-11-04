@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { MembershipCache } from '../auth/membership-cache.service';
 import type { AuthUser } from '../auth/types';
 import {
+  assertSameBrowser,
   buildAuthUrl,
   ConnectError,
   emailFromIdToken,
@@ -32,6 +33,8 @@ interface SheetsState {
   sub: string;
   orgId: string;
   returnTo: ReturnPath;
+  /** sha256 of the browser-binding cookie (OAuth CSRF guard). */
+  nh: string;
 }
 
 /**
@@ -53,7 +56,11 @@ export class SheetsOAuthService {
     private readonly integrations: IntegrationsService,
   ) {}
 
-  async connectUrl(user: AuthUser, returnTo?: string) {
+  async connectUrl(
+    user: AuthUser,
+    returnTo: string | undefined,
+    nonceHash: string,
+  ) {
     if (!googleConfigured(this.config)) {
       throw new ServiceUnavailableException(
         'Google Sheets is not enabled on this server yet (Google OAuth credentials missing).',
@@ -66,22 +73,24 @@ export class SheetsOAuthService {
       returnTo: RETURN_PATHS.includes(returnTo as ReturnPath)
         ? (returnTo as ReturnPath)
         : '/settings',
+      nh: nonceHash,
     };
     const signed = await this.jwt.signAsync(state, { expiresIn: '10m' });
     return { url: buildAuthUrl(this.config, SCOPES, signed) };
   }
 
-  async handleCallback(q: {
-    code?: string;
-    state?: string;
-    error?: string;
-  }): Promise<string> {
+  async handleCallback(
+    q: { code?: string; state?: string; error?: string },
+    /** Value of the browser-binding cookie on this request. */
+    browserNonce?: string | null,
+  ): Promise<string> {
     let returnTo: ReturnPath = '/settings';
     const back = (params: Record<string, string>) =>
       `${webUrl(this.config)}${returnTo}?${new URLSearchParams(params).toString()}`;
     try {
       const state = await this.verifyState(q.state);
       returnTo = state.returnTo;
+      assertSameBrowser(browserNonce, state.nh);
       if (q.error) throw new ConnectError(googleErrorText(q.error));
       if (!q.code) {
         throw new ConnectError(

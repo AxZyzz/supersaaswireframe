@@ -58,3 +58,29 @@ describe('buildEmail', () => {
     );
   });
 });
+
+describe('buildEmail click-link signing', () => {
+  const args = {
+    subject: 's',
+    bodyHtml: '<a href="https://acme.com/x?a=1&amp;b=2">link</a>',
+    vars: {},
+    baseUrl: 'https://app.test',
+    trackingId: 'trk-1',
+    unsubToken: 'u-1',
+  };
+
+  it('decodes &amp; and signs the real URL', () => {
+    const seen: string[] = [];
+    const out = buildEmail({
+      ...args,
+      signLink: (id, url) => {
+        seen.push(`${id}|${url}`);
+        return 'SIG';
+      },
+    });
+    expect(seen).toEqual(['trk-1|https://acme.com/x?a=1&b=2']);
+    expect(out.html).toContain(
+      `?u=${encodeURIComponent('https://acme.com/x?a=1&b=2')}&amp;s=SIG"`,
+    );
+  });
+});

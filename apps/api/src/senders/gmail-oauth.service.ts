@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { MembershipCache } from '../auth/membership-cache.service';
 import type { AuthUser } from '../auth/types';
 import {
+  assertSameBrowser,
   buildAuthUrl,
   ConnectError,
   emailFromIdToken,
@@ -30,6 +31,8 @@ interface ConnectState {
   sub: string;
   orgId: string;
   fromName?: string;
+  /** sha256 of the browser-binding cookie (OAuth CSRF guard). */
+  nh: string;
 }
 
 /**
@@ -55,7 +58,11 @@ export class GmailOAuthService {
     return googleConfigured(this.config);
   }
 
-  async connectUrl(user: AuthUser, fromName?: string) {
+  async connectUrl(
+    user: AuthUser,
+    fromName: string | undefined,
+    nonceHash: string,
+  ) {
     if (!this.isConfigured()) {
       throw new ServiceUnavailableException(
         'Gmail sending is not enabled on this server yet (Google OAuth credentials missing).',
@@ -66,17 +73,18 @@ export class GmailOAuthService {
       sub: user.userId,
       orgId: user.orgId,
       ...(fromName?.trim() ? { fromName: fromName.trim() } : {}),
+      nh: nonceHash,
     };
     const state = await this.jwt.signAsync(payload, { expiresIn: '10m' });
     return { url: buildAuthUrl(this.config, SCOPES, state) };
   }
 
   /** Handles Google's redirect; returns where to send the browser next. */
-  async handleCallback(q: {
-    code?: string;
-    state?: string;
-    error?: string;
-  }): Promise<string> {
+  async handleCallback(
+    q: { code?: string; state?: string; error?: string },
+    /** Value of the browser-binding cookie on this request. */
+    browserNonce?: string | null,
+  ): Promise<string> {
     const back = (params: Record<string, string>) =>
       `${webUrl(this.config)}/settings?${new URLSearchParams(params).toString()}`;
 
@@ -90,6 +98,7 @@ export class GmailOAuthService {
         );
       }
       const state = await this.verifyState(q.state);
+      assertSameBrowser(browserNonce, state.nh);
 
       // The link was minted for a manager/admin; re-check they still are.
       const role = await this.memberships.role(state.sub, state.orgId);

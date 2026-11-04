@@ -1,3 +1,4 @@
+import { assertSmtpTarget } from './smtp-guard';
 import {
   ConflictException,
   Inject,
@@ -86,6 +87,8 @@ export class SendersService {
   create(orgId: string, dto: CreateSenderDto) {
     const config: StoredConfig = {};
     if (dto.provider === 'smtp' && dto.smtp) {
+      // SSRF guard: mail ports only, no internal IPs (re-checked on connect).
+      assertSmtpTarget(dto.smtp.host, dto.smtp.port);
       config.smtp = {
         host: dto.smtp.host,
         port: dto.smtp.port,

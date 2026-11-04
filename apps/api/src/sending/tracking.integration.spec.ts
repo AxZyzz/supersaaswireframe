@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
+import { clickKey, signClick } from './link-signing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { randomUUID } from 'crypto';
@@ -15,6 +16,11 @@ const BROWSER =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
 
 describe('Tracking integration', () => {
+  // Query string of a click link exactly as buildEmail signs it.
+  const signed = (u: string) => ({
+    u,
+    s: signClick(clickKey(process.env.APP_ENCRYPTION_KEY ?? ''), trackingId, u),
+  });
   let app: INestApplication;
   let pool: Pool;
   let token: string;
@@ -144,7 +150,7 @@ describe('Tracking integration', () => {
     const res = await request(app.getHttpServer())
       .get(`/t/c/${trackingId}`)
       .set('User-Agent', 'python-requests/2.31')
-      .query({ u: 'https://example.com/scan' })
+      .query(signed('https://example.com/scan'))
       .expect(302);
     expect(res.headers.location).toBe('https://example.com/scan'); // still redirects
     await request(app.getHttpServer())
@@ -207,7 +213,7 @@ describe('Tracking integration', () => {
     const res = await request(app.getHttpServer())
       .get(`/t/c/${trackingId}`)
       .set('User-Agent', BROWSER)
-      .query({ u: target })
+      .query(signed(target))
       .expect(302);
     expect(res.headers.location).toBe(target);
 
@@ -225,9 +231,44 @@ describe('Tracking integration', () => {
   it('rejects a non-http click target (no open redirect) and falls back', async () => {
     const res = await request(app.getHttpServer())
       .get(`/t/c/${trackingId}`)
-      .query({ u: 'javascript:alert(1)' })
+      .query(signed('javascript:alert(1)'))
       .expect(302);
     expect(res.headers.location).not.toContain('javascript:');
+  });
+
+  it('is not an open redirect: unknown ids and bad signatures land on the app', async () => {
+    const evil = 'https://evil.example/phish';
+    const key = clickKey(process.env.APP_ENCRYPTION_KEY ?? '');
+    const go = (id: string, q: Record<string, string>) =>
+      request(app.getHttpServer()).get(`/t/c/${id}`).query(q).expect(302);
+
+    // made-up tracking id: never follows the target
+    const forged = await go(randomUUID(), { u: evil });
+    expect(forged.headers.location).not.toContain('evil.example');
+    // a forged signature on a made-up id doesn't help either
+    const fakeSig = await go(randomUUID(), { u: evil, s: 'A'.repeat(22) });
+    expect(fakeSig.headers.location).not.toContain('evil.example');
+
+    // a link we signed is followed…
+    const target = 'https://example.com/pricing?plan=pro&ref=email';
+    const ok = await go(trackingId, {
+      u: target,
+      s: signClick(key, trackingId, target),
+    });
+    expect(ok.headers.location).toBe(target);
+    // …but its signature can't be reused for another destination
+    const swapped = await go(trackingId, {
+      u: evil,
+      s: signClick(key, trackingId, target),
+    });
+    expect(swapped.headers.location).not.toContain('evil.example');
+    // an unsigned link is refused even for a real tracking id (that id is in
+    // every recipient's email, so it can't be what authorises a redirect)
+    const unsigned = await go(trackingId, { u: evil });
+    expect(unsigned.headers.location).not.toContain('evil.example');
+    // and a real id with a wrong signature is refused
+    const tampered = await go(trackingId, { u: evil, s: 'B'.repeat(22) });
+    expect(tampered.headers.location).not.toContain('evil.example');
   });
 
   it('GET unsubscribe shows a landing page (no side effects)', async () => {

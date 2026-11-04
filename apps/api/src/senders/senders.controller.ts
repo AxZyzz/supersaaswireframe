@@ -9,7 +9,10 @@ import {
   Patch,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
+import { bindBrowser } from '../google/google-oauth';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -54,8 +57,12 @@ export class SendersController {
   @Roles('admin', 'manager')
   @Post('gmail/connect')
   @HttpCode(200)
-  gmailConnect(@CurrentUser() user: AuthUser, @Body() dto: GmailConnectDto) {
-    return this.gmail.connectUrl(user, dto.fromName);
+  gmailConnect(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: GmailConnectDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.gmail.connectUrl(user, dto.fromName, bindBrowser(res));
   }
 
   @Get()

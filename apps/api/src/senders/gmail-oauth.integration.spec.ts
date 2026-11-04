@@ -58,17 +58,28 @@ describe('Gmail OAuth integration', () => {
   });
 
   /** Mint a consent URL and pull out its signed state. */
+  // The browser-binding cookie from the latest connect (OAuth CSRF guard);
+  // callback() sends it like the same browser would.
+  let browserCookie = '';
   const startConnect = async (fromName?: string) => {
     const res = await http()
       .post('/senders/gmail/connect')
       .set(jwt())
       .send(fromName ? { fromName } : {})
       .expect(200);
+    const set = ([] as string[]).concat(res.headers['set-cookie'] ?? []);
+    browserCookie = (set.find((c) => c.startsWith('ss_goauth=')) ?? '').split(
+      ';',
+    )[0];
     return new URL(res.body.url as string);
   };
 
-  const callback = (q: Record<string, string>) =>
-    http().get('/auth/google/callback').query(q).expect(302);
+  const callback = (q: Record<string, string>, cookie = browserCookie) =>
+    http()
+      .get('/auth/google/callback')
+      .set('Cookie', cookie)
+      .query(q)
+      .expect(302);
 
   const resultOf = (location: string) =>
     Object.fromEntries(new URL(location).searchParams);
@@ -239,6 +250,30 @@ describe('Gmail OAuth integration', () => {
     expect(resultOf(rejected.headers.location).reason).toMatch(
       /Google rejected the sign-in/,
     );
+  });
+
+  it('only completes in the browser that started it (OAuth CSRF)', async () => {
+    // attacker starts a connect for their workspace, then sends the Google
+    // link to a victim, whose browser doesn't have the attacker's cookie
+    const state = (await startConnect()).searchParams.get('state')!;
+    expect(browserCookie).toMatch(/^ss_goauth=.{20,}/);
+    googleReturns(200, okTokens('victim@gmail.com'));
+    const victim = await callback({ code: 'c', state }, '');
+    expect(resultOf(victim.headers.location)).toMatchObject({ gmail: 'error' });
+    expect(resultOf(victim.headers.location).reason).toMatch(/same browser/);
+    // a different browser's cookie doesn't work either
+    const other = await callback(
+      { code: 'c', state },
+      'ss_goauth=someone-elses-cookie',
+    );
+    expect(resultOf(other.headers.location).reason).toMatch(/same browser/);
+    const list = await http().get('/senders').set(jwt()).expect(200);
+    expect(JSON.stringify(list.body)).not.toContain('victim@gmail.com');
+    // the cookie is single-use: the callback clears it
+    const ok = await callback({ code: 'c', state });
+    expect(
+      ([] as string[]).concat(ok.headers['set-cookie'] ?? []).join(';'),
+    ).toMatch(/ss_goauth=;/);
   });
 
   it('an access token is not accepted as a connect state', async () => {

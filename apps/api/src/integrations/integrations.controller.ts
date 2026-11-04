@@ -8,7 +8,10 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
+import { bindBrowser } from '../google/google-oauth';
 import {
   IsBoolean,
   IsIn,
@@ -66,8 +69,12 @@ export class IntegrationsController {
   @Roles('admin', 'manager')
   @Post('google-sheets/connect')
   @HttpCode(200)
-  connectSheets(@CurrentUser() user: AuthUser, @Body() dto: ConnectDto) {
-    return this.sheetsOAuth.connectUrl(user, dto.returnTo);
+  connectSheets(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ConnectDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.sheetsOAuth.connectUrl(user, dto.returnTo, bindBrowser(res));
   }
 
   @Roles('admin', 'manager')

@@ -155,8 +155,21 @@ describe('Google Sheets integration', () => {
         id_token: idToken('Owner@Gmail.com'),
         scope: `openid email ${SHEETS_SCOPE}`,
       });
+    const cookie = ([] as string[])
+      .concat(r.headers['set-cookie'] ?? [])
+      .find((c) => c.startsWith('ss_goauth='))!
+      .split(';')[0];
+    // from another browser (no binding cookie): refused, nothing connected
+    const elsewhere = await http()
+      .get('/auth/google/callback')
+      .query({ code: 'c', state: url.searchParams.get('state')! })
+      .expect(302);
+    expect(
+      new URL(elsewhere.headers.location).searchParams.get('reason'),
+    ).toMatch(/same browser/);
     const cb = await http()
       .get('/auth/google/callback')
+      .set('Cookie', cookie)
       .query({ code: 'c', state: url.searchParams.get('state')! })
       .expect(302);
     const back = new URL(cb.headers.location);

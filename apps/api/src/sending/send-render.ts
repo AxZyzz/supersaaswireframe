@@ -16,6 +16,8 @@ interface BuildArgs {
   unsubToken: string;
   // CAN-SPAM sender identity for the footer (workspace name + postal address).
   sender?: { name: string; postalAddress: string | null };
+  /** HMAC for click links (link-signing.ts); without it links are unsigned. */
+  signLink?: (trackingId: string, url: string) => string;
 }
 
 const escapeHtml = (s: string) =>
@@ -32,21 +34,32 @@ const escapeHtml = (s: string) =>
 //  - appends an unsubscribe footer + returns the List-Unsubscribe value
 // The /t/o, /t/c and /u endpoints are served in E5 chunk 2.
 export function buildEmail(args: BuildArgs): BuiltEmail {
-  const { subject, bodyHtml, vars, baseUrl, trackingId, unsubToken, sender } =
-    args;
+  const {
+    subject,
+    bodyHtml,
+    vars,
+    baseUrl,
+    trackingId,
+    unsubToken,
+    sender,
+    signLink,
+  } = args;
   const identity = sender
     ? [sender.name, sender.postalAddress].filter(Boolean).join(' · ')
     : '';
   const unsubUrl = `${baseUrl}/u/${unsubToken}`;
 
-  let html = renderTemplate(bodyHtml, vars);
+  let html = renderTemplate(bodyHtml, vars, { html: true });
 
   // Click-wrap absolute http(s) links (skip mailto: and already-wrapped).
-  html = html.replace(
-    /href="(https?:\/\/[^"]+)"/g,
-    (_m, url: string) =>
-      `href="${baseUrl}/t/c/${trackingId}?u=${encodeURIComponent(url)}"`,
-  );
+  html = html.replace(/href="(https?:\/\/[^"]+)"/g, (_m, raw: string) => {
+    // The attribute is HTML-encoded (`&amp;` between query params); the
+    // redirect needs the real URL.
+    const url = raw.replace(/&amp;/g, '&');
+    return `href="${baseUrl}/t/c/${trackingId}?u=${encodeURIComponent(url)}${
+      signLink ? `&amp;s=${signLink(trackingId, url)}` : ''
+    }"`;
+  });
 
   const pixel = `<img src="${baseUrl}/t/o/${trackingId}" width="1" height="1" alt="" style="display:none" />`;
   const footer = `<p style="font-size:12px;color:#888;margin-top:24px">${

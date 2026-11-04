@@ -29,3 +29,32 @@ describe('renderTemplate', () => {
     expect(renderTemplate('X{last_name|}Y', {})).toBe('XY');
   });
 });
+
+describe('renderTemplate HTML safety', () => {
+  const evil = '<a href="https://evil.example/login">Account locked</a>';
+
+  it('escapes lead-supplied values in HTML bodies', () => {
+    const out = renderTemplate(
+      '<p>Hi {first_name}</p>',
+      { first_name: evil },
+      { html: true },
+    );
+    expect(out).toBe(
+      '<p>Hi &lt;a href=&quot;https://evil.example/login&quot;&gt;Account locked&lt;/a&gt;</p>',
+    );
+    expect(out).not.toContain('<a ');
+  });
+
+  it('leaves subjects / plain text unescaped and author fallbacks raw', () => {
+    expect(renderTemplate('Hi {first_name}', { first_name: 'Ann & Co' })).toBe(
+      'Hi Ann & Co',
+    );
+    expect(
+      renderTemplate(
+        '<p>{first_name|<b>there</b>}</p>',
+        { first_name: null },
+        { html: true },
+      ),
+    ).toBe('<p><b>there</b></p>');
+  });
+});

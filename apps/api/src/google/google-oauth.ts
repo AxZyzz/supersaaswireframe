@@ -1,4 +1,6 @@
 import { ConfigService } from '@nestjs/config';
+import { createHash, randomBytes, timingSafeEqual } from 'crypto';
+import type { CookieOptions, Request, Response } from 'express';
 import {
   FetchLike,
   GOOGLE_TOKEN_URL,
@@ -122,5 +124,71 @@ export function stateType(raw?: string): string | null {
     return typeof payload.type === 'string' ? payload.type : null;
   } catch {
     return null;
+  }
+}
+
+// ── Browser binding (OAuth CSRF) ──────────────────────────────────────────
+// Without this, anyone could start "Connect Gmail/Sheets" for THEIR workspace
+// and send the Google link to a victim: if the victim approves, the victim's
+// mailbox/sheets get attached to the attacker's workspace. So starting a
+// connect sets a random httpOnly cookie in the starting browser, the state
+// carries its hash, and the callback only completes in that same browser.
+
+export const OAUTH_COOKIE = 'ss_goauth';
+const OAUTH_TTL_MS = 10 * 60 * 1000; // same as the signed state
+
+function oauthCookieOptions(): CookieOptions {
+  // Google's redirect back is a cross-site top-level GET: Lax cookies ride
+  // along, Strict ones don't, so never Strict here.
+  const none = process.env.COOKIE_SAMESITE === 'none';
+  return {
+    httpOnly: true,
+    secure:
+      process.env.NODE_ENV === 'production' ||
+      process.env.COOKIE_SECURE === 'true' ||
+      none,
+    sameSite: none ? 'none' : 'lax',
+    path: '/auth/google',
+    domain: process.env.COOKIE_DOMAIN || undefined,
+  };
+}
+
+const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
+
+/** Set the binding cookie; returns the hash to put in the signed state. */
+export function bindBrowser(res: Response): string {
+  const nonce = randomBytes(24).toString('base64url');
+  res.cookie(OAUTH_COOKIE, nonce, {
+    ...oauthCookieOptions(),
+    maxAge: OAUTH_TTL_MS,
+  });
+  return sha256(nonce);
+}
+
+export function readBrowserBinding(req: Request): string | null {
+  for (const part of (req.headers.cookie ?? '').split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0 && part.slice(0, i).trim() === OAUTH_COOKIE) {
+      return decodeURIComponent(part.slice(i + 1).trim()) || null;
+    }
+  }
+  return null;
+}
+
+export function clearBrowserBinding(res: Response) {
+  res.clearCookie(OAUTH_COOKIE, oauthCookieOptions());
+}
+
+/** Throws unless the callback arrived in the browser that started it. */
+export function assertSameBrowser(
+  nonce: string | null | undefined,
+  expectedHash: string | undefined,
+) {
+  const a = Buffer.from(nonce ? sha256(nonce) : '');
+  const b = Buffer.from(expectedHash ?? '');
+  if (!expectedHash || a.length !== b.length || !timingSafeEqual(a, b)) {
+    throw new ConnectError(
+      'For your security, finish connecting in the same browser you started in. Start again from Settings.',
+    );
   }
 }

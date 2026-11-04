@@ -1,3 +1,4 @@
+import { clickKey, signClick } from './link-signing';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
@@ -43,6 +44,10 @@ export class SendService {
     private readonly usage: UsageService,
     private readonly realtime: RealtimeService,
   ) {}
+
+  private get clickKey() {
+    return clickKey(this.config.get<string>('APP_ENCRYPTION_KEY') ?? '');
+  }
 
   private get baseUrl(): string {
     return this.config.get<string>('API_URL', 'http://localhost:4000');
@@ -390,6 +395,7 @@ export class SendService {
       trackingId: p.trackingId,
       unsubToken: p.unsubToken,
       sender: p.sender,
+      signLink: (id, url) => signClick(this.clickKey, id, url),
     });
 
     let messageId: string | null = null;

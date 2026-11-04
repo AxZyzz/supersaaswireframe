@@ -19,13 +19,35 @@ export type TemplateVars = Partial<Record<TemplateVar, string | null>>;
 
 const TOKEN = /\{(\w+)(?:\|([^}]*))?\}/g;
 
-export function renderTemplate(text: string, vars: TemplateVars): string {
+const HTML_ESCAPES: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+};
+export const escapeHtml = (s: string) =>
+  s.replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
+
+/**
+ * Fills {var} tokens. In an HTML body pass `{ html: true }`: values come from
+ * lead data (CSV, Sheets, the public API, i.e. outsiders), so they're escaped
+ * and can't inject links or markup into an email we send. Fallbacks are the
+ * template author's own text and stay as written.
+ */
+export function renderTemplate(
+  text: string,
+  vars: TemplateVars,
+  opts: { html?: boolean } = {},
+): string {
   return text.replace(
     TOKEN,
     (match: string, name: string, fallback?: string) => {
       if (!(TEMPLATE_VARS as readonly string[]).includes(name)) return match;
       const v = vars[name as TemplateVar];
-      if (v !== undefined && v !== null && v !== '') return v;
+      if (v !== undefined && v !== null && v !== '') {
+        return opts.html ? escapeHtml(v) : v;
+      }
       return fallback ?? '';
     },
   );
