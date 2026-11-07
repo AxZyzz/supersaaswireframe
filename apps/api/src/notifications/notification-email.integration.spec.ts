@@ -26,7 +26,16 @@ describe('Notification emails integration', () => {
   const email = `ne-${randomUUID().slice(0, 8)}@test.local`;
   const http = () => request(app.getHttpServer());
   const auth = () => ({ Authorization: `Bearer ${token}` });
-  const mine = () => mail.outbox.filter((m) => m.to === email);
+  // Everything sent during this suite, uncapped (a call-through spy). The
+  // service's own outbox is a 50-item ring and the weekly job mails every
+  // workspace in the database, so on a shared dev DB this user's mail could
+  // be pushed out of it.
+  let sendSpy: jest.SpyInstance<
+    ReturnType<SystemMailService['send']>,
+    Parameters<SystemMailService['send']>
+  >;
+  const mine = () =>
+    sendSpy.mock.calls.map(([m]) => m).filter((m) => m.to === email);
 
   const notify = (type: string, title: string, body = '') =>
     withOrgContext(pool, orgId, (c) =>
@@ -62,6 +71,7 @@ describe('Notification emails integration', () => {
     await app.init();
     pool = app.get<Pool>(PG_POOL);
     mail = app.get(SystemMailService);
+    sendSpy = jest.spyOn(mail, 'send');
     emails = app.get(NotificationEmailService);
     weekly = app.get(WeeklySummaryService);
     notifications = app.get(NotificationsService);
@@ -205,5 +215,6 @@ describe('Notification emails integration', () => {
     before = mine().length;
     await weekly.run();
     expect(mine().length).toBe(before);
-  });
+    // each run builds analytics for every workspace in the DB (3 runs here)
+  }, 30_000);
 });
