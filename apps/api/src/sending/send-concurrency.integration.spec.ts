@@ -7,6 +7,7 @@ import request from 'supertest';
 import { AppModule } from '../app.module';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { verifyAllSenders } from '../../test/verify-senders';
 
 /** Overlapping send ticks must never email the same lead twice. */
 describe('Send concurrency', () => {
@@ -60,6 +61,7 @@ describe('Send concurrency', () => {
       .set('Authorization', auth())
       .send({ provider: 'smtp', fromName: 'Rep', fromEmail: 'rep@cc.local' })
       .expect(201);
+    await verifyAllSenders(app.getHttpServer(), auth());
     for (let i = 0; i < 5; i++) {
       await http()
         .post('/leads')

@@ -7,6 +7,7 @@ import request from 'supertest';
 import { AppModule } from '../app.module';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { verifyAllSenders } from '../../test/verify-senders';
 
 /** E4 chunk 3 controls: duplicate, pause/resume (halts + resumes delivery), and
  *  schedule (defers enrollment; the worker promotes scheduled -> active when the
@@ -53,6 +54,7 @@ describe('Campaign controls integration', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ provider: 'smtp', fromName: 'Rep', fromEmail: 'rep@ctrl.local' })
       .expect(201);
+    await verifyAllSenders(app.getHttpServer(), `Bearer ${token}`);
     await request(app.getHttpServer())
       .post('/leads')
       .set('Authorization', `Bearer ${token}`)

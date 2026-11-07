@@ -1,4 +1,5 @@
 import { clickKey, signClick } from './link-signing';
+import { GmailAuthError } from '../senders/providers/gmail.provider';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
@@ -291,17 +292,19 @@ export class SendService {
         return { outcome: 'deferred' as Outcome };
       }
 
-      // Choose a sender: eligible = campaign's sender_ids (or all org senders),
-      // within send window, with remaining daily capacity. Pick the most-free.
+      // Choose a sender: eligible = campaign's sender_ids (or all org senders)
+      // that are verified, within send window, with remaining daily capacity.
+      // Pick the most-free. Unverified/revoked senders never send; with none
+      // usable the lead waits (deferred) instead of being burned.
       const sendersRes = senderIds.length
         ? await c.query<SenderRow>(
             `SELECT id, from_name, from_email, daily_limit, ${effectiveLimitSql()} AS effective_daily_limit, send_window_start, send_window_end
-             FROM sender_accounts WHERE id = ANY($1::uuid[])`,
+             FROM sender_accounts WHERE id = ANY($1::uuid[]) AND status = 'verified'`,
             [senderIds],
           )
         : await c.query<SenderRow>(
             `SELECT id, from_name, from_email, daily_limit, ${effectiveLimitSql()} AS effective_daily_limit, send_window_start, send_window_end
-             FROM sender_accounts ORDER BY created_at`,
+             FROM sender_accounts WHERE status = 'verified' ORDER BY created_at`,
           );
       const hour = new Date().getHours();
       let chosen: SenderRow | null = null;
@@ -401,6 +404,7 @@ export class SendService {
     let messageId: string | null = null;
     let provider: string | null = null;
     let error: string | null = null;
+    let senderAuthBroke = false;
     try {
       const res = await this.senders.sendMessage(orgId, p.senderId, {
         to: p.to,
@@ -417,6 +421,10 @@ export class SendService {
       provider = res.provider;
     } catch (err) {
       error = err instanceof Error ? err.message : 'send failed';
+      // revoked/expired Google access: the sender is flagged unverified by
+      // SendersService; this lead retries later via another (or reconnected)
+      // sender instead of moving past this step
+      senderAuthBroke = err instanceof GmailAuthError;
     }
 
     // Phase 3: record + advance.
@@ -471,9 +479,18 @@ export class SendService {
           }),
         ],
       );
-      await this.advance(c, p.cl.id, p.nextIndex, p.steps);
+      if (senderAuthBroke) {
+        await c.query(
+          `UPDATE campaign_leads SET next_send_at = now() + interval '15 minutes',
+             updated_at = now() WHERE id = $1`,
+          [p.cl.id],
+        );
+      } else {
+        await this.advance(c, p.cl.id, p.nextIndex, p.steps);
+      }
     });
 
+    if (senderAuthBroke) return 'deferred';
     return error ? 'failed' : 'sent';
   }
 }

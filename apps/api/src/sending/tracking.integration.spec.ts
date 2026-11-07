@@ -8,6 +8,7 @@ import request from 'supertest';
 import { AppModule } from '../app.module';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { verifyAllSenders } from '../../test/verify-senders';
 
 /** Tracking: open pixel + click redirect + unsubscribe record events under the
  *  right org (via the SECURITY DEFINER resolvers), suppress + stop the lead, and
@@ -77,6 +78,7 @@ describe('Tracking integration', () => {
       .set('Authorization', auth())
       .send({ provider: 'smtp', fromName: 'Rep', fromEmail: 'rep@track.local' })
       .expect(201);
+    await verifyAllSenders(app.getHttpServer(), auth());
 
     const lead = await request(app.getHttpServer())
       .post('/leads')

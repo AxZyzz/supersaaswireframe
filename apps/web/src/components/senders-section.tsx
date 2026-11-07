@@ -83,7 +83,7 @@ export function SendersSection({
   async function add(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    await createSender({
+    const created = await createSender({
       provider,
       fromName: String(f.get("fromName")),
       fromEmail: String(f.get("fromEmail")),
@@ -101,7 +101,9 @@ export function SendersSection({
     });
     setAdding(false);
     setProvider("ses");
-    await load();
+    // Campaigns only send from verified senders, so check the connection
+    // straight away instead of waiting for someone to click Verify.
+    await verify(created.id);
   }
 
   async function verify(id: string) {

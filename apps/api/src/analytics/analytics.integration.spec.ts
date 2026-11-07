@@ -7,6 +7,7 @@ import request from 'supertest';
 import { AppModule } from '../app.module';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { verifyAllSenders } from '../../test/verify-senders';
 
 /** E8: org-wide analytics overview + per-campaign rows reflect real sends and
  *  opens; sender alerts surface unverified senders. */
@@ -73,6 +74,7 @@ describe('Analytics integration', () => {
       .set('Authorization', auth())
       .send({ provider: 'smtp', fromName: 'Rep', fromEmail: 'rep@an.local' })
       .expect(201);
+    await verifyAllSenders(app.getHttpServer(), auth());
     await request(app.getHttpServer())
       .post('/leads')
       .set('Authorization', auth())
@@ -133,12 +135,26 @@ describe('Analytics integration', () => {
     expect(ov.body.sent.last7).toBe(1);
     expect(ov.body.engagement.opened).toBe(1);
     expect(ov.body.activity.length).toBeGreaterThan(0);
-    // the smtp sender was never verified -> alert
+    // a second, never-verified sender -> alert (it can't be used to send)
+    await request(app.getHttpServer())
+      .post('/senders')
+      .set('Authorization', auth())
+      .send({ provider: 'smtp', fromName: 'Rep 2', fromEmail: 'rep2@an.local' })
+      .expect(201);
+    const ov2 = await request(app.getHttpServer())
+      .get('/analytics/overview')
+      .set('Authorization', auth())
+      .expect(200);
+    expect(
+      ov2.body.alerts.some(
+        (a: { kind: string }) => a.kind === 'sender_unverified',
+      ),
+    ).toBe(true);
     expect(
       ov.body.alerts.some(
         (a: { kind: string }) => a.kind === 'sender_unverified',
       ),
-    ).toBe(true);
+    ).toBe(false); // the sending sender is verified
 
     const rows = await request(app.getHttpServer())
       .get('/analytics/campaigns')

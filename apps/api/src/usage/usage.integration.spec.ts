@@ -8,6 +8,7 @@ import { AppModule } from '../app.module';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { PLAN_LIMITS } from './plan-limits';
+import { verifyAllSenders } from '../../test/verify-senders';
 
 /** Plan limits are enforced at every write path, with the real beta numbers
  *  shrunk per test so each cap is reachable. */
@@ -163,6 +164,7 @@ describe('Usage limits integration', () => {
       .set('Authorization', auth())
       .send({ provider: 'smtp', fromName: 'Rep', fromEmail: 'rep@u.local' })
       .expect(201);
+    await verifyAllSenders(app.getHttpServer(), auth());
     await http()
       .post('/senders')
       .set('Authorization', auth())

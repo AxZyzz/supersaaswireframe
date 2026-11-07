@@ -7,6 +7,7 @@ import request from 'supertest';
 import { AppModule } from '../app.module';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { verifyAllSenders } from '../../test/verify-senders';
 
 /** Send engine: due-scan tick renders + delivers (mock), records sent_emails +
  *  events, advances the per-lead state, enforces suppression, assigns A/B. */
@@ -64,6 +65,7 @@ describe('Sending integration', () => {
       .set('Authorization', auth())
       .send({ provider: 'smtp', fromName: 'Rep', fromEmail: 'rep@send.local' })
       .expect(201);
+    await verifyAllSenders(app.getHttpServer(), auth());
 
     // two leads; one will be suppressed before enroll
     const good = await request(app.getHttpServer())

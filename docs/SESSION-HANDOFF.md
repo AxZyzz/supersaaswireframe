@@ -69,7 +69,10 @@ and browser E2E pass.
 - **Deferred:** T8.1 daily rollups; Outlook sender.
 
 ## Found in code, not in the plan (owner's call)
-1. With no senders ticked, a campaign sends from *any* sender, even unverified.
+1. ~~With no senders ticked, a campaign sends from *any* sender, even unverified.~~
+   **Resolved 2026-11-07 (owner chose "verified only"):** campaigns send only from verified
+   senders (none usable → leads wait); a Gmail auth failure mid-send reschedules the lead
+   instead of skipping its step; new senders are verified right after they're added.
 2. Smart segments accept an invalid tag id; the refresh then fails silently.
 3. No browser tests yet for: adding a campaign step, adding leads to a
    segment, the Sheets import screens.

@@ -8,6 +8,7 @@ import request from 'supertest';
 import { AppModule } from '../app.module';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { verifyAllSenders } from '../../test/verify-senders';
 
 /** T7.2: live updates over Socket.io — authenticated, org-isolated, and
  *  carrying only "what changed". */
@@ -114,6 +115,7 @@ describe('Realtime gateway', () => {
       .set('Authorization', auth)
       .send({ provider: 'smtp', fromName: 'Rep', fromEmail: 'rep@live.local' })
       .expect(201);
+    await verifyAllSenders(app.getHttpServer(), auth);
     await http()
       .post('/leads')
       .set('Authorization', auth)

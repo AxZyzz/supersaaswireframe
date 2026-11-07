@@ -7,6 +7,7 @@ import request from 'supertest';
 import { AppModule } from '../app.module';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { verifyAllSenders } from '../../test/verify-senders';
 
 /** T5.2: a brand-new sender is held to the day-1 warm-up cap (20/day). */
 describe('Warm-up ramp (send engine)', () => {
@@ -65,6 +66,7 @@ describe('Warm-up ramp (send engine)', () => {
         dailyLimit: 200,
       })
       .expect(201);
+    await verifyAllSenders(app.getHttpServer(), auth());
     expect(sender.body).toMatchObject({
       warmup_enabled: true,
       warmup_day: 1,

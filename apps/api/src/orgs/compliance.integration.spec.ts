@@ -8,6 +8,7 @@ import { AppModule } from '../app.module';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { MockProvider } from '../senders/providers/mock.provider';
+import { verifyAllSenders } from '../../test/verify-senders';
 
 /** T10.6: CAN-SPAM footer, GDPR erasure of a lead, workspace export,
  *  workspace deletion and self-service account deletion. */
@@ -93,6 +94,7 @@ describe('Compliance integration', () => {
         fromEmail: 'rep@footer.local',
       })
       .expect(201);
+    await verifyAllSenders(app.getHttpServer(), auth);
     const to = uniq('lead');
     await http()
       .post('/leads')

@@ -8,6 +8,7 @@ import { AppModule } from '../app.module';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { MockProvider } from '../senders/providers/mock.provider';
+import { verifyAllSenders } from '../../test/verify-senders';
 
 /** E7 chunk 1: reply ingestion threads replies into conversations, classifies
  *  them, and applies sequence automations (stop-on-reply, out-of-office
@@ -79,6 +80,7 @@ describe('Inbox integration', () => {
       .set('Authorization', auth())
       .send({ provider: 'smtp', fromName: 'Rep', fromEmail: 'rep@ib.local' })
       .expect(201);
+    await verifyAllSenders(app.getHttpServer(), auth());
     for (const [email, firstName] of [
       ['amy@ib.local', 'Amy'],
       ['oof@ib.local', 'Otto'],
