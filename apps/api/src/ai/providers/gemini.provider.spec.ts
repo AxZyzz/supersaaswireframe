@@ -50,7 +50,7 @@ describe('GeminiAIProvider', () => {
       ],
     });
 
-    expect(sent!.model).toBe('gemini-2.5-flash');
+    expect(sent!.model).toBe('gemini-3.8-flash');
     expect(sent!.contents).toEqual([
       { role: 'user', parts: [{ text: 'Q1' }] },
       { role: 'model', parts: [{ text: 'A1' }] },
@@ -95,8 +95,8 @@ describe('GeminiAIProvider', () => {
       await p.generate({ tier, messages: [{ role: 'user', content: 'x' }] });
     }
     expect(models).toEqual([
-      'gemini-2.5-flash-lite',
-      'gemini-2.5-flash',
+      'gemini-3.5-flash-lite',
+      'gemini-3.8-flash',
       'gemini-x-pro',
     ]);
   });
@@ -111,6 +111,70 @@ describe('GeminiAIProvider', () => {
     await expect(
       p.generate({ messages: [{ role: 'user', content: 'x' }] }),
     ).rejects.toThrow('finish reason: SAFETY');
+  });
+
+  it('falls back to a lighter model once when the model is overloaded', async () => {
+    const tried: string[] = [];
+    const p = make();
+    p.useGenerateFn((params) => {
+      tried.push(params.model);
+      return params.model === 'gemini-3.8-flash'
+        ? Promise.reject(
+            new Error('{"error":{"code":503,"status":"UNAVAILABLE"}}'),
+          )
+        : Promise.resolve(reply({ modelVersion: params.model }));
+    });
+    const r = await p.generate({ messages: [{ role: 'user', content: 'x' }] });
+    expect(tried).toEqual(['gemini-3.8-flash', 'gemini-3.5-flash-lite']);
+    expect(r.model).toBe('gemini-3.5-flash-lite');
+  });
+
+  it('a timed-out call becomes a readable error and switches to the fallback', async () => {
+    const tried: string[] = [];
+    const p = make({ GEMINI_TIMEOUT_MS: '30000' });
+    p.useGenerateFn((params) => {
+      tried.push(params.model);
+      if (params.model === 'gemini-3.8-flash') {
+        const abort = new Error('This operation was aborted');
+        abort.name = 'AbortError';
+        return Promise.reject(abort);
+      }
+      return Promise.resolve(reply({ modelVersion: params.model }));
+    });
+    const r = await p.generate({ messages: [{ role: 'user', content: 'x' }] });
+    expect(tried).toEqual(['gemini-3.8-flash', 'gemini-3.5-flash-lite']);
+    expect(r.model).toBe('gemini-3.5-flash-lite');
+
+    const both = make({ GEMINI_TIMEOUT_MS: '30000' });
+    both.useGenerateFn(() => {
+      const abort = new Error('aborted');
+      abort.name = 'RequestAbortedError';
+      return Promise.reject(abort);
+    });
+    await expect(
+      both.generate({ messages: [{ role: 'user', content: 'x' }] }),
+    ).rejects.toThrow('Gemini timed out after 30s');
+  });
+
+  it('does not fall back on other errors, or when disabled', async () => {
+    const quota = make();
+    quota.useGenerateFn(() =>
+      Promise.reject(new Error('400 INVALID_ARGUMENT')),
+    );
+    await expect(
+      quota.generate({ messages: [{ role: 'user', content: 'x' }] }),
+    ).rejects.toThrow('INVALID_ARGUMENT');
+
+    const tried: string[] = [];
+    const off = make({ GEMINI_FALLBACK_MODEL: 'off' });
+    off.useGenerateFn((params) => {
+      tried.push(params.model);
+      return Promise.reject(new Error('503 UNAVAILABLE'));
+    });
+    await expect(
+      off.generate({ messages: [{ role: 'user', content: 'x' }] }),
+    ).rejects.toThrow('UNAVAILABLE');
+    expect(tried).toEqual(['gemini-3.8-flash']);
   });
 
   it('explains what to set when no key or project is configured', async () => {

@@ -1,4 +1,9 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { Pool } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
@@ -47,7 +52,17 @@ export class AiService {
       } catch (err) {
         lastErr = err;
         const msg = err instanceof Error ? err.message : String(err);
-        if (i === attempts - 1 || !RETRYABLE.test(msg)) throw err;
+        if (!RETRYABLE.test(msg)) throw err;
+        if (i === attempts - 1) {
+          // Still overloaded/rate-limited after retries: tell the user it's
+          // temporary (503) instead of a generic 500.
+          this.logger.warn(
+            `AI provider busy after ${attempts} attempts: ${msg}`,
+          );
+          throw new ServiceUnavailableException(
+            'The AI service is busy right now. Please try again in a minute.',
+          );
+        }
         const delay = 2 ** i * 500 + Math.floor(Math.random() * 250);
         this.logger.warn(
           `AI call failed (attempt ${i + 1}), retrying in ${delay}ms: ${msg}`,

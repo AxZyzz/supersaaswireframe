@@ -27,6 +27,34 @@ import { AIProviderResolver } from '../src/ai/providers/provider.resolver';
 
 config({ path: ['.env', '../../.env'] });
 
+// The scorecard fires requests back to back, which trips per-minute quotas
+// (Gemini free tier: 15/min per model) and the odd "high demand" 503. Those
+// aren't quality failures, so wait and retry: honour the provider's
+// "retry in Ns" hint (capped at 60s), up to 4 attempts.
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+async function withQuotaRetry<T>(fn: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (
+        attempt >= 4 ||
+        !/429|RESOURCE_EXHAUSTED|503|UNAVAILABLE|throttl/i.test(msg)
+      ) {
+        throw err;
+      }
+      const hint = /retry in ([\d.]+)s/i.exec(msg);
+      const waitMs = Math.min(
+        60_000,
+        hint ? Math.ceil(Number(hint[1]) * 1000) + 500 : 15_000,
+      );
+      console.log(`  (rate-limited, waiting ${Math.round(waitMs / 1000)}s)`);
+      await sleep(waitMs);
+    }
+  }
+}
+
 async function main() {
   const minArg = process.argv.find((a) => a.startsWith('--min-accuracy='));
   const minAccuracy = minArg ? Number(minArg.split('=')[1]) : null;
@@ -47,8 +75,10 @@ async function main() {
   let tokens = 0;
   for (const c of CLASSIFY_CASES) {
     try {
-      const r = await provider.generate(
-        classifyReply({ replyBody: c.reply, subject: c.subject }),
+      const r = await withQuotaRetry(() =>
+        provider.generate(
+          classifyReply({ replyBody: c.reply, subject: c.subject }),
+        ),
       );
       tokens += r.usage.inputTokens + r.usage.outputTokens;
       predictions[c.id] =
@@ -76,7 +106,9 @@ async function main() {
   const seqResults: { id: string; issues: string[] }[] = [];
   for (const c of SEQUENCE_CASES) {
     try {
-      const r = await provider.generate(sequencePrompt(c));
+      const r = await withQuotaRetry(() =>
+        provider.generate(sequencePrompt(c)),
+      );
       tokens += r.usage.inputTokens + r.usage.outputTokens;
       const steps = (JSON.parse(r.text) as { steps?: never[] }).steps ?? [];
       seqResults.push({ id: c.id, issues: checkSequence(c, steps) });

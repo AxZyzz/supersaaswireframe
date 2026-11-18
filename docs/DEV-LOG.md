@@ -75,7 +75,28 @@ SQL + Memorystore. Screens unchanged; AI writing style differs slightly
   `SERVICE_DISABLED` instead). Suggested: a fresh key from AI Studio via "Create
   API key in new project", or check the key's project / API restrictions.
 
-**Pending for the real-AI test:** fix the key's access, then
+- **New AI Studio key works.** Live model list checked: Gemini 2.5 models are
+  closed to new users (404) and Pro models have no free-tier quota, so defaults
+  became `gemini-3.5-flash-lite` (fast) / `gemini-3.8-flash` (balanced,
+  powerful). Aman swapped the key once more mid-run; re-verified.
+- **Live scorecard:** reply classification **96% (24/25)**; sequences 2/5 (3
+  hung requests, see below). First run had 7 "misses" that were all free-tier
+  rate limits (15/min), so the scorecard now waits on "retry in Ns".
+- **Manual UI test** (Claude drove the browser): AI builder ✅, Ask AI to edit
+  (Shorter) ✅, Test reply → "Wrong person" ✅, Draft with AI ✅ (via API call;
+  the browser pane was hidden). Guide written in `docs/GOOGLE-STACK.md`.
+- **Bugs found and fixed:** (1) Gemini `503 high demand` surfaced as a generic
+  500 → fallback model `GEMINI_FALLBACK_MODEL` + clear 503 "AI is busy" from
+  `AiService` (Bedrock too); (2) the Google SDK has no timeout and retries up to
+  5× with 60 s waits, so calls hung for minutes → `GEMINI_TIMEOUT_MS` (45 s), SDK
+  retries off, timeout triggers the fallback. Tests added (21 AI tests pass).
+- Docker Desktop stopped the containers once mid-session (clean exit at
+  17:20); restarted them.
+- Observed, not fixed: Gemini returns each generated email as one paragraph
+  (no line breaks): prompt tuning item.
+
+**Pending for the real-AI test:** done for Phase 1. Optional: billing on for Pro
+models, then `GEMINI_MODEL_POWERFUL=gemini-pro-latest`. Earlier note: fix the key's access, then
 `AI_DRIVER=gemini npm run eval -w apps/api`, and try the AI builder, "Ask AI to
 edit", Test reply classification and Draft with AI in the app.
 

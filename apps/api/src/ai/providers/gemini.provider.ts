@@ -16,7 +16,18 @@ type GenerateFn = (
   params: GenerateContentParameters,
 ) => Promise<GenerateContentResponse>;
 
-// Gemini 2.5+ models "think" before answering, and those thought tokens count
+// When the chosen model answers 503 "high demand" (common on the free tier),
+// one retry on a lighter model usually succeeds. Override or disable ('off')
+// with GEMINI_FALLBACK_MODEL.
+const OVERLOADED = /\b503\b|UNAVAILABLE|high demand|overloaded|timed out/i;
+
+// The SDK sets no client-side timeout (Google's server may hold a request
+// for up to 10 minutes) and retries 503/429 itself up to 5 times with delays
+// up to 60s. Left alone, one overloaded call hung the reply composer for
+// minutes. We cap each attempt and let AiService own the retries instead.
+const DEFAULT_TIMEOUT_MS = 45_000;
+
+// Gemini 2.5+/3.x Flash and Pro models "think" before answering, and those thought tokens count
 // against maxOutputTokens. Without headroom a structured (JSON) answer can be
 // cut off mid-object. Billing is per token actually used, so a higher cap
 // costs nothing unless the model needs it.
@@ -33,7 +44,10 @@ const THINKING_HEADROOM = 8192;
  *   default credentials instead of a key.
  *
  * Model per tier is env-overridable (GEMINI_MODEL_FAST / _BALANCED /
- * _POWERFUL) because Google renames and retires models often.
+ * _POWERFUL) because Google renames and retires models often. Defaults were
+ * live-checked on 2026-11-18 with a new AI Studio key: 2.5 models are closed
+ * to new users, and Pro models have no free-tier quota, so 'powerful' uses
+ * Flash until billing is on (then set GEMINI_MODEL_POWERFUL=gemini-pro-latest).
  */
 @Injectable()
 export class GeminiAIProvider implements AIProvider {
@@ -51,22 +65,31 @@ export class GeminiAIProvider implements AIProvider {
     const map: Record<AIModelTier, string> = {
       fast: this.config.get<string>(
         'GEMINI_MODEL_FAST',
-        'gemini-2.5-flash-lite',
+        'gemini-3.5-flash-lite',
       ),
       balanced: this.config.get<string>(
         'GEMINI_MODEL_BALANCED',
-        'gemini-2.5-flash',
+        'gemini-3.8-flash',
       ),
       powerful: this.config.get<string>(
         'GEMINI_MODEL_POWERFUL',
-        'gemini-2.5-pro',
+        'gemini-3.8-flash',
       ),
     };
     return map[tier];
   }
 
+  private timeoutMs(): number {
+    const v = Number(this.config.get<string>('GEMINI_TIMEOUT_MS'));
+    return Number.isFinite(v) && v > 0 ? v : DEFAULT_TIMEOUT_MS;
+  }
+
   private client(): GenerateFn {
     if (this.generateFn) return this.generateFn;
+    const httpOptions = {
+      timeout: this.timeoutMs(),
+      retryOptions: { attempts: 1 }, // AiService retries, not the SDK
+    };
     let ai: GoogleGenAI;
     if (this.config.get<string>('GEMINI_USE_VERTEX') === 'true') {
       const project = this.config.get<string>('GOOGLE_CLOUD_PROJECT');
@@ -76,6 +99,7 @@ export class GeminiAIProvider implements AIProvider {
         );
       }
       ai = new GoogleGenAI({
+        httpOptions,
         vertexai: true,
         project,
         location: this.config.get<string>(
@@ -90,7 +114,7 @@ export class GeminiAIProvider implements AIProvider {
           'AI not configured: set GEMINI_API_KEY (Google AI Studio) to use the Gemini provider',
         );
       }
-      ai = new GoogleGenAI({ apiKey });
+      ai = new GoogleGenAI({ apiKey, httpOptions });
     }
     this.generateFn = (p) => ai.models.generateContent(p);
     return this.generateFn;
@@ -98,7 +122,44 @@ export class GeminiAIProvider implements AIProvider {
 
   async generate(opts: AIGenerateOptions): Promise<AIResult> {
     const model = this.tierModel(opts.tier ?? 'balanced');
-    const res = await this.client()({
+    const fallback = this.config.get<string>(
+      'GEMINI_FALLBACK_MODEL',
+      'gemini-3.5-flash-lite',
+    );
+    try {
+      return await this.generateWith(model, opts);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (fallback === 'off' || fallback === model || !OVERLOADED.test(msg)) {
+        throw err;
+      }
+      return this.generateWith(fallback, opts);
+    }
+  }
+
+  private async generateWith(
+    model: string,
+    opts: AIGenerateOptions,
+  ): Promise<AIResult> {
+    let res: GenerateContentResponse;
+    try {
+      res = await this.callModel(model, opts);
+    } catch (err) {
+      // The SDK's abort timer surfaces as AbortError / RequestAbortedError;
+      // give it a readable message that AiService treats as retryable.
+      const name = (err as { name?: string })?.name;
+      if (name === 'AbortError' || name === 'RequestAbortedError') {
+        throw new Error(
+          `Gemini timed out after ${Math.round(this.timeoutMs() / 1000)}s (${model})`,
+        );
+      }
+      throw err;
+    }
+    return this.toResult(model, res);
+  }
+
+  private callModel(model: string, opts: AIGenerateOptions) {
+    return this.client()({
       model,
       // Gemini calls the assistant role "model".
       contents: opts.messages.map((m) => ({
@@ -116,7 +177,9 @@ export class GeminiAIProvider implements AIProvider {
           : {}),
       },
     });
+  }
 
+  private toResult(model: string, res: GenerateContentResponse): AIResult {
     const finish = res.candidates?.[0]?.finishReason ?? null;
     const text = res.text ?? '';
     if (!text) {

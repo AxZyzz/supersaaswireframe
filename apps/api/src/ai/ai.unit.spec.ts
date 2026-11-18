@@ -82,3 +82,22 @@ describe('AiService.generate', () => {
     expect(res.model).toBe('mock');
   });
 });
+
+describe('AiService busy provider', () => {
+  it('turns a provider that stays overloaded into a clear 503', async () => {
+    const busy = {
+      name: 'busy',
+      generate: jest.fn(() => Promise.reject(new Error('503 UNAVAILABLE'))),
+    };
+    const svc = new AiService(
+      { connect: () => Promise.reject(new Error('no db')) } as unknown as Pool,
+      { resolve: () => busy } as unknown as AIProviderResolver,
+    );
+    await expect(
+      svc.generate('org-1', 'test', {
+        messages: [{ role: 'user', content: 'x' }],
+      }),
+    ).rejects.toMatchObject({ status: 503 });
+    expect(busy.generate).toHaveBeenCalledTimes(3);
+  });
+});
