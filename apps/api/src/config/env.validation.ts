@@ -27,6 +27,17 @@ export function validateEnv(
     errors.push('SIGNUP_MODE must be "open" or "waitlist"');
   }
 
+  // Gemini (google-stack): fail at boot, not on the first AI request.
+  if (str('AI_DRIVER') === 'gemini') {
+    if (str('GEMINI_USE_VERTEX') === 'true') {
+      if (!str('GOOGLE_CLOUD_PROJECT')) {
+        errors.push('AI_DRIVER=gemini on Vertex AI needs GOOGLE_CLOUD_PROJECT');
+      }
+    } else if (!str('GEMINI_API_KEY')) {
+      errors.push('AI_DRIVER=gemini needs GEMINI_API_KEY (Google AI Studio)');
+    }
+  }
+
   if (
     str('COOKIE_SAMESITE') &&
     !['lax', 'strict', 'none'].includes(str('COOKIE_SAMESITE'))

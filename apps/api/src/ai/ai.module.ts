@@ -3,6 +3,7 @@ import { AiContentService } from './ai-content.service';
 import { AiController } from './ai.controller';
 import { AiService } from './ai.service';
 import { BedrockAIProvider } from './providers/bedrock.provider';
+import { GeminiAIProvider } from './providers/gemini.provider';
 import { MockAIProvider } from './providers/mock.provider';
 import { AIProviderResolver } from './providers/provider.resolver';
 
@@ -14,6 +15,7 @@ import { AIProviderResolver } from './providers/provider.resolver';
   providers: [
     MockAIProvider,
     BedrockAIProvider,
+    GeminiAIProvider,
     AIProviderResolver,
     AiService,
     AiContentService,

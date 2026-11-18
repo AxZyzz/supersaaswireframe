@@ -24,6 +24,22 @@ describe('validateEnv', () => {
     ).toThrow(/64 hex/);
   });
 
+  it('AI_DRIVER=gemini needs a key, or a project on Vertex AI', () => {
+    const dev = { DATABASE_URL: 'x', AI_DRIVER: 'gemini' };
+    expect(() => validateEnv(dev)).toThrow(/GEMINI_API_KEY/);
+    expect(() => validateEnv({ ...dev, GEMINI_API_KEY: 'k' })).not.toThrow();
+    expect(() => validateEnv({ ...dev, GEMINI_USE_VERTEX: 'true' })).toThrow(
+      /GOOGLE_CLOUD_PROJECT/,
+    );
+    expect(() =>
+      validateEnv({
+        ...dev,
+        GEMINI_USE_VERTEX: 'true',
+        GOOGLE_CLOUD_PROJECT: 'p',
+      }),
+    ).not.toThrow();
+  });
+
   it('accepts a complete production env', () => {
     expect(() => validateEnv(prod)).not.toThrow();
   });

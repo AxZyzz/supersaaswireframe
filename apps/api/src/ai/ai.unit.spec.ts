@@ -35,7 +35,8 @@ describe('AIProviderResolver', () => {
   const mock = new MockAIProvider();
   // Bedrock provider is never invoked in these tests; a bare cast avoids
   // constructing a real client.
-  const bedrock = {} as never;
+  const bedrock = { name: 'bedrock' } as never;
+  const gemini = { name: 'gemini' } as never;
 
   const resolverWith = (driver?: string) =>
     new AIProviderResolver(
@@ -44,10 +45,17 @@ describe('AIProviderResolver', () => {
       } as unknown as ConfigService,
       mock,
       bedrock,
+      gemini,
     );
 
   it('defaults to the mock provider', () => {
     expect(resolverWith().resolve().name).toBe('mock');
+  });
+
+  it('selects Bedrock or Gemini by AI_DRIVER', () => {
+    expect(resolverWith('bedrock').resolve().name).toBe('bedrock');
+    expect(resolverWith('gemini').resolve().name).toBe('gemini');
+    expect(resolverWith('GEMINI').resolve().name).toBe('gemini');
   });
 
   it('falls back to mock for an unknown driver', () => {
