@@ -82,6 +82,7 @@
 | `POST /leads/:id/notes` | login | ✅ | ✅ | ✅ |
 | `POST /leads/:id/tags` | login | ✅ | ✅ | ✅ |
 | `DELETE /leads/:id/tags/:tagId` | login | ✅ | ✅ | ✅ |
+| `POST /leads/bulk-delete` | login | ✅ | ✅ | ⛔ |
 | `GET /leads/duplicates` | login | ✅ | ✅ | ✅ |
 | `GET /leads/export` | login | ✅ | ✅ | ✅ |
 | `POST /leads/import` | login | ✅ | ✅ | ⛔ |

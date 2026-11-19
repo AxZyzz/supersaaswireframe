@@ -227,4 +227,57 @@ describe('Leads integration', () => {
       .set('Authorization', auth(0))
       .expect(404);
   });
+
+  it('bulk-deletes selected leads, or all matching a filter, never another org', async () => {
+    const mk = async (i: number, email: string, company: string) =>
+      (
+        await request(app.getHttpServer())
+          .post('/leads')
+          .set('Authorization', auth(i))
+          .send({ email, company })
+          .expect(201)
+      ).body.id as string;
+    const tag = randomUUID().slice(0, 6);
+    const a = await mk(0, `bulk-a-${tag}@x.test`, `Bulkco ${tag}`);
+    const b = await mk(0, `bulk-b-${tag}@x.test`, `Bulkco ${tag}`);
+    const c = await mk(0, `bulk-c-${tag}@x.test`, `Keepco ${tag}`);
+    const other = await mk(1, `bulk-o-${tag}@x.test`, `Bulkco ${tag}`);
+
+    const post = (i: number, body: object) =>
+      request(app.getHttpServer())
+        .post('/leads/bulk-delete')
+        .set('Authorization', auth(i))
+        .send(body);
+
+    // nothing picked and no explicit "all matching": refused
+    await post(0, {}).expect(400);
+    await post(0, { filters: { search: tag } }).expect(400);
+
+    // by ids: another org's id in the list is simply not visible (RLS)
+    expect((await post(0, { leadIds: [a, other] }).expect(200)).body).toEqual({
+      deleted: 1,
+    });
+
+    // all matching a search
+    expect(
+      (
+        await post(0, {
+          allMatching: true,
+          filters: { search: `Bulkco ${tag}` },
+        }).expect(200)
+      ).body,
+    ).toEqual({ deleted: 1 });
+
+    const left = await request(app.getHttpServer())
+      .get(`/leads?search=${tag}`)
+      .set('Authorization', auth(0))
+      .expect(200);
+    expect(left.body.data.map((l: { id: string }) => l.id)).toEqual([c]);
+    // org 1's lead untouched
+    await request(app.getHttpServer())
+      .get(`/leads/${other}`)
+      .set('Authorization', auth(1))
+      .expect(200);
+    void b;
+  });
 });

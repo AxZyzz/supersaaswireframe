@@ -221,6 +221,17 @@ export const SCORE_STYLES: Record<string, string> = {
 };
 
 /** forget = GDPR erasure: delete the lead, keep the address suppressed. */
+/** Delete the given leads, or every lead matching the filters. */
+export const bulkDeleteLeads = (
+  body:
+    | { leadIds: string[] }
+    | { allMatching: true; filters: Omit<LeadFilters, "limit" | "offset"> },
+) =>
+  api<{ deleted: number }>("/leads/bulk-delete", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
 export const deleteLead = (id: string, forget = false) =>
   api<{ deleted: boolean }>(`/leads/${id}${forget ? "?forget=true" : ""}`, {
     method: "DELETE",

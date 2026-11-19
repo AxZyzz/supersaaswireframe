@@ -1,4 +1,9 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Pool, PoolClient } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
@@ -6,6 +11,7 @@ import { UsageService } from '../usage/usage.service';
 import type {
   CreateLeadDto,
   CreateNoteDto,
+  LeadFilter,
   ListLeadsQuery,
   UpdateLeadDto,
 } from './dto/lead.dto';
@@ -54,6 +60,29 @@ const SORT_COLUMN: Record<string, string> = {
   last_name: 'last_name',
 };
 
+/** The lead-list filters (search, status, score, source, tag) as SQL
+ *  conditions; shared by list, export and bulk delete so they always agree. */
+function filterWhere(
+  q: LeadFilter,
+  where: string[],
+  add: (v: unknown) => string,
+) {
+  if (q.search) {
+    const p = add(`%${q.search}%`);
+    where.push(
+      `(email ILIKE ${p} OR first_name ILIKE ${p} OR last_name ILIKE ${p} OR company ILIKE ${p})`,
+    );
+  }
+  if (q.status) where.push(`status = ${add(q.status)}`);
+  if (q.score) where.push(`score = ${add(q.score)}`);
+  if (q.source) where.push(`source = ${add(q.source)}`);
+  if (q.tagId) {
+    where.push(
+      `id IN (SELECT lead_id FROM lead_tags WHERE tag_id = ${add(q.tagId)})`,
+    );
+  }
+}
+
 @Injectable()
 export class LeadsService {
   constructor(
@@ -75,20 +104,7 @@ export class LeadsService {
       return `$${params.length}`;
     };
 
-    if (q.search) {
-      const p = add(`%${q.search}%`);
-      where.push(
-        `(email ILIKE ${p} OR first_name ILIKE ${p} OR last_name ILIKE ${p} OR company ILIKE ${p})`,
-      );
-    }
-    if (q.status) where.push(`status = ${add(q.status)}`);
-    if (q.score) where.push(`score = ${add(q.score)}`);
-    if (q.source) where.push(`source = ${add(q.source)}`);
-    if (q.tagId) {
-      where.push(
-        `id IN (SELECT lead_id FROM lead_tags WHERE tag_id = ${add(q.tagId)})`,
-      );
-    }
+    filterWhere(q, where, add);
 
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const sortCol = SORT_COLUMN[q.sort ?? 'created_at'];
@@ -126,20 +142,7 @@ export class LeadsService {
       params.push(v);
       return `$${params.length}`;
     };
-    if (q.search) {
-      const p = add(`%${q.search}%`);
-      where.push(
-        `(email ILIKE ${p} OR first_name ILIKE ${p} OR last_name ILIKE ${p} OR company ILIKE ${p})`,
-      );
-    }
-    if (q.status) where.push(`status = ${add(q.status)}`);
-    if (q.score) where.push(`score = ${add(q.score)}`);
-    if (q.source) where.push(`source = ${add(q.source)}`);
-    if (q.tagId) {
-      where.push(
-        `id IN (SELECT lead_id FROM lead_tags WHERE tag_id = ${add(q.tagId)})`,
-      );
-    }
+    filterWhere(q, where, add);
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     return this.run(orgId, async (c) => {
       const res = await c.query<LeadRow>(
@@ -330,6 +333,35 @@ export class LeadsService {
 
   /** forget = GDPR erasure: delete the person's data but keep their address
    *  on the suppression list, so they're never contacted again. */
+  /**
+   * Bulk delete: the given ids, or (allMatching) every lead matching the
+   * list filters. Same as deleting one by one: activity, notes, tags and
+   * campaign enrolments go with the lead; sent-email history stays.
+   */
+  async bulkRemove(
+    orgId: string,
+    dto: { leadIds?: string[]; allMatching?: boolean; filters?: LeadFilter },
+  ) {
+    const where: string[] = [];
+    const params: unknown[] = [];
+    const add = (v: unknown) => {
+      params.push(v);
+      return `$${params.length}`;
+    };
+    if (dto.leadIds?.length) {
+      where.push(`id = ANY(${add(dto.leadIds)}::uuid[])`);
+    } else if (dto.allMatching === true) {
+      filterWhere(dto.filters ?? {}, where, add);
+    } else {
+      throw new BadRequestException('Pick leads, or confirm allMatching');
+    }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    return this.run(orgId, async (c) => {
+      const res = await c.query(`DELETE FROM leads ${whereSql}`, params);
+      return { deleted: res.rowCount ?? 0 };
+    });
+  }
+
   async remove(orgId: string, id: string, forget = false) {
     return this.run(orgId, async (c) => {
       if (forget) {

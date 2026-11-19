@@ -207,6 +207,16 @@ the lead CSV?"
 - Tests: `column-mapping.spec.ts` (6, built on the failing list's shape) + 2
   import integration tests (messy rows cleaned; suggest endpoint).
 
+**Then (Aman):** "there is no option to delete leads" (I had told him to bulk
+delete; that didn't exist: only one-by-one from a lead's page).
+- **Bulk delete** (`POST /leads/bulk-delete`, admin/manager; agents refused like
+  the single delete): selected ids (max 500), or `allMatching: true` + the
+  current filters ("Select all N" appears when the whole page is ticked and more
+  leads match). An empty request is refused (400). RLS keeps it to the caller's
+  workspace. List, export and bulk delete now share one filter builder.
+  Leads page: red **Delete** in the selection bar with a confirm that says what
+  goes with the leads. Integration test + verified in the browser.
+
 **Start order after a reboot:** Docker Desktop → `docker start
 supersaas-postgres supersaas-redis` → API (`npm run start:dev -w apps/api`) →
 web (`npm run dev -w apps/web`).
