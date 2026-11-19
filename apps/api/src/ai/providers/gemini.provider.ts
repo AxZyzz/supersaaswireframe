@@ -47,11 +47,13 @@ const THINKING_HEADROOM = 8192;
  * Model per tier is env-overridable (GEMINI_MODEL_FAST / _BALANCED /
  * _POWERFUL) because Google renames and retires models often. Defaults were
  * live-checked on 2026-11-18 with a new AI Studio key: 2.5 models are closed
- * to new users, and Pro models have no free-tier quota. Drafts and edits
- * ('balanced') use Flash-Lite since 2026-11-19: gemini-3.8-flash was so often
- * "high demand" that drafts sat on the 45s timeout before falling back. The
- * campaign builder ('powerful') keeps gemini-3.8-flash (falls back to
- * Flash-Lite when busy); with billing on, GEMINI_MODEL_POWERFUL=gemini-pro-latest.
+ * to new users, and Pro models have no free-tier quota. Since 2026-11-19 every
+ * tier defaults to Flash-Lite: gemini-3.8-flash was "high demand" or hit
+ * Google's deadline (504) on almost every call on the free tier, so drafts,
+ * edits and the campaign builder sat on timeouts before falling back. Pick a
+ * stronger model per tier with GEMINI_MODEL_* (e.g. with billing on,
+ * GEMINI_MODEL_POWERFUL=gemini-pro-latest); the Flash-Lite fallback still
+ * covers it when that model is busy.
  */
 @Injectable()
 export class GeminiAIProvider implements AIProvider {
@@ -77,7 +79,7 @@ export class GeminiAIProvider implements AIProvider {
       ),
       powerful: this.config.get<string>(
         'GEMINI_MODEL_POWERFUL',
-        'gemini-3.8-flash',
+        'gemini-3.5-flash-lite',
       ),
     };
     return map[tier];

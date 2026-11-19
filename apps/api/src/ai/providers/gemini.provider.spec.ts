@@ -10,6 +10,10 @@ describe('GeminiAIProvider', () => {
   const make = (env: Record<string, string> = {}) =>
     new GeminiAIProvider(new ConfigService(env));
 
+  // Fallback tests need a primary model that differs from the fallback.
+  const makeSlow = (env: Record<string, string> = {}) =>
+    make({ GEMINI_MODEL_POWERFUL: 'gemini-3.8-flash', ...env });
+
   const reply = (
     over: Partial<GenerateContentResponse> & { text?: string } = {},
   ) =>
@@ -118,7 +122,7 @@ describe('GeminiAIProvider', () => {
 
   it('falls back to a lighter model once when the model is overloaded', async () => {
     const tried: string[] = [];
-    const p = make();
+    const p = makeSlow();
     p.useGenerateFn((params) => {
       tried.push(params.model);
       return params.model === 'gemini-3.8-flash'
@@ -137,7 +141,7 @@ describe('GeminiAIProvider', () => {
 
   it('a timed-out call becomes a readable error and switches to the fallback', async () => {
     const tried: string[] = [];
-    const p = make({ GEMINI_TIMEOUT_MS: '30000' });
+    const p = makeSlow({ GEMINI_TIMEOUT_MS: '30000' });
     p.useGenerateFn((params) => {
       tried.push(params.model);
       if (params.model === 'gemini-3.8-flash') {
@@ -154,7 +158,7 @@ describe('GeminiAIProvider', () => {
     expect(tried).toEqual(['gemini-3.8-flash', 'gemini-3.5-flash-lite']);
     expect(r.model).toBe('gemini-3.5-flash-lite');
 
-    const both = make({ GEMINI_TIMEOUT_MS: '30000' });
+    const both = makeSlow({ GEMINI_TIMEOUT_MS: '30000' });
     both.useGenerateFn(() => {
       const abort = new Error('aborted');
       abort.name = 'RequestAbortedError';
@@ -170,7 +174,7 @@ describe('GeminiAIProvider', () => {
 
   it("Google's own deadline (504 DEADLINE_EXCEEDED) also falls back", async () => {
     const tried: string[] = [];
-    const p = make();
+    const p = makeSlow();
     p.useGenerateFn((params) => {
       tried.push(params.model);
       return params.model === 'gemini-3.8-flash'
@@ -190,7 +194,7 @@ describe('GeminiAIProvider', () => {
   });
 
   it('does not fall back on other errors, or when disabled', async () => {
-    const quota = make();
+    const quota = makeSlow();
     quota.useGenerateFn(() =>
       Promise.reject(new Error('400 INVALID_ARGUMENT')),
     );
@@ -202,7 +206,7 @@ describe('GeminiAIProvider', () => {
     ).rejects.toThrow('INVALID_ARGUMENT');
 
     const tried: string[] = [];
-    const off = make({ GEMINI_FALLBACK_MODEL: 'off' });
+    const off = makeSlow({ GEMINI_FALLBACK_MODEL: 'off' });
     off.useGenerateFn((params) => {
       tried.push(params.model);
       return Promise.reject(new Error('503 UNAVAILABLE'));

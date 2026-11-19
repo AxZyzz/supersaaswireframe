@@ -47,6 +47,18 @@ which service are we using? Generation failed."
   notifications are only printed in the API log until an SMTP mailbox is set
   (e.g. Gmail SMTP with an app password).
 
+**Then (Aman):** "make the builder use the fast model too; I've done the app
+password."
+- Campaign builder (powerful tier) now also defaults to `gemini-3.5-flash-lite`
+  (all tiers fast). Live: full 3-email sequence in **8.4 s** (was 52 s). Stronger
+  models stay one setting away (`GEMINI_MODEL_*`). Prompt-tuning note: one
+  follow-up used `{first_name}` without a fallback.
+- Platform email (`SYSTEM_SMTP_*`, smtp.gmail.com:587) is filled in, but Gmail
+  **rejects the login** (`535 5.7.8 Username and Password not accepted`), with
+  and without the spaces in the app password. Likely: the app password belongs to
+  a different Google account than `SYSTEM_SMTP_USER`, or was mistyped. Waiting on
+  Aman to re-create it. No reset email can be sent until then.
+
 **Start order after a reboot:** Docker Desktop → `docker start
 supersaas-postgres supersaas-redis` → API (`npm run start:dev -w apps/api`) →
 web (`npm run dev -w apps/web`).
