@@ -23,7 +23,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "ts-node src/db/seed.ts",
     "operator": "ts-node scripts/operator.ts",
-    "eval": "ts-node scripts/eval.ts"
+    "eval": "ts-node scripts/eval.ts",
+    "db:migrate:prod": "ts-node src/db/migrate.ts"
   },
   "dependencies": {
     "@anthropic-ai/bedrock-sdk": "^0.32.0",

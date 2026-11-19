@@ -103,6 +103,7 @@
 | `POST /operator/orgs/:id/pause-campaigns` | operator | ⛔ | ⛔ | ⛔ |
 | `PATCH /operator/orgs/:id/plan` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /operator/overview` | operator | ⛔ | ⛔ | ⛔ |
+| `GET /operator/request-ip` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /operator/waitlist` | operator | ⛔ | ⛔ | ⛔ |
 | `POST /operator/waitlist/:id/approve` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /orgs/invites` | login | ✅ | ⛔ | ⛔ |

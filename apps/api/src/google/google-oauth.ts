@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import type { CookieOptions, Request, Response } from 'express';
+import { cookiePath } from '../auth/refresh-cookie';
 import {
   FetchLike,
   GOOGLE_TOKEN_URL,
@@ -148,7 +149,7 @@ function oauthCookieOptions(): CookieOptions {
       process.env.COOKIE_SECURE === 'true' ||
       none,
     sameSite: none ? 'none' : 'lax',
-    path: '/auth/google',
+    path: cookiePath('/auth/google'),
     domain: process.env.COOKIE_DOMAIN || undefined,
   };
 }

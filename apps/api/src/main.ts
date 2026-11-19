@@ -57,7 +57,8 @@ async function bootstrap() {
     );
   }
 
-  // API_PORT matches .env.example; loaded via ConfigModule from root .env
-  await app.listen(process.env.API_PORT ?? 4000);
+  // API_PORT matches .env.example; loaded via ConfigModule from root .env.
+  // Cloud Run (and most container hosts) inject PORT instead.
+  await app.listen(process.env.PORT ?? process.env.API_PORT ?? 4000);
 }
 void bootstrap();

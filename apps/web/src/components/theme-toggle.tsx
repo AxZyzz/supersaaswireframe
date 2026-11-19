@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
-import { applyTheme, getTheme, setTheme, ThemeChoice } from "@/lib/theme";
+import { applyTheme, getTheme, onThemeChange, setTheme, ThemeChoice } from "@/lib/theme";
 
 const NEXT: Record<ThemeChoice, ThemeChoice> = {
   system: "light",
@@ -23,7 +23,11 @@ export function ThemeToggle() {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = () => getTheme() === "system" && applyTheme("system");
     mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
+    const off = onThemeChange(setChoice); // Settings → Appearance changed it
+    return () => {
+      mq.removeEventListener("change", onChange);
+      off();
+    };
   }, []);
 
   const Icon = ICON[choice];

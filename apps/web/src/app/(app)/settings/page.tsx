@@ -21,9 +21,14 @@ import { NotificationPrefsSection } from "@/components/notification-prefs-sectio
 import { PrivacySection } from "@/components/privacy-section";
 import { LeadStatusesSection } from "@/components/lead-statuses-section";
 import { IntegrationsSection } from "@/components/integrations-section";
+import { AppearanceSection } from "@/components/appearance-section";
 import { HelpLink } from "@/components/help-link";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+// Shown in the API-keys help: the API's own public address, not the /api proxy.
+const API_URL =
+  process.env.NEXT_PUBLIC_API_PUBLIC_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  "http://localhost:4000";
 
 export default function SettingsPage() {
   const [keys, setKeys] = useState<ApiKey[]>([]);
@@ -97,6 +102,8 @@ export default function SettingsPage() {
       <UsageSection />
 
       <NotificationPrefsSection />
+
+      <AppearanceSection />
 
       <SendersSection readOnly={role === "agent"} />
 

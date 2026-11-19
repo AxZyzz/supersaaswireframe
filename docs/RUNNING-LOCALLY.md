@@ -310,6 +310,7 @@ time you restart the tunnel.
 | API crashes with `relation … does not exist` / `column … does not exist` | Migrations not applied: `npm run db:migrate -w apps/api` |
 | `EADDRINUSE :4000` or `:3000` | Already running in another terminal. Close it, or find the process: `Get-NetTCPConnection -LocalPort 4000` |
 | `ECONNREFUSED 127.0.0.1:5432` / `:6379` | Containers stopped: `docker start supersaas-postgres supersaas-redis` |
+| `read ECONNRESET` to Postgres/Redis, containers healthy, login says "Can't reach the server" | Docker Desktop's WSL relay (`wslrelay`) grabbed IPv6 `localhost` (`::1`) on 5432/6379. Use `127.0.0.1` instead of `localhost` in `DATABASE_URL`, `MIGRATE_DATABASE_URL`, `REDIS_URL` (as `.env.example` now does), or restart Docker Desktop. Check: `Get-NetTCPConnection -LocalPort 5432 -State Listen` shows `wslrelay` on `::1` |
 | "Generation failed" / "AI is busy" | Gemini overloaded or key wrong. Retry; check `GEMINI_API_KEY`; check the API terminal for the exact error |
 | Gmail sender shows "reconnect" | Token revoked/expired (testing-mode Google apps expire tokens after 7 days). Click reconnect |
 | System emails fail with `535` | SMTP login rejected. Gmail needs 2-step verification **and** an app password (16 letters, no spaces) |

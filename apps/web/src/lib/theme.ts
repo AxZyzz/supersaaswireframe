@@ -7,6 +7,7 @@
  */
 export type ThemeChoice = "system" | "light" | "dark";
 const KEY = "ss.theme";
+const EVENT = "ss-theme-change";
 
 export const THEME_INIT = `(function(){try{var t=localStorage.getItem("${KEY}");var d=t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.classList.toggle("dark",d)}catch(e){}})();`;
 
@@ -34,4 +35,12 @@ export function setTheme(choice: ThemeChoice) {
     // storage blocked: still apply for this page view
   }
   applyTheme(choice);
+  window.dispatchEvent(new CustomEvent<ThemeChoice>(EVENT, { detail: choice }));
+}
+
+/** Keeps the header toggle and Settings → Appearance in sync. Returns unsubscribe. */
+export function onThemeChange(cb: (choice: ThemeChoice) => void): () => void {
+  const handler = (e: Event) => cb((e as CustomEvent<ThemeChoice>).detail);
+  window.addEventListener(EVENT, handler);
+  return () => window.removeEventListener(EVENT, handler);
 }

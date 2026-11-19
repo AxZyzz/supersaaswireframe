@@ -126,6 +126,35 @@ blue, half-done in yellow, not done in red."
   `*` for google-stack-only. `README.md` explains how to read it;
   `generate.py` rebuilds it from content lists; PNG/SVG preview for GitHub.
 
+**Then (Aman):** reply sync works live, but opens/clicks don't; "let's host it" on
+Google Cloud: Cloud Run + Cloud SQL, Mumbai, buildathon billing; Claude runs the
+gcloud commands, explaining each. Also: a light (Twenty CRM) theme option.
+- **Why opens/clicks were 0:** the pixel and links point at `localhost`; Gmail
+  fetches images from Google's servers, which can't reach a laptop. Hosting fixes it.
+- **Cloud SQL blocker found and fixed (migration `0046`):** Cloud SQL has no
+  superuser, so FORCE RLS applied to the owner and every SECURITY DEFINER
+  function (login, scheduler, reply sync) would have seen zero rows. Reproduced
+  locally with a non-superuser-owned database (16/23 failing), fixed with an
+  owner-only `owner_bypass` policy per RLS table (app role still isolated),
+  guarded by `rls-owner-bypass.spec.ts`. Full suite on that database: green.
+- **Production pieces:** `src/db/migrate.ts` (runtime migrator, sets the real
+  `supersaas_app` password from `APP_DB_PASSWORD`), API listens on `PORT`,
+  `COOKIE_PATH_PREFIX`, BullMQ keeps Redis username + TLS (`rediss://`, Upstash),
+  operator-only `GET /operator/request-ip` (to set `TRUST_PROXY` live),
+  Dockerfiles for api + web, web proxies `/api/*` to the API (first-party cookies
+  across two run.app hosts) with the websocket direct, `.dockerignore` /
+  `.gcloudignore`, `deploy/cloudbuild-*.yaml`, `docs/DEPLOY-GCP.md`. Verified with
+  both images running locally: sign-up, reload (refresh via proxy), websocket.
+- **Settings → Appearance:** Light (Twenty CRM style) / Dark / System cards,
+  synced with the header toggle.
+- **System email 535 solved:** `SYSTEM_SMTP_USER` had a typo (`@gmail.comm`).
+- **Local "Can't reach the server":** Docker Desktop's `wslrelay` took IPv6
+  `localhost` on 5432/6379; `.env.example` now uses `127.0.0.1`.
+- **Google Cloud so far (project `supersaas-513613`):** APIs enabled, Artifact
+  Registry `supersaas`, Cloud SQL `supersaas-db` (PG16, db-f1-micro, backups,
+  deletion protection) + database, 9 secrets, service account `supersaas-run`.
+- Tests: 296 passed / 1 skipped (dev DB) and green on the Cloud-SQL-style DB.
+
 **Start order after a reboot:** Docker Desktop → `docker start
 supersaas-postgres supersaas-redis` → API (`npm run start:dev -w apps/api`) →
 web (`npm run dev -w apps/web`).

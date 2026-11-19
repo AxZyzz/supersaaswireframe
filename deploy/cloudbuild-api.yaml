@@ -1,0 +1,9 @@
+# Builds the API image on Google Cloud Build (no local Docker needed) and
+# pushes it to Artifact Registry. Run from the repo root:
+#   gcloud builds submit --region=asia-south1 --config deploy/cloudbuild-api.yaml \
+#     --substitutions=_IMAGE=asia-south1-docker.pkg.dev/PROJECT_ID/supersaas/api:TAG .
+# .gcloudignore keeps .env and node_modules out of the upload.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-f", "apps/api/Dockerfile", "-t", "${_IMAGE}", "."]
+images: ["${_IMAGE}"]

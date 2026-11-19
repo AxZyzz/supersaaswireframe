@@ -1,0 +1,6 @@
+# What `gcloud builds submit` must NOT upload to Cloud Build.
+# Secrets live in Secret Manager, never in the build context.
+.env
+.env.*
+!.env.example
+#!include:.dockerignore
