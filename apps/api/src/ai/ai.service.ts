@@ -11,7 +11,7 @@ import { AIGenerateOptions, AIResult } from './providers/ai-provider';
 import { AIProviderResolver } from './providers/provider.resolver';
 
 const RETRYABLE =
-  /429|throttl|timeout|ETIMEDOUT|ECONNRESET|503|500|overloaded|RESOURCE_EXHAUSTED|UNAVAILABLE/i;
+  /429|throttl|timeout|ETIMEDOUT|ECONNRESET|503|504|500|overloaded|RESOURCE_EXHAUSTED|UNAVAILABLE|DEADLINE_EXCEEDED/i;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Central entry point for all AI calls. Resolves the active provider, retries

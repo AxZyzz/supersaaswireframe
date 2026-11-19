@@ -32,6 +32,21 @@ campaign builder keeps `gemini-3.8-flash` with the Flash-Lite fallback. Live:
 reply drafts 1.2 s and 6.0 s, edit 1.2 s (before: often 45 s+ waiting on an
 overloaded 3.8 Flash). Tests updated (fallback tests now on the powerful tier).
 
+**Then (Aman):** "login is a mess, the password reset link isn't working,
+which service are we using? Generation failed."
+- **Generation failed** = Google's own server deadline: `504 DEADLINE_EXCEEDED` on
+  `gemini-3.8-flash` (campaign builder). Retry/fallback only knew 503 and our
+  timeout, so it failed at once. Fixed: 504 / `DEADLINE_EXCEEDED` is retryable in
+  `AiService` and triggers the Flash-Lite fallback. Live: builder returned a full
+  3-email sequence (HTTP 200, 52 s; written by the fallback after 3.8 Flash hit
+  the deadline). Test added.
+- **Password reset:** no reset had ever been created: the email Aman used has no
+  account in this local database (only the demo account and old test accounts
+  exist). By design the reset page never reveals whether an email exists. Also
+  no platform email service is configured (`SYSTEM_SMTP_*` empty): resets and
+  notifications are only printed in the API log until an SMTP mailbox is set
+  (e.g. Gmail SMTP with an app password).
+
 **Start order after a reboot:** Docker Desktop → `docker start
 supersaas-postgres supersaas-redis` → API (`npm run start:dev -w apps/api`) →
 web (`npm run dev -w apps/web`).

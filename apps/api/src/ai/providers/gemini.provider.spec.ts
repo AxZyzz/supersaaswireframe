@@ -168,6 +168,27 @@ describe('GeminiAIProvider', () => {
     ).rejects.toThrow('Gemini timed out after 30s');
   });
 
+  it("Google's own deadline (504 DEADLINE_EXCEEDED) also falls back", async () => {
+    const tried: string[] = [];
+    const p = make();
+    p.useGenerateFn((params) => {
+      tried.push(params.model);
+      return params.model === 'gemini-3.8-flash'
+        ? Promise.reject(
+            new Error(
+              '{"error":{"code":504,"message":"Deadline expired before operation could complete.","status":"DEADLINE_EXCEEDED"}}',
+            ),
+          )
+        : Promise.resolve(reply({ modelVersion: params.model }));
+    });
+    const r = await p.generate({
+      tier: 'powerful',
+      messages: [{ role: 'user', content: 'x' }],
+    });
+    expect(tried).toEqual(['gemini-3.8-flash', 'gemini-3.5-flash-lite']);
+    expect(r.model).toBe('gemini-3.5-flash-lite');
+  });
+
   it('does not fall back on other errors, or when disabled', async () => {
     const quota = make();
     quota.useGenerateFn(() =>

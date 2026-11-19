@@ -19,7 +19,8 @@ type GenerateFn = (
 // When the chosen model answers 503 "high demand" (common on the free tier),
 // one retry on a lighter model usually succeeds. Override or disable ('off')
 // with GEMINI_FALLBACK_MODEL.
-const OVERLOADED = /\b503\b|UNAVAILABLE|high demand|overloaded|timed out/i;
+const OVERLOADED =
+  /\b50[34]\b|UNAVAILABLE|DEADLINE_EXCEEDED|high demand|overloaded|timed out/i;
 
 // The SDK sets no client-side timeout (Google's server may hold a request
 // for up to 10 minutes) and retries 503/429 itself up to 5 times with delays
