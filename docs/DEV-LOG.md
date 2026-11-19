@@ -13,6 +13,24 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ## Sessions
 
+### 2026-11-19 — "Can't log in: Something went wrong, try again"
+
+**Cause:** environment, not code. After the PC restarted, Docker Desktop was not
+running (so Postgres/Redis were down) and only the web app had been started, not
+the API. The login page shows "Something went wrong" whenever the API doesn't
+answer; a wrong password shows "Invalid email or password" instead.
+
+**Fix:** Docker restarted with the stale-socket rename fix, containers started
+(healthy), API started (`/health/ready` = db + redis OK). Verified: bad password
+→ 401 "Invalid credentials"; demo login → dashboard; Gemini key still valid
+(`gemini-3.5-flash-lite` answers in ~1 s; `gemini-3.8-flash` "high demand"
+again, covered by the automatic fallback). Repo unchanged (`90a1362`, clean).
+
+**Start order after a reboot:** Docker Desktop → `docker start
+supersaas-postgres supersaas-redis` → API (`npm run start:dev -w apps/api`) →
+web (`npm run dev -w apps/web`).
+
+
 ### 2026-11-18 — Branch `google-stack`: Gemini as the AI (Phase 1)
 
 **Asked:** "We are using Bedrock, right? Create a new branch where everything is
