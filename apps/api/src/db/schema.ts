@@ -356,6 +356,9 @@ export const senderAccounts = pgTable(
       .notNull()
       .defaultNow(),
     status: text('status').notNull().default('unverified'),
+    // Gmail reply reading (T5.7): last poll and its error, if any.
+    replySyncAt: timestamp('reply_sync_at', { withTimezone: true }),
+    replySyncError: text('reply_sync_error'),
     config: jsonb('config')
       .notNull()
       .default(sql`'{}'::jsonb`),
@@ -949,5 +952,26 @@ export const sheetSyncs = pgTable(
       t.spreadsheetId,
       t.sheetTitle,
     ),
+  ],
+);
+
+// Gmail reply reading (T5.7): Gmail message ids already processed per sender,
+// so overlapping polls never handle a message twice. Ids only, no content.
+export const gmailSeenMessages = pgTable(
+  'gmail_seen_messages',
+  {
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    senderId: uuid('sender_id')
+      .notNull()
+      .references(() => senderAccounts.id, { onDelete: 'cascade' }),
+    gmailMessageId: text('gmail_message_id').notNull(),
+    kind: text('kind').notNull(), // reply | bounce | ignored
+    seenAt: timestamp('seen_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.senderId, t.gmailMessageId] }),
+    index('gmail_seen_messages_org_idx').on(t.orgId, t.seenAt),
   ],
 );

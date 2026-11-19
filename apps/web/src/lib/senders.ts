@@ -16,6 +16,10 @@ export interface Sender {
   status: string;
   created_at: string;
   updated_at: string;
+  /** Gmail granted read access: replies and bounces are pulled in (T5.7). */
+  reply_sync_enabled: boolean;
+  reply_sync_at: string | null;
+  reply_sync_error: string | null;
 }
 
 export interface DnsRecordCheck {

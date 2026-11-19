@@ -23,6 +23,9 @@ const row = (provider: SenderRow['provider']): SenderRow => ({
   warmup_started_at: new Date(),
   effective_daily_limit: 20,
   warmup_day: 1,
+  reply_sync_enabled: false,
+  reply_sync_at: null,
+  reply_sync_error: null,
 });
 
 const resolver = (emailDriver?: string, env: Record<string, string> = {}) =>

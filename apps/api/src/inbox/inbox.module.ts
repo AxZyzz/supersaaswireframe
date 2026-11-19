@@ -3,6 +3,7 @@ import { AiModule } from '../ai/ai.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { InboxController } from './inbox.controller';
 import { InboxService } from './inbox.service';
+import { GmailReplySyncService } from './gmail-reply-sync.service';
 import { SendersModule } from '../senders/senders.module';
 
 // Unified inbox (E7). Exports InboxService so reply ingestion (E5 chunk 3)
@@ -10,7 +11,7 @@ import { SendersModule } from '../senders/senders.module';
 @Module({
   imports: [AiModule, NotificationsModule, SendersModule], // classification + new-reply alerts
   controllers: [InboxController],
-  providers: [InboxService],
-  exports: [InboxService],
+  providers: [InboxService, GmailReplySyncService],
+  exports: [InboxService, GmailReplySyncService],
 })
 export class InboxModule {}

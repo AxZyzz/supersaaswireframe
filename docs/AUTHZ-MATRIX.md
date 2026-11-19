@@ -60,6 +60,7 @@
 | `PATCH /inbox/:id` | login | ✅ | ✅ | ✅ |
 | `POST /inbox/:id/notes` | login | ✅ | ✅ | ✅ |
 | `POST /inbox/:id/reply` | login | ✅ | ✅ | ✅ |
+| `POST /inbox/gmail-sync` | login | ✅ | ✅ | ✅ |
 | `POST /inbox/simulate-reply` | login | ✅ | ✅ | ⛔ |
 | `GET /inbox/unread-count` | login | ✅ | ✅ | ✅ |
 | `GET /integrations` | login | ✅ | ✅ | ✅ |

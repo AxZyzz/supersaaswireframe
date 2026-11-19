@@ -82,6 +82,32 @@ from another account, but the workspace shows neither the open nor the reply.
   google-stack Phase 2). Today replies only enter via the Test reply tool.
   Hosting alone won't fix this.
 
+**Then (Aman):** "yes, start building Gmail reply reading; can this run on
+Vercel?"
+- **Built Gmail reply reading (T5.7 / google-stack Phase 2):**
+  `GmailReplySyncService` polls every 2 min (system job `gmail-reply-sync`) and
+  on **Inbox → Sync Gmail** (`POST /inbox/gmail-sync`). Replies from people we
+  emailed → `ingestReply` (quote-stripped, classified, sequence stopped);
+  mailer-daemon bounces → suppression `bounced` + stopped sequences + bounce
+  event; everything else ignored and never stored (only the Gmail id, in
+  `gmail_seen_messages`). Connect Gmail now also asks for `gmail.readonly`
+  (optional: sending works without it). Settings shows per-sender reply-sync
+  status; revoked tokens mark the sender for reconnect. Migration `0045`
+  (columns `reply_sync_at/error`, table `gmail_seen_messages` with RLS,
+  definer fn `due_gmail_reply_syncs`). 4 integration tests (reply, personal
+  mail ignored, bounce, no double-processing, Sync now, revoked token).
+- **Vercel:** the web app can run on Vercel; the API can't (long-running
+  workers, the 2-minute jobs, websockets, Redis connections). API needs a server
+  or container host; database + Redis managed elsewhere.
+- Full suite found 1 failure in usage limits (CSV import over the lead cap):
+  not a bug. The dev API running against the same Redis grabbed the test's
+  import job. Fixed at the root: BullMQ uses `QUEUE_PREFIX` (tests get a
+  private `test-<pid>` namespace via `test/setup-env.ts`). Usage + import suites
+  now pass with the dev API running.
+- **To try it for real:** Aman reconnects Gmail in Settings (tick the new "read"
+  permission), then replies to a campaign email from his other account and
+  clicks Sync Gmail.
+
 **Start order after a reboot:** Docker Desktop → `docker start
 supersaas-postgres supersaas-redis` → API (`npm run start:dev -w apps/api`) →
 web (`npm run dev -w apps/web`).

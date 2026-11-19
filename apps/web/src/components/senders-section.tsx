@@ -27,6 +27,7 @@ import {
   gmailStatus,
 } from "@/lib/senders";
 import { errorMessage } from "@/lib/api";
+import { timeAgo } from "@/lib/analytics";
 import { HelpLink } from "@/components/help-link";
 
 // Gmail isn't added by hand: it connects through Google sign-in (T3.3).
@@ -397,6 +398,33 @@ export function SendersSection({
                           reconnect
                         </button>
                       )}
+                    {s.provider === "gmail" && s.status === "verified" && (
+                      <div
+                        className={`mt-1 text-tiny ${s.reply_sync_error ? "text-danger-text" : "text-faint"}`}
+                        title={s.reply_sync_error ?? undefined}
+                      >
+                        {!s.reply_sync_enabled ? (
+                          <>
+                            Replies: off{" "}
+                            {gmailEnabled && !readOnly && (
+                              <button
+                                onClick={() => void connectGmail()}
+                                className="underline hover:text-ink"
+                                title="Reconnect and allow reading email so replies and bounces show up in the Inbox"
+                              >
+                                reconnect to read replies
+                              </button>
+                            )}
+                          </>
+                        ) : s.reply_sync_error ? (
+                          "Replies: sync failed"
+                        ) : s.reply_sync_at ? (
+                          `Replies: synced ${timeAgo(s.reply_sync_at)}`
+                        ) : (
+                          "Replies: waiting for first sync"
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-2.5">
                     <div

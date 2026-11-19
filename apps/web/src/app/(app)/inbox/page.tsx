@@ -8,6 +8,7 @@ import {
   BadgeCheck,
   StickyNote,
   FlaskConical,
+  RefreshCw,
   Mail,
   MailOpen,
   Send,
@@ -28,6 +29,7 @@ import {
   listConversations,
   ReplyClass,
   simulateReply,
+  syncGmail,
   updateConversation,
 } from "@/lib/inbox";
 import { errorMessage } from "@/lib/api";
@@ -94,6 +96,7 @@ function Inbox() {
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [drafting, setDrafting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [mode, setMode] = useState<"reply" | "note">("reply");
 
   useEffect(() => {
@@ -158,6 +161,29 @@ function Inbox() {
       live = false;
     };
   }, [deepLink]);
+
+  async function runGmailSync() {
+    setSyncing(true);
+    try {
+      const r = await syncGmail();
+      if (r.senders === 0) {
+        toast("No Gmail sender can read replies yet. Reconnect Gmail in Settings → Senders.", "error");
+      } else if (r.errors.length) {
+        toast(`Gmail sync problem: ${r.errors[0]}`, "error");
+      } else {
+        toast(
+          r.replies || r.bounces
+            ? `Synced: ${r.replies} new repl${r.replies === 1 ? "y" : "ies"}, ${r.bounces} bounce${r.bounces === 1 ? "" : "s"}.`
+            : "Synced: nothing new.",
+        );
+      }
+      await load();
+    } catch (e) {
+      toast(errorMessage(e, "Couldn't sync Gmail."), "error");
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   // T6.6: AI drafts the reply; anything already typed is used as guidance.
   async function aiDraft() {
@@ -276,13 +302,24 @@ function Inbox() {
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => setSimOpen(true)}
-              title="Inject a test reply (until real inbox sync is connected)"
-              className="flex items-center gap-1 text-faint hover:text-accent"
-            >
-              <FlaskConical size={12} /> Test reply
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => void runGmailSync()}
+                disabled={syncing}
+                title="Check connected Gmail for new replies and bounces now (it also runs every 2 minutes)"
+                className="flex items-center gap-1 text-faint hover:text-accent disabled:opacity-50"
+              >
+                <RefreshCw size={12} className={syncing ? "animate-spin" : ""} />{" "}
+                {syncing ? "Syncing…" : "Sync Gmail"}
+              </button>
+              <button
+                onClick={() => setSimOpen(true)}
+                title="Inject a made-up reply for testing"
+                className="flex items-center gap-1 text-faint hover:text-accent"
+              >
+                <FlaskConical size={12} /> Test reply
+              </button>
+            </div>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">

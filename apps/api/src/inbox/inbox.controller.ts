@@ -22,12 +22,14 @@ import {
   UpdateConversationDto,
 } from './inbox.dto';
 import { InboxService } from './inbox.service';
+import { GmailReplySyncService } from './gmail-reply-sync.service';
 
 @Controller('inbox')
 export class InboxController {
   constructor(
     private readonly inbox: InboxService,
     private readonly config: ConfigService,
+    private readonly replySync: GmailReplySyncService,
   ) {}
 
   @Get()
@@ -90,6 +92,20 @@ export class InboxController {
     @Body() dto: AddNoteDto,
   ) {
     return this.inbox.addNote(user.orgId, user.userId, id, dto.body);
+  }
+
+  /** Pull replies and bounces from the workspace's Gmail senders now (T5.7). */
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('gmail-sync')
+  @HttpCode(200)
+  async gmailSync(@CurrentUser() user: AuthUser) {
+    const results = await this.replySync.syncOrg(user.orgId);
+    return {
+      senders: results.length,
+      replies: results.reduce((n, r) => n + r.replies, 0),
+      bounces: results.reduce((n, r) => n + r.bounces, 0),
+      errors: results.filter((r) => r.error).map((r) => r.error),
+    };
   }
 
   // Disabled in production unless INBOX_SIMULATE=on.

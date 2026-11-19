@@ -22,9 +22,15 @@ import { FetchLike } from './providers/gmail.provider';
 import { SendersService } from './senders.service';
 
 export const GMAIL_SEND_SCOPE = 'https://www.googleapis.com/auth/gmail.send';
+// Read access lets the reply sync (T5.7) pull replies and bounces. Google
+// classes it as restricted: fine for test users while the OAuth app is in
+// testing mode; public launch needs Google's verification. Optional: if the
+// user unticks it, sending still works and reply sync stays off.
+export const GMAIL_READ_SCOPE =
+  'https://www.googleapis.com/auth/gmail.readonly';
 // openid + email: lets us read which address was connected from the ID token
 // without asking for a Gmail read scope.
-const SCOPES = ['openid', 'email', GMAIL_SEND_SCOPE];
+const SCOPES = ['openid', 'email', GMAIL_SEND_SCOPE, GMAIL_READ_SCOPE];
 
 interface ConnectState {
   type: 'gmail-connect';

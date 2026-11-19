@@ -23,6 +23,9 @@ export const SYSTEM_JOBS_QUEUE = 'system-jobs';
           config.get<string>('REDIS_URL', 'redis://localhost:6379'),
         );
         return {
+          // Tests use their own key namespace so a dev API running against
+          // the same Redis can't pick up (and process) their jobs.
+          prefix: process.env.QUEUE_PREFIX || 'bull',
           connection: {
             host: url.hostname,
             port: Number(url.port || 6379),

@@ -1,10 +1,13 @@
 import { assertSmtpTarget } from './smtp-guard';
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { googleCreds } from '../google/google-oauth';
 import { DatabaseError, Pool } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { CryptoService } from '../crypto/crypto.service';
@@ -25,7 +28,9 @@ const COLS = `id, provider, from_name, from_email, reply_to, signature,
   ${effectiveLimitSql()} AS effective_daily_limit,
   CASE WHEN warmup_enabled AND now() - warmup_started_at < interval '30 days'
        THEN floor(extract(epoch FROM now() - warmup_started_at) / 86400)::int + 1
-  END AS warmup_day`;
+  END AS warmup_day,
+  coalesce(config -> 'gmail' ->> 'scope' LIKE '%gmail.readonly%', false) AS reply_sync_enabled,
+  reply_sync_at, reply_sync_error`;
 
 export interface SenderRow {
   id: string;
@@ -46,6 +51,10 @@ export interface SenderRow {
   effective_daily_limit: number;
   /** 1–30 while ramping, null once done or disabled. */
   warmup_day: number | null;
+  /** Gmail sender granted read access, so replies/bounces are synced (T5.7). */
+  reply_sync_enabled: boolean;
+  reply_sync_at: Date | null;
+  reply_sync_error: string | null;
 }
 
 // Shape of the encrypted-at-rest config jsonb. Secrets never leave here in
@@ -73,6 +82,7 @@ export class SendersService {
     private readonly crypto: CryptoService,
     private readonly resolver: ProviderResolver,
     private readonly usage: UsageService,
+    private readonly config: ConfigService,
   ) {}
 
   list(orgId: string) {
@@ -252,6 +262,47 @@ export class SendersService {
       throw err;
     }
     return { sent: true, messageId: res.messageId, provider: res.provider };
+  }
+
+  /**
+   * Gmail credentials for reply reading (T5.7). Only for verified Gmail
+   * senders that granted gmail.readonly; the decrypted token never leaves
+   * the server.
+   */
+  async gmailReadAccess(orgId: string, id: string) {
+    const { sender, config } = await this.loadForSend(orgId, id);
+    if (sender.provider !== 'gmail' || !config.gmail) {
+      throw new BadRequestException('Not a connected Gmail sender');
+    }
+    if (!sender.reply_sync_enabled) {
+      throw new BadRequestException(
+        'Reconnect this Gmail account to allow reading replies',
+      );
+    }
+    const { clientId, clientSecret } = googleCreds(this.config);
+    if (!clientId || !clientSecret) {
+      throw new BadRequestException('Google sign-in is not configured');
+    }
+    return {
+      sender,
+      cfg: { refreshToken: config.gmail.refreshToken, clientId, clientSecret },
+    };
+  }
+
+  /** Records the outcome of a reply sync (null error = success). */
+  async recordReplySync(orgId: string, id: string, error: string | null) {
+    await withOrgContext(this.pool, orgId, (c) =>
+      c.query(
+        `UPDATE sender_accounts SET reply_sync_at = now(), reply_sync_error = $2
+         WHERE id = $1`,
+        [id, error ? error.slice(0, 500) : null],
+      ),
+    );
+  }
+
+  /** Revoked/expired Google access found by the reply sync: mark unverified. */
+  async markAuthError(orgId: string, id: string, err: unknown) {
+    await this.flagIfAuthError(orgId, id, err);
   }
 
   // Loads the row WITH its config column and decrypts secrets. Never exposed to

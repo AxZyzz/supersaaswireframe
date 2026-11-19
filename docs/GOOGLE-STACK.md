@@ -193,11 +193,48 @@ repeat Test A. The emails should now use those facts.
 
 ---
 
-## Later phases (not started)
+## Gmail reply reading (Phase 2, built 2026-11-19)
+
+**What it does:** every 2 minutes (and on **Inbox → Sync Gmail**) the API reads
+new messages in the inbox of each connected Gmail sender that allowed reading:
+
+| Message | What happens |
+|---|---|
+| Reply from someone you've emailed from SuperSaaS | Goes into the Inbox through the normal reply path: quoted older text stripped, AI-classified, sequence stopped (or rescheduled for out-of-office), notifications, dashboard reply count |
+| Bounce from `mailer-daemon` / `postmaster` for an address you emailed | Address suppressed (reason `bounced`), its active sequences stopped, bounce event + lead timeline entry |
+| Anything else (your personal mail) | Ignored. Never stored: only its Gmail id is kept so it isn't fetched again |
+
+**Turning it on (once per Gmail sender):**
+1. Settings → Senders: a Gmail sender shows **Replies: off — reconnect to read
+   replies**. Click it (or **Connect Gmail** again with the same account).
+2. On Google's screen, leave **"Read your email messages and settings"** ticked
+   (new permission, `gmail.readonly`) next to "Send email on your behalf".
+3. Back in Settings the sender shows **Replies: waiting for first sync**, then
+   **Replies: synced N min ago**.
+
+**Google Cloud note:** `gmail.readonly` is a **restricted** scope. While the
+OAuth app is in **Testing** mode it works for the accounts listed as test users
+(add the Gmail addresses you'll connect in Google Cloud Console → APIs & Services
+→ OAuth consent screen → Test users; also add the scope under Data access if
+Google asks). Testing-mode tokens expire after 7 days (reconnect). Public launch
+needs Google's verification incl. a security assessment.
+
+**Details:** first sync looks back 3 days; each sync overlaps the previous one by
+15 minutes; at most 200 messages per sync; a revoked/expired token marks the
+sender for reconnect and shows the error in Settings. Code:
+`apps/api/src/inbox/gmail-reply-sync.service.ts`; migration `0045`; tests
+`gmail-reply-sync.integration.spec.ts`.
+
+**Not covered yet:** opens/clicks still need a public `API_URL` (tunnel or
+hosting); SMTP and SES senders have no reply reading (Gmail only).
+
+---
+
+## Later phases
 
 | Phase | What | Notes |
 |---|---|---|
-| 2 | **Read replies via the Gmail API** (polling or Google push via Pub/Sub) and **detect bounces** from "undeliverable" messages | Needs a Gmail *read* scope, which Google classes as **restricted**: building and testing in testing mode is fine, but public launch needs Google's app verification including a third-party security assessment (weeks, can cost money) |
+| 2 | ✅ **Built 2026-11-19** (see "Gmail reply reading" below). Read replies via the Gmail API (polling every 2 min) and **detect bounces** from "undeliverable" messages | Needs a Gmail *read* scope, which Google classes as **restricted**: building and testing in testing mode is fine, but public launch needs Google's app verification including a third-party security assessment (weeks, can cost money) |
 | 3 | Hosting on Google Cloud: Cloud Run (API + workers), Cloud SQL (Postgres), Memorystore (Redis), Cloud Storage (instead of S3), budgets, Secret Manager | Tied to hosting decision D-C |
 
 **Sending:** Google has no bulk-sending service like SES. On Google, campaigns go
