@@ -26,6 +26,12 @@ answer; a wrong password shows "Invalid email or password" instead.
 (`gemini-3.5-flash-lite` answers in ~1 s; `gemini-3.8-flash` "high demand"
 again, covered by the automatic fallback). Repo unchanged (`90a1362`, clean).
 
+**Then (Aman):** "make the fast model default for drafts". Done: the balanced
+tier (reply drafts, Ask AI to edit) now defaults to `gemini-3.5-flash-lite`; the
+campaign builder keeps `gemini-3.8-flash` with the Flash-Lite fallback. Live:
+reply drafts 1.2 s and 6.0 s, edit 1.2 s (before: often 45 s+ waiting on an
+overloaded 3.8 Flash). Tests updated (fallback tests now on the powerful tier).
+
 **Start order after a reboot:** Docker Desktop → `docker start
 supersaas-postgres supersaas-redis` → API (`npm run start:dev -w apps/api`) →
 web (`npm run dev -w apps/web`).

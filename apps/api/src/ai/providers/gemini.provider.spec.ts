@@ -50,7 +50,7 @@ describe('GeminiAIProvider', () => {
       ],
     });
 
-    expect(sent!.model).toBe('gemini-3.8-flash');
+    expect(sent!.model).toBe('gemini-3.5-flash-lite');
     expect(sent!.contents).toEqual([
       { role: 'user', parts: [{ text: 'Q1' }] },
       { role: 'model', parts: [{ text: 'A1' }] },
@@ -96,7 +96,7 @@ describe('GeminiAIProvider', () => {
     }
     expect(models).toEqual([
       'gemini-3.5-flash-lite',
-      'gemini-3.8-flash',
+      'gemini-3.5-flash-lite',
       'gemini-x-pro',
     ]);
   });
@@ -109,7 +109,10 @@ describe('GeminiAIProvider', () => {
       ),
     );
     await expect(
-      p.generate({ messages: [{ role: 'user', content: 'x' }] }),
+      p.generate({
+        tier: 'powerful',
+        messages: [{ role: 'user', content: 'x' }],
+      }),
     ).rejects.toThrow('finish reason: SAFETY');
   });
 
@@ -124,7 +127,10 @@ describe('GeminiAIProvider', () => {
           )
         : Promise.resolve(reply({ modelVersion: params.model }));
     });
-    const r = await p.generate({ messages: [{ role: 'user', content: 'x' }] });
+    const r = await p.generate({
+      tier: 'powerful',
+      messages: [{ role: 'user', content: 'x' }],
+    });
     expect(tried).toEqual(['gemini-3.8-flash', 'gemini-3.5-flash-lite']);
     expect(r.model).toBe('gemini-3.5-flash-lite');
   });
@@ -141,7 +147,10 @@ describe('GeminiAIProvider', () => {
       }
       return Promise.resolve(reply({ modelVersion: params.model }));
     });
-    const r = await p.generate({ messages: [{ role: 'user', content: 'x' }] });
+    const r = await p.generate({
+      tier: 'powerful',
+      messages: [{ role: 'user', content: 'x' }],
+    });
     expect(tried).toEqual(['gemini-3.8-flash', 'gemini-3.5-flash-lite']);
     expect(r.model).toBe('gemini-3.5-flash-lite');
 
@@ -152,7 +161,10 @@ describe('GeminiAIProvider', () => {
       return Promise.reject(abort);
     });
     await expect(
-      both.generate({ messages: [{ role: 'user', content: 'x' }] }),
+      both.generate({
+        tier: 'powerful',
+        messages: [{ role: 'user', content: 'x' }],
+      }),
     ).rejects.toThrow('Gemini timed out after 30s');
   });
 
@@ -162,7 +174,10 @@ describe('GeminiAIProvider', () => {
       Promise.reject(new Error('400 INVALID_ARGUMENT')),
     );
     await expect(
-      quota.generate({ messages: [{ role: 'user', content: 'x' }] }),
+      quota.generate({
+        tier: 'powerful',
+        messages: [{ role: 'user', content: 'x' }],
+      }),
     ).rejects.toThrow('INVALID_ARGUMENT');
 
     const tried: string[] = [];
@@ -172,14 +187,20 @@ describe('GeminiAIProvider', () => {
       return Promise.reject(new Error('503 UNAVAILABLE'));
     });
     await expect(
-      off.generate({ messages: [{ role: 'user', content: 'x' }] }),
+      off.generate({
+        tier: 'powerful',
+        messages: [{ role: 'user', content: 'x' }],
+      }),
     ).rejects.toThrow('UNAVAILABLE');
     expect(tried).toEqual(['gemini-3.8-flash']);
   });
 
   it('explains what to set when no key or project is configured', async () => {
     await expect(
-      make().generate({ messages: [{ role: 'user', content: 'x' }] }),
+      make().generate({
+        tier: 'powerful',
+        messages: [{ role: 'user', content: 'x' }],
+      }),
     ).rejects.toThrow('GEMINI_API_KEY');
     await expect(
       make({ GEMINI_USE_VERTEX: 'true' }).generate({

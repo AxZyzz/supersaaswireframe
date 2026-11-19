@@ -47,7 +47,7 @@ are the same ones Claude uses.
 | Tier | Used for | Default model | Override |
 |---|---|---|---|
 | fast | reply classification | `gemini-3.5-flash-lite` | `GEMINI_MODEL_FAST` |
-| balanced | reply drafts, edits | `gemini-3.8-flash` | `GEMINI_MODEL_BALANCED` |
+| balanced | reply drafts, edits | `gemini-3.5-flash-lite` (fast; since 2026-11-19) | `GEMINI_MODEL_BALANCED` |
 | powerful | campaign builder | `gemini-3.8-flash` (Pro once billing is on) | `GEMINI_MODEL_POWERFUL` |
 
 Live-checked 2026-11-18 with a new AI Studio key: Gemini 2.5 models are closed to
@@ -185,8 +185,10 @@ repeat Test A. The emails should now use those facts.
 **If something fails**
 - "The AI service is busy right now" → free-tier rate limit or Google overload;
   wait a minute and retry.
-- Very slow answers → `gemini-3.8-flash` "thinks" first; for faster drafts set
-  `GEMINI_MODEL_BALANCED=gemini-3.5-flash-lite` and restart the API.
+- Slow campaign builder → it uses `gemini-3.8-flash`, which "thinks" first and is
+  often busy on the free tier; for speed set
+  `GEMINI_MODEL_POWERFUL=gemini-3.5-flash-lite` and restart the API. (Drafts and
+  edits already use Flash-Lite.)
 - Back to the mock or Bedrock: `AI_DRIVER=mock` / `AI_DRIVER=bedrock`, restart API.
 
 ---
