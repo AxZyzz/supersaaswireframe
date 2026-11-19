@@ -178,6 +178,35 @@ buttons; make them the default"; then "update the existing templates too".
   subject and body are still exactly the old default (edited ones untouched).
   Locally: 175 starter rows updated.
 
+**Then (Aman, 2026-11-20):** templates live (`52ae671`: images rebuilt, migration
+job ran `0047` on Cloud SQL, API + web redeployed). New problem: an imported
+LinkedIn-scraped list showed post JSON in Company, "Verified" as status and no
+email, and the long values blew up the leads table. "Can we use AI to auto-match
+the lead CSV?"
+- **Cause:** the column matcher mapped any header that merely contained a field
+  name (`company_recent_post` → company, `email_status` → status), and the
+  importer stored whatever it got (no email format check, no length limit,
+  any status text).
+- **Column matching rebuilt** (`leads/import/column-mapping.ts`): rules use exact
+  header meanings (synonyms) checked against the sample values (an email column
+  must hold emails; JSON / URLs / paragraphs never fill a short field) and spot an
+  email column by its values. **AI matching** (`POST /leads/import/suggest-mapping`,
+  admin/manager, 20/min): headers + up to 5 truncated sample values per column go
+  to the fast model (structured output: column → field); the answer is never
+  trusted as-is (allowed fields only, one column per field, same value checks),
+  gaps filled from the rules; mock AI or failure → rules. The import screen
+  matches automatically on upload (file or Google Sheet), shows an example value
+  under every column, says "Matched with AI", has an Auto-match button, readable
+  field names, and a new **Full name** field (split into first + last).
+- **Importer cleans rows** (`import.processor.ts`): invalid email → left empty;
+  over-long / JSON values in name, company, title, phone, source → left empty;
+  status kept only if the workspace knows it (system + custom). Each affected
+  row reports "Imported without: …".
+- **Leads table:** company and email cells stay on one line (ellipsis + full
+  value on hover).
+- Tests: `column-mapping.spec.ts` (6, built on the failing list's shape) + 2
+  import integration tests (messy rows cleaned; suggest endpoint).
+
 **Start order after a reboot:** Docker Desktop → `docker start
 supersaas-postgres supersaas-redis` → API (`npm run start:dev -w apps/api`) →
 web (`npm run dev -w apps/web`).

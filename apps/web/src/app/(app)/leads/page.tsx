@@ -457,8 +457,12 @@ export default function LeadsPage() {
                         "—"}
                     </Link>
                   </td>
-                  <td className="px-4 py-2.5 text-muted">{l.company || "—"}</td>
-                  <td className="px-4 py-2.5 text-muted">{l.email || "—"}</td>
+                  <td className="max-w-[16rem] truncate px-4 py-2.5 text-muted" title={l.company ?? undefined}>
+                    {l.company || "—"}
+                  </td>
+                  <td className="max-w-[16rem] truncate px-4 py-2.5 text-muted" title={l.email ?? undefined}>
+                    {l.email || "—"}
+                  </td>
                   <td className="px-4 py-2.5">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-neut-bg px-2 py-0.5 text-tiny capitalize text-muted">
                       <StatusDot color={colorOf(l.status)} />

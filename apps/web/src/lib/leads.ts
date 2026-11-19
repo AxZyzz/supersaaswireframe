@@ -138,6 +138,7 @@ export const IMPORTABLE_FIELDS = [
   "email",
   "firstName",
   "lastName",
+  "fullName",
   "company",
   "title",
   "phone",
@@ -145,6 +146,26 @@ export const IMPORTABLE_FIELDS = [
   "score",
   "source",
 ] as const;
+
+export const FIELD_LABELS: Record<(typeof IMPORTABLE_FIELDS)[number], string> = {
+  email: "Email",
+  firstName: "First name",
+  lastName: "Last name",
+  fullName: "Full name (split into first + last)",
+  company: "Company",
+  title: "Job title",
+  phone: "Phone",
+  status: "Lead status",
+  score: "Score (hot / warm / cold)",
+  source: "Source",
+};
+
+/** Column -> field suggestions: AI when available, else rules (server decides). */
+export const suggestMapping = (headers: string[], rows: string[][]) =>
+  api<{ mapping: Record<string, string>; source: "ai" | "rules" }>(
+    "/leads/import/suggest-mapping",
+    { method: "POST", body: JSON.stringify({ headers, rows }) },
+  );
 
 
 // Multipart upload — separate from the JSON api() helper.

@@ -5,6 +5,7 @@ export const IMPORTABLE_FIELDS = [
   'email',
   'firstName',
   'lastName',
+  'fullName', // split into first + last at import
   'company',
   'title',
   'phone',

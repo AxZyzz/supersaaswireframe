@@ -27,6 +27,11 @@ export class AiService {
     private readonly resolver: AIProviderResolver,
   ) {}
 
+  /** Active provider ("mock", "bedrock", "gemini"). */
+  providerName(): string {
+    return this.resolver.resolve().name;
+  }
+
   async generate(
     orgId: string,
     feature: string,

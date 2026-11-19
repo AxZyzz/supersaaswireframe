@@ -20,10 +20,12 @@ import { TagsController } from './tags.controller';
 import { TagsService } from './tags.service';
 import { ThrottlerStorageModule } from '../auth/redis-throttler.storage';
 import { LeadStatusesController, LeadStatusesService } from './lead-statuses';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
     ThrottlerStorageModule,
+    AiModule,
     BullModule.registerQueue(
       { name: LEAD_IMPORT_QUEUE },
       { name: SEGMENT_REFRESH_QUEUE },

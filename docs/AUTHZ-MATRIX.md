@@ -86,6 +86,7 @@
 | `GET /leads/export` | login | ✅ | ✅ | ✅ |
 | `POST /leads/import` | login | ✅ | ✅ | ⛔ |
 | `GET /leads/import/:id` | login | ✅ | ✅ | ✅ |
+| `POST /leads/import/suggest-mapping` | login | ✅ | ✅ | ⛔ |
 | `POST /leads/merge` | login | ✅ | ✅ | ⛔ |
 | `GET /notifications` | login | ✅ | ✅ | ✅ |
 | `POST /notifications/:id/read` | login | ✅ | ✅ | ✅ |
