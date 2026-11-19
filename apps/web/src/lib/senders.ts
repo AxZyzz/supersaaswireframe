@@ -83,6 +83,14 @@ export const dnsCheck = (domain: string) =>
 
 export const updateSender = (
   id: string,
-  body: Partial<{ warmupEnabled: boolean; restartWarmup: boolean; dailyLimit: number }>,
+  body: Partial<{
+    warmupEnabled: boolean;
+    restartWarmup: boolean;
+    dailyLimit: number;
+    fromName: string;
+    // null clears the field
+    replyTo: string | null;
+    signature: string | null;
+  }>,
 ) =>
   api<Sender>(`/senders/${id}`, { method: "PATCH", body: JSON.stringify(body) });

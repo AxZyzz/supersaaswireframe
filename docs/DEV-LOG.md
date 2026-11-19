@@ -59,6 +59,29 @@ password."
   a different Google account than `SYSTEM_SMTP_USER`, or was mistyped. Waiting on
   Aman to re-create it. No reset email can be sent until then.
 
+**Then (Aman):** received his own test campaign email showing the sender as
+"amanxavier271"; "no option to edit the name". Also: opened the email and replied
+from another account, but the workspace shows neither the open nor the reply.
+"Is it because it's running locally? Should we host it?"
+- **Sender name:** Gmail senders connected without a name take the part of the
+  address before "@". The API could already rename (PATCH /senders/:id) but the
+  UI had no button. Added: a pencil **Edit** per sender in Settings → Senders
+  (name recipients see, reply-to, signature; reply-to/signature can be cleared),
+  and a "Name recipients see" box next to **Connect Gmail** so new senders get a
+  proper name. Reconnecting keeps the existing name. Verified via API + browser.
+- **Mistake, reverted:** the API check renamed the first sender returned, which
+  was Aman's real Gmail sender (to "Dana from Demo" + a test signature) instead
+  of the fake demo one. Reverted within a minute to its exact previous state
+  (name `amanxavier271`, no reply-to/signature, still verified). No mail was sent
+  in between. Lesson: test edits only on a sender picked by its address.
+- **Opens not recorded:** tracking pixel and links point at
+  `http://localhost:4000`. Gmail loads images through Google's servers, which
+  can't reach a laptop, so no open is ever recorded (links/unsubscribe also
+  break on other devices). Needs a public HTTPS `API_URL` (tunnel or hosting).
+- **Replies not showing:** reply reading from Gmail is **not built yet** (T5.7 /
+  google-stack Phase 2). Today replies only enter via the Test reply tool.
+  Hosting alone won't fix this.
+
 **Start order after a reboot:** Docker Desktop → `docker start
 supersaas-postgres supersaas-redis` → API (`npm run start:dev -w apps/api`) →
 web (`npm run dev -w apps/web`).
