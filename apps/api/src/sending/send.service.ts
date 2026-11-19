@@ -7,7 +7,7 @@ import { Pool, PoolClient } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { SendersService } from '../senders/senders.service';
-import { varsFromLead } from '../templates/render';
+import { varsFromLead, websiteUrl } from '../templates/render';
 import { buildEmail } from './send-render';
 import { UsageService } from '../usage/usage.service';
 import { RealtimeService } from '../realtime/realtime.service';
@@ -28,6 +28,7 @@ interface SenderRow {
   id: string;
   from_name: string;
   from_email: string;
+  reply_to: string | null;
   daily_limit: number;
   effective_daily_limit: number;
   send_window_start: number | null;
@@ -298,12 +299,12 @@ export class SendService {
       // usable the lead waits (deferred) instead of being burned.
       const sendersRes = senderIds.length
         ? await c.query<SenderRow>(
-            `SELECT id, from_name, from_email, daily_limit, ${effectiveLimitSql()} AS effective_daily_limit, send_window_start, send_window_end
+            `SELECT id, from_name, from_email, reply_to, daily_limit, ${effectiveLimitSql()} AS effective_daily_limit, send_window_start, send_window_end
              FROM sender_accounts WHERE id = ANY($1::uuid[]) AND status = 'verified'`,
             [senderIds],
           )
         : await c.query<SenderRow>(
-            `SELECT id, from_name, from_email, daily_limit, ${effectiveLimitSql()} AS effective_daily_limit, send_window_start, send_window_end
+            `SELECT id, from_name, from_email, reply_to, daily_limit, ${effectiveLimitSql()} AS effective_daily_limit, send_window_start, send_window_end
              FROM sender_accounts WHERE status = 'verified' ORDER BY created_at`,
           );
       const hour = new Date().getHours();
@@ -350,15 +351,25 @@ export class SendService {
         subject = variants[variantIndex];
       }
 
-      const vars = {
-        ...varsFromLead(lead),
-        sender_name: chosen.from_name,
-      };
       // CAN-SPAM footer identity: workspace name + postal address.
       const org = await c.query<{
         name: string;
         postal_address: string | null;
-      }>(`SELECT name, postal_address FROM orgs WHERE id = $1`, [orgId]);
+        website: string | null;
+      }>(`SELECT name, postal_address, website FROM orgs WHERE id = $1`, [
+        orgId,
+      ]);
+      const senderEmail = chosen.reply_to || chosen.from_email;
+      const vars = {
+        ...varsFromLead(lead),
+        sender_name: chosen.from_name,
+        sender_email: senderEmail,
+        sender_company: org.rows[0]?.name ?? null,
+        // no website in Settings: website buttons become a reply link
+        // instead of a dead one
+        sender_website:
+          websiteUrl(org.rows[0]?.website) ?? `mailto:${senderEmail}`,
+      };
 
       return {
         outcome: 'sent' as Outcome, // provisional; finalized in phase 3

@@ -27,8 +27,10 @@ export interface GoogleTokens {
 }
 
 export function googleCreds(config: ConfigService) {
-  const clientId = config.get<string>('GOOGLE_CLIENT_ID');
-  const clientSecret = config.get<string>('GOOGLE_CLIENT_SECRET');
+  // trim: a stray space pasted after the id makes Google answer
+  // "OAuth client was not found" (hit on the first Cloud Run deploy)
+  const clientId = config.get<string>('GOOGLE_CLIENT_ID')?.trim();
+  const clientSecret = config.get<string>('GOOGLE_CLIENT_SECRET')?.trim();
   const apiUrl = config.get<string>('API_URL', 'http://localhost:4000');
   const redirectUri =
     config.get<string>('GOOGLE_OAUTH_REDIRECT_URL') ||

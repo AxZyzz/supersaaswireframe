@@ -122,7 +122,7 @@ Launch now or **schedule** a start time. You can pause and resume at any time, a
 Hi {first_name|there}, saw what {company} is doing with...
 \`\`\`
 
-Available: first_name, last_name, company, business_name, title, email, phone, sender_name.
+Available: first_name, last_name, company, business_name, title, email, phone, sender_name, sender_email (your reply address), sender_company (workspace name), sender_website (workspace website from Settings).
 
 Unknown tokens are left as-is so typos show up in the preview instead of silently disappearing.`,
   },

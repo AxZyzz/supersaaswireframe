@@ -209,7 +209,7 @@ export class TemplatesService {
           [leadId],
         );
         if (lead.rowCount === 0) throw new NotFoundException('Lead not found');
-        vars = { ...varsFromLead(lead.rows[0]), sender_name: 'Jordan Lee' };
+        vars = { ...SAMPLE_VARS, ...varsFromLead(lead.rows[0]) };
       }
       return {
         subject: renderTemplate(tpl.subject, vars),

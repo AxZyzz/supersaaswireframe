@@ -155,6 +155,29 @@ gcloud commands, explaining each. Also: a light (Twenty CRM) theme option.
   deletion protection) + database, 9 secrets, service account `supersaas-run`.
 - Tests: 296 passed / 1 skipped (dev DB) and green on the Cloud-SQL-style DB.
 
+**Then (Aman, 2026-11-19 evening, after go-live):** "give me HTML email templates
+for the starters, minimal and like the app theme, with reply / visit website
+buttons; make them the default"; then "update the existing templates too".
+- **Live fixes first:** Connect Gmail on Cloud Run failed with Google's "OAuth
+  client was not found": a trailing space after `GOOGLE_CLIENT_ID` in `.env` was
+  copied into Cloud Run (dotenv trims locally). Env fixed; code now trims the id
+  and secret. First live campaign landed in the recipient's All Mail (filed
+  outside Primary, likely Promotions); open tracking confirmed live
+  (`GoogleImageProxy` hits on `/t/o`).
+- **Starter templates redesigned** (`default-templates.ts`): one shared
+  email-safe layout (tables + inline styles, white card, hairline borders, Inter,
+  indigo `#3e63dd`). Cold intro: Reply + Visit website. Follow-ups, break-up and
+  meeting request: one-tap quick-reply chips (mailto: replies with prefilled
+  text, so reply sync and classification pick them up). Case study: highlight
+  box, ticked points, See how it works + Reply. New tokens `{sender_email}`
+  (reply-to else From), `{sender_company}` (workspace name), `{sender_website}`
+  (workspace website, https:// added; falls back to a reply link when empty).
+  Unsubscribe footer restyled to match. A parallel session added
+  `default-templates.spec.ts` (15 tests).
+- **Migration `0047`:** replaces a workspace's starter template only where name,
+  subject and body are still exactly the old default (edited ones untouched).
+  Locally: 175 starter rows updated.
+
 **Start order after a reboot:** Docker Desktop → `docker start
 supersaas-postgres supersaas-redis` → API (`npm run start:dev -w apps/api`) →
 web (`npm run dev -w apps/web`).
