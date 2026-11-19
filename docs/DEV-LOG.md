@@ -107,6 +107,24 @@ Vercel?"
 - **To try it for real:** Aman reconnects Gmail in Settings (tick the new "read"
   permission), then replies to a campaign email from his other account and
   clicks Sync Gmail.
+- Full suite with the dev API running: 51/51 suites, 292 passed, 1 skipped.
+  Committed + pushed to `google-stack` as `88b308a`.
+
+**Then (Aman):** "give me the complete walkthrough of running this locally …
+then an Excalidraw with every page and the complete architecture, done in
+blue, half-done in yellow, not done in red."
+- **`docs/RUNNING-LOCALLY.md`:** folders and paths, branch choice, prerequisites,
+  first-time setup (`npm install`, `.env` keys with what each one turns on,
+  Docker, migrations, seed, operator grant), daily two-terminal run, ports,
+  after-reboot order, tests / E2E / eval, testing real features in the UI
+  (Gmail replies, opens need a public URL, cloudflared), troubleshooting table.
+- **`docs/architecture/`:** `supersaas-architecture.excalidraw` (top-to-bottom:
+  users → frontend pages (2a public/auth, 2b app pages, 2c shared UI, 2d direct
+  API traffic) → backend (cross-cutting, 18 modules, queues/jobs) → data →
+  external services → infrastructure → 7 end-to-end workflows → what's left →
+  design notes), status colours blue/yellow/red plus the status in words,
+  `*` for google-stack-only. `README.md` explains how to read it;
+  `generate.py` rebuilds it from content lists; PNG/SVG preview for GitHub.
 
 **Start order after a reboot:** Docker Desktop → `docker start
 supersaas-postgres supersaas-redis` → API (`npm run start:dev -w apps/api`) →
