@@ -13,6 +13,50 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ## Sessions
 
+### 2026-11-21 — Learning Loop T11: approvals (keep, pause, resume, challenger)
+
+Built on `ll/T11` from `google-stack` `b6229d6` (T02 to T06 were already merged, so nothing stacked). Migration `0056`. No cloud, no
+real AI (mock under tests; the challenger drafter calls the existing AI provider only when someone clicks Draft).
+
+- **Actions (`apps/api/src/review/review-actions.service.ts`):** keep testing, pause a version, resume it, approve a drafted challenger.
+  Each one is tied to a review **revision** (a stale one is `409 stale_review`), carries an **idempotency key** (same key returns the
+  stored row, `replayed: true`; the same key for a different action is `409 idempotency_key_reused`), and runs in **one transaction
+  that first locks the experiment row** (`SELECT ... FOR UPDATE`), so two parallel approvals line up. A partial unique index
+  (`review_id, action_id` where applied) is the second guard. Role is re-checked in the service as well as `@Roles`. Audit row =
+  requester, approver, `before`/`after`, applied time, reason. Undo (`/review-actions/:id/revert`) turns a pause into a resume and
+  a resume into a pause; keep-testing and challenger approvals are not revertible. Simulated reviews answer `400 simulated_review`.
+- **Pause rule:** at least one version stays active (`409 last_active_variant`). A pause only changes **future first touches**:
+  `send.service.ts` already hashed new companies over active versions only, and an existing assignment is read back unchanged, so a
+  company assigned to a version that is paused later, with nothing sent yet, **keeps it** (re-assigning would bias the test). The
+  Build Brief says "reassign"; the T11 task says "keep"; we followed the task and wrote the reason in the code comment. In-flight
+  follow-ups (step 2+) copy the company's assignment, so they keep the original attribution.
+- **Send path lock:** dispatch reads the running test and takes `FOR SHARE` on its row (`lockRunningExperiment`), re-reading if the
+  test stopped being the running one while it waited. An approval that pauses or starts a challenger holds `FOR UPDATE`, so a
+  dispatch never straddles it.
+- **Challenger:** `POST /reviews/:id/challenger-drafts` returns 3 subjects (max 9 per review). The drafter (`challenger-drafter.ts`)
+  sits behind a `CHALLENGER_DRAFTER` token so the T09 Copywriter agent can replace it. It sends the AI only the winning subject and
+  the offer name/description (never lead data), validates the JSON, drops duplicates and anything already tested, and tops up with
+  deterministic templates, so there are always 3 candidates. Approving **decides the old test** (`decision` + `decided_at`) and
+  **starts a new one** on the same step: control = the winner (or the old control), challenger = the pick, fresh defaults,
+  `previous_experiment_id` set. A company assigned in any earlier test of the chain is **not eligible** for the new one: its
+  colleagues still queued are sent its old version and credited to the **old** test (`priorAssignment`, a recursive query).
+- **Schema (`0056_review_actions.sql`):** `review_actions`, `challenger_drafts` (own table, so a draft never shows up as a third
+  arm in the review), `experiments.previous_experiment_id/decided_at/decision`. RLS + `FORCE` + `owner_bypass` as 0050/0055.
+- **UI:** the Review tab's recommendation card now has Keep testing, Pause X, Resume X and Review a challenger (drawer: 3 drafts,
+  rendered preview, Approve stays disabled until the preview has rendered). Every dialog says exactly what changes ("Version A stops
+  being used for new companies from now. 40 companies already on A keep it. History is kept. You can resume any time."); the request
+  key is made when the dialog opens and the button is disabled while it runs. Action history with Undo sits under the card; agents
+  see history but no buttons; simulations say "Simulation: nothing changes". Legacy A/B winner panel relabelled "Legacy rotation
+  (suggestion only)". "Apply to next search" stays disabled until T12.
+- **Tests:** `review-actions.integration.spec.ts` (16 cases: stale revision, same key twice, two parallel approvals, two parallel
+  pauses of different versions, last active version, keep testing, pause/resume/undo audit, not revertible, simulated, action not
+  offered, agent 403 + cross-org 404, approve challenger, and the real send path: only A after a pause, colleague keeps B, resume,
+  in-flight follow-ups, suppression + paused campaign re-check, challenger exclusion), `challenger-drafter.spec.ts` (5), Playwright
+  `review-actions.spec.ts` (new workspace per run, `npm run seed:review-actions`). Full API suite 607 pass, 1 skipped, 1 fail:
+  `gemini.provider.spec` "explains what to set when no key or project is configured" fails the same way on the unmodified T06
+  tree (it tries a real network call and gets `fetch failed`), unrelated to T11.
+- **Not done / next:** T12 (search preferences), the "Apply to next search" button.
+
 ### 2026-11-21 — Learning Loop T06: Insights (what works by location, send time, industry, role and more)
 
 Built on `ll/T06` from `google-stack` `984344b`. No migration, no cloud, no AI. Read-only and exploratory.
