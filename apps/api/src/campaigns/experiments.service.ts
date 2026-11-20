@@ -264,7 +264,7 @@ export class ExperimentsService {
    * Default baseline rate: workspace's own reply rate if it has >= 200 reached
    * companies, else 3% (0.03).
    */
-  private async defaultBaselineRate(c: PoolClient): Promise<number> {
+  async defaultBaselineRate(c: PoolClient): Promise<number> {
     const r = await c.query<{ reached: number; replied: number }>(
       `SELECT
          count(DISTINCT COALESCE(l.company_key, lower(se.to_email)))::int AS reached,

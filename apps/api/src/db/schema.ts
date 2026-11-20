@@ -12,6 +12,7 @@ import {
   integer,
   boolean,
   real,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
 // Tenant model: users are global (one login, many orgs); everything org-scoped
@@ -727,6 +728,14 @@ export const experiments = pgTable(
     }),
     startedAt: timestamp('started_at', { withTimezone: true }),
     stoppedAt: timestamp('stopped_at', { withTimezone: true }),
+    // Learning Loop T11: the test this one replaced (challenger approved) and
+    // how the old one ended.
+    previousExperimentId: uuid('previous_experiment_id').references(
+      (): AnyPgColumn => experiments.id,
+      { onDelete: 'set null' },
+    ),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    decision: jsonb('decision'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -1278,4 +1287,91 @@ export const reviews = pgTable(
     ),
     index('reviews_org_experiment_idx').on(t.orgId, t.experimentId),
   ],
+);
+
+// ── Learning Loop T11: review actions + challenger drafts ────────────────
+// review_actions is the audit trail of every approval: who, what, when, the
+// state before/after, and the idempotency key that makes a retry a no-op.
+export const reviewActions = pgTable(
+  'review_actions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    reviewId: uuid('review_id')
+      .notNull()
+      .references(() => reviews.id, { onDelete: 'cascade' }),
+    experimentId: uuid('experiment_id')
+      .notNull()
+      .references(() => experiments.id, { onDelete: 'cascade' }),
+    revision: integer('revision').notNull(),
+    actionId: text('action_id').notNull(),
+    type: text('type').notNull(),
+    payload: jsonb('payload')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    status: text('status').notNull().default('requested'),
+    error: text('error'),
+    reason: text('reason'),
+    requestedBy: uuid('requested_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    approvedBy: uuid('approved_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    idempotencyKey: text('idempotency_key').notNull(),
+    before: jsonb('before'),
+    after: jsonb('after'),
+    requestedAt: timestamp('requested_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    appliedAt: timestamp('applied_at', { withTimezone: true }),
+    revertedAt: timestamp('reverted_at', { withTimezone: true }),
+    revertedBy: uuid('reverted_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    revertsActionId: uuid('reverts_action_id').references(
+      (): AnyPgColumn => reviewActions.id,
+      { onDelete: 'set null' },
+    ),
+  },
+  (t) => [
+    uniqueIndex('review_actions_idem_idx').on(t.orgId, t.idempotencyKey),
+    uniqueIndex('review_actions_one_applied_idx')
+      .on(t.reviewId, t.actionId)
+      .where(sql`${t.status} = 'applied' AND ${t.revertsActionId} IS NULL`),
+    index('review_actions_experiment_idx').on(
+      t.orgId,
+      t.experimentId,
+      t.requestedAt,
+    ),
+  ],
+);
+
+// AI-suggested challenger subjects. A draft is only a suggestion; approving one
+// creates a new experiment (it never edits the running one).
+export const challengerDrafts = pgTable(
+  'challenger_drafts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    reviewId: uuid('review_id')
+      .notNull()
+      .references(() => reviews.id, { onDelete: 'cascade' }),
+    experimentId: uuid('experiment_id')
+      .notNull()
+      .references(() => experiments.id, { onDelete: 'cascade' }),
+    subject: text('subject').notNull(),
+    source: text('source').notNull().default('template'),
+    createdBy: uuid('created_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index('challenger_drafts_review_idx').on(t.orgId, t.reviewId)],
 );

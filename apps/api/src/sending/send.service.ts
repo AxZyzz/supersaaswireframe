@@ -144,6 +144,87 @@ export class SendService implements BeforeApplicationShutdown {
     return (r.rowCount ?? 0) > 0;
   }
 
+  /**
+   * The running experiment of a campaign, with a FOR SHARE lock on its row.
+   * Re-reads if the test stopped being the running one while we waited for the
+   * lock (a challenger approval closes it and starts the next).
+   */
+  private async lockRunningExperiment(
+    c: PoolClient,
+    campaignId: string,
+  ): Promise<{
+    id: string;
+    step_id: string;
+    allocation: { weights?: number[] } | null;
+    previous_experiment_id: string | null;
+  } | null> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const r = await c.query<{
+        id: string;
+        step_id: string;
+        allocation: { weights?: number[] } | null;
+        previous_experiment_id: string | null;
+      }>(
+        `SELECT id, step_id, allocation, previous_experiment_id FROM experiments
+         WHERE campaign_id = $1 AND status = 'running' LIMIT 1`,
+        [campaignId],
+      );
+      const exp = r.rows[0];
+      if (!exp) return null;
+      const locked = await c.query(
+        `SELECT 1 FROM experiments WHERE id = $1 AND status = 'running' FOR SHARE`,
+        [exp.id],
+      );
+      if ((locked.rowCount ?? 0) > 0) return exp;
+    }
+    return null;
+  }
+
+  /**
+   * The company's assignment in any EARLIER test of the chain that led to
+   * this one (previous_experiment_id, and its previous, ...), newest first,
+   * with the version's subject and its position in that test.
+   */
+  private async priorAssignment(
+    c: PoolClient,
+    experimentId: string,
+    companyKey: string,
+  ): Promise<{
+    experiment_id: string;
+    variant_id: string;
+    variant_index: number;
+    subject: string;
+  } | null> {
+    const r = await c.query<{ experiment_id: string; variant_id: string }>(
+      `WITH RECURSIVE chain AS (
+         SELECT id, previous_experiment_id FROM experiments WHERE id = $1
+         UNION ALL
+         SELECT e.id, e.previous_experiment_id
+           FROM experiments e JOIN chain ch ON e.id = ch.previous_experiment_id
+       )
+       SELECT ea.experiment_id, ea.variant_id
+         FROM experiment_assignments ea
+         JOIN chain ON chain.id = ea.experiment_id
+        WHERE ea.experiment_id <> $1 AND ea.company_key = $2
+        ORDER BY ea.assigned_at DESC LIMIT 1`,
+      [experimentId, companyKey],
+    );
+    const a = r.rows[0];
+    if (!a) return null;
+    const vs = await c.query<{ id: string; subject: string }>(
+      `SELECT id, subject FROM experiment_variants
+        WHERE experiment_id = $1 ORDER BY created_at ASC, id ASC`,
+      [a.experiment_id],
+    );
+    const idx = vs.rows.findIndex((v) => v.id === a.variant_id);
+    return {
+      experiment_id: a.experiment_id,
+      variant_id: a.variant_id,
+      variant_index: idx >= 0 ? idx : 0,
+      subject: vs.rows[idx >= 0 ? idx : 0]?.subject ?? '',
+    };
+  }
+
   private conditionMet(
     condition: string,
     opened: boolean,
@@ -277,16 +358,11 @@ export class SendService implements BeforeApplicationShutdown {
       const lead = leadRes.rows[0];
 
       // Check whether this step has a running experiment (Learning Loop T02).
-      const expRes = await c.query<{
-        id: string;
-        step_id: string;
-        allocation: { weights?: number[] } | null;
-      }>(
-        `SELECT id, step_id, allocation FROM experiments
-         WHERE campaign_id = $1 AND status = 'running' LIMIT 1`,
-        [cl.campaign_id],
-      );
-      const runningExp = expRes.rows[0] ?? null;
+      // The running test is read, then locked FOR SHARE (T11): an approval that
+      // pauses a version or starts a challenger holds FOR UPDATE on the same
+      // row, so a dispatch never straddles it (it waits, then sees the new
+      // state: the paused version, or the new test).
+      const runningExp = await this.lockRunningExperiment(c, cl.campaign_id);
       const isExperimentStep =
         runningExp !== null && runningExp.step_id === step.id;
 
@@ -401,44 +477,76 @@ export class SendService implements BeforeApplicationShutdown {
           [runningExp.id],
         );
         const expVariants = evRes.rows;
-        const weights = Array.isArray(runningExp.allocation?.weights)
-          ? runningExp.allocation.weights
-          : undefined;
-        const candidate = pickExperimentVariant(
-          runningExp.id,
-          lead.company_key,
-          expVariants,
-          weights,
-        );
-        await c.query(
-          `INSERT INTO experiment_assignments
+
+        // T11: a company already assigned in an EARLIER test of this step (the
+        // one a challenger replaced) is not eligible for the new test. It keeps
+        // its old version and is credited to the old test, like a colleague at
+        // the same company would be.
+        const prior = runningExp.previous_experiment_id
+          ? await this.priorAssignment(c, runningExp.id, lead.company_key)
+          : null;
+        const hasCurrent = prior
+          ? ((
+              await c.query(
+                `SELECT 1 FROM experiment_assignments
+                 WHERE experiment_id = $1 AND company_key = $2`,
+                [runningExp.id, lead.company_key],
+              )
+            ).rowCount ?? 0) > 0
+          : false;
+
+        if (prior && !hasCurrent) {
+          experimentId = prior.experiment_id;
+          variantId = prior.variant_id;
+          variantIndex = prior.variant_index;
+          subject = prior.subject;
+        } else {
+          const weights = Array.isArray(runningExp.allocation?.weights)
+            ? runningExp.allocation.weights
+            : undefined;
+          // New companies hash over the ACTIVE versions only (a paused version
+          // gets no new first touches). The assignment, once stored, is the
+          // randomisation: a company already assigned to a version that was
+          // paused later, with nothing sent yet, KEEPS it. Re-assigning it would
+          // bias the test. Existing assignments, in-flight sequences and history
+          // are never moved by a pause (T11).
+          const candidate = pickExperimentVariant(
+            runningExp.id,
+            lead.company_key,
+            expVariants,
+            weights,
+          );
+          await c.query(
+            `INSERT INTO experiment_assignments
              (org_id, experiment_id, company_key, variant_id, hash)
            VALUES ($1, $2, $3, $4, $5)
            ON CONFLICT (experiment_id, company_key) DO NOTHING`,
-          [
-            orgId,
-            runningExp.id,
-            lead.company_key,
-            candidate.variant.id,
-            candidate.hash,
-          ],
-        );
-        const assignedRes = await c.query<{ variant_id: string }>(
-          `SELECT variant_id FROM experiment_assignments
+            [
+              orgId,
+              runningExp.id,
+              lead.company_key,
+              candidate.variant.id,
+              candidate.hash,
+            ],
+          );
+          const assignedRes = await c.query<{ variant_id: string }>(
+            `SELECT variant_id FROM experiment_assignments
            WHERE experiment_id = $1 AND company_key = $2`,
-          [runningExp.id, lead.company_key],
-        );
-        const assignedVariantId =
-          assignedRes.rows[0]?.variant_id ?? candidate.variant.id;
-        const assignedIdx = expVariants.findIndex(
-          (v) => v.id === assignedVariantId,
-        );
-        const assignedVar =
-          assignedIdx >= 0 ? expVariants[assignedIdx] : candidate.variant;
-        experimentId = runningExp.id;
-        variantId = assignedVar.id;
-        variantIndex = assignedIdx >= 0 ? assignedIdx : candidate.variantIndex;
-        subject = assignedVar.subject;
+            [runningExp.id, lead.company_key],
+          );
+          const assignedVariantId =
+            assignedRes.rows[0]?.variant_id ?? candidate.variant.id;
+          const assignedIdx = expVariants.findIndex(
+            (v) => v.id === assignedVariantId,
+          );
+          const assignedVar =
+            assignedIdx >= 0 ? expVariants[assignedIdx] : candidate.variant;
+          experimentId = runningExp.id;
+          variantId = assignedVar.id;
+          variantIndex =
+            assignedIdx >= 0 ? assignedIdx : candidate.variantIndex;
+          subject = assignedVar.subject;
+        }
       } else {
         // Legacy path (untouched when no running experiment is on this step).
         const variants = step.subject_variants ?? [];

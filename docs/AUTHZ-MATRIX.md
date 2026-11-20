@@ -54,6 +54,7 @@
 | `POST /campaigns/:id/pause` | login | ✅ | ✅ | ⛔ |
 | `POST /campaigns/:id/resume` | login | ✅ | ✅ | ⛔ |
 | `GET /campaigns/:id/review` | login | ✅ | ✅ | ✅ |
+| `GET /campaigns/:id/review/actions` | login | ✅ | ✅ | ✅ |
 | `POST /campaigns/:id/review/refresh` | login | ✅ | ✅ | ⛔ |
 | `POST /campaigns/:id/schedule` | login | ✅ | ✅ | ⛔ |
 | `GET /campaigns/:id/stats` | login | ✅ | ✅ | ✅ |
@@ -66,6 +67,7 @@
 | `GET /experiments/:id/outcome-coverage` | login | ✅ | ✅ | ✅ |
 | `POST /experiments/:id/start` | login | ✅ | ✅ | ⛔ |
 | `POST /experiments/:id/stop` | login | ✅ | ✅ | ⛔ |
+| `POST /experiments/:id/variants/:variantId/resume` | login | ✅ | ✅ | ⛔ |
 | `POST /feedback` | login | ✅ | ✅ | ✅ |
 | `GET /health/ready` | public | — | — | — |
 | `GET /inbox` | login | ✅ | ✅ | ✅ |
@@ -146,11 +148,15 @@
 | `GET /prospects/runs` | login | ✅ | ✅ | ✅ |
 | `POST /prospects/runs` | login | ✅ | ✅ | ⛔ |
 | `GET /prospects/runs/:id` | login | ✅ | ✅ | ✅ |
+| `POST /review-actions/:id/revert` | login | ✅ | ✅ | ⛔ |
 | `GET /review/rubric` | login | ✅ | ✅ | ✅ |
 | `PUT /review/rubric` | login | ✅ | ✅ | ⛔ |
 | `GET /review/scenarios` | login | ✅ | ✅ | ✅ |
 | `POST /review/simulate` | login | ✅ | ✅ | ✅ |
 | `GET /reviews/:id` | login | ✅ | ✅ | ✅ |
+| `GET /reviews/:id/challenger-drafts` | login | ✅ | ✅ | ✅ |
+| `POST /reviews/:id/challenger-drafts` | login | ✅ | ✅ | ⛔ |
+| `POST /reviews/:reviewId/actions/:actionId/approve` | login | ✅ | ✅ | ⛔ |
 | `GET /segments` | login | ✅ | ✅ | ✅ |
 | `POST /segments` | login | ✅ | ✅ | ⛔ |
 | `DELETE /segments/:id` | login | ✅ | ✅ | ⛔ |
