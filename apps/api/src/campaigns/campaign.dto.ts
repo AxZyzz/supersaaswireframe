@@ -27,6 +27,7 @@ const CONDITION = ['always', 'opened_no_reply', 'not_opened'] as const;
 export class CreateCampaignDto {
   @IsString() @MaxLength(120) name!: string;
   @IsOptional() @IsUUID() segmentId?: string;
+  @IsOptional() @IsUUID() offerId?: string;
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(50)
@@ -42,6 +43,10 @@ export class UpdateCampaignDto {
   @ValidateIf((_, v) => v !== null)
   @IsUUID()
   segmentId?: string | null;
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsUUID()
+  offerId?: string | null;
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(50)

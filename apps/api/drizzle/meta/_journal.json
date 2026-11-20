@@ -372,6 +372,13 @@
       "when": 1785604080000,
       "tag": "0052_company_key_attributes",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1785604140000,
+      "tag": "0053_offers_experiments_assignments",
+      "breakpoints": true
     }
   ]
 }

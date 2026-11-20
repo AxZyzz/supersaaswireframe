@@ -25,6 +25,7 @@ import {
   ProspectRun,
   startProspectRun,
 } from "@/lib/prospects";
+import { OfferSelect } from "@/components/offer-select";
 import {
   emptyStateText,
   isRunStalled,
@@ -123,6 +124,52 @@ function ProspectCard({
           <div className="mt-0.5 text-tiny text-faint">
             {[p.industry, p.location].filter(Boolean).join(" · ")}
           </div>
+          {verified && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-tiny">
+              <span className="rounded-full bg-panel px-2 py-0.5 text-muted">
+                City:{" "}
+                <span className={p.city ? "text-ink" : "text-faint"}>
+                  {p.city ?? "unknown"}
+                </span>
+              </span>
+              <span className="rounded-full bg-panel px-2 py-0.5 text-muted">
+                Industry (inferred):{" "}
+                <span
+                  className={
+                    p.industry && p.industry !== "unknown"
+                      ? "text-ink"
+                      : "text-faint"
+                  }
+                >
+                  {p.industry ?? "unknown"}
+                </span>
+              </span>
+              <span className="rounded-full bg-panel px-2 py-0.5 text-muted">
+                Size (inferred):{" "}
+                <span
+                  className={
+                    p.size_band && p.size_band !== "unknown"
+                      ? "text-ink"
+                      : "text-faint"
+                  }
+                >
+                  {p.size_band ?? "unknown"}
+                </span>
+              </span>
+              {(p.triggers ?? []).map((tr, idx) => (
+                <a
+                  key={idx}
+                  href={tr.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={`“${tr.quote}” (${tr.url})`}
+                  className="rounded-full border border-accent-soft2 bg-accent-soft px-2 py-0.5 font-medium text-accent hover:underline"
+                >
+                  ⚡ {tr.type.replace("_", " ")}
+                </a>
+              ))}
+            </div>
+          )}
         </div>
         <span
           className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-tiny ${
@@ -261,6 +308,7 @@ export default function DiscoverPage() {
   const manage = canManage(role);
   const [goal, setGoal] = useState("");
   const [count, setCount] = useState(10);
+  const [offerId, setOfferId] = useState("");
   const [starting, setStarting] = useState(false);
   const [runs, setRuns] = useState<ProspectRun[]>([]);
   const [runId, setRunId] = useState<string | null>(null);
@@ -345,7 +393,11 @@ export default function DiscoverPage() {
     }
     setStarting(true);
     try {
-      const r = await startProspectRun(goal.trim(), count);
+      const r = await startProspectRun(
+        goal.trim(),
+        count,
+        offerId || undefined,
+      );
       setRun({ ...r, prospects: [] });
       setCheckedAt(Date.now());
       setRunId(r.id);
@@ -443,6 +495,14 @@ export default function DiscoverPage() {
             ))}
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-sm text-muted">
+              Offer
+              <OfferSelect
+                value={offerId}
+                onChange={setOfferId}
+                disabled={starting || !!working}
+              />
+            </label>
             <label className="flex items-center gap-2 text-sm text-muted">
               Companies
               <select

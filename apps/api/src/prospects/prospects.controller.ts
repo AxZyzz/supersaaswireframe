@@ -29,6 +29,7 @@ export class ProspectsController {
       user.userId,
       dto.goal,
       dto.count,
+      dto.offerId,
     );
   }
 

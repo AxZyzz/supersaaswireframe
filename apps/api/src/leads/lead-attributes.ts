@@ -24,7 +24,11 @@ const text = (v: unknown, max = 80): string | null =>
  */
 function leadLocation(
   custom: Record<string, unknown>,
-  explicit: { city?: string | null; region?: string | null; country?: string | null },
+  explicit: {
+    city?: string | null;
+    region?: string | null;
+    country?: string | null;
+  },
 ) {
   let city = text(explicit.city) ?? text(custom.city);
   let region =
@@ -32,7 +36,10 @@ function leadLocation(
   let country = text(explicit.country) ?? text(custom.country);
   const loc = text(custom.location, 200);
   if (loc && !city && !region && !country) {
-    const parts = loc.split(',').map((p) => p.trim()).filter(Boolean);
+    const parts = loc
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
     if (parts.length >= 2 && countryCode(parts[parts.length - 1])) {
       country = parts[parts.length - 1];
       city = parts[0];

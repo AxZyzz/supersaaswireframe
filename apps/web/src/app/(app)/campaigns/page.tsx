@@ -31,6 +31,8 @@ import {
   resumeCampaign,
   runDueSends,
   StepCondition,
+  updateCampaign,
+  Experiment,
 } from "@/lib/campaigns";
 import { listTemplates, Template } from "@/lib/templates";
 import { listSegments, Segment } from "@/lib/segments";
@@ -39,6 +41,8 @@ import CampaignWizard from "./campaign-wizard";
 import AiBuilder from "./ai-builder";
 import { useLive } from "@/lib/realtime";
 import { WinnerPanel } from "@/components/winner-panel";
+import { ExperimentPanel } from "@/components/experiment-panel";
+import { OfferSelect } from "@/components/offer-select";
 import { canManage, useRole } from "@/lib/me";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -64,6 +68,7 @@ export default function CampaignsPage() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const [activeExp, setActiveExp] = useState<Experiment | null>(null);
   const role = useRole();
 
   const applyList = useCallback(
@@ -270,8 +275,34 @@ export default function CampaignsPage() {
                     {selected.status}
                   </span>
                 </div>
-                <div className="mt-1 flex items-center gap-1.5 text-sm text-muted">
-                  <Users size={14} /> {audience ?? "…"} lead(s) in audience
+                <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted">
+                  <span className="flex items-center gap-1.5">
+                    <Users size={14} /> {audience ?? "…"} lead(s) in audience
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-tiny uppercase tracking-wide text-faint">
+                      Offer:
+                    </span>
+                    <OfferSelect
+                      value={selected.offer_id ?? ""}
+                      disabled={
+                        !canManage(role) || activeExp?.status === "running"
+                      }
+                      canCreate={canManage(role)}
+                      onChange={(offerId) => {
+                        if (offerId && offerId !== selected.offer_id) {
+                          void updateCampaign(selected.id, { offerId })
+                            .then(() => refresh(selected.id))
+                            .catch((e) =>
+                              setNote({
+                                ok: false,
+                                text: errorMessage(e, "Could not change offer."),
+                              }),
+                            );
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
               <button
@@ -380,10 +411,10 @@ export default function CampaignsPage() {
                   ))}
                 </div>
 
-                {stats.variants.length > 1 && (
+                {stats.variants.length > 1 && !activeExp && (
                   <div className="mt-4">
                     <div className="mb-1.5 text-tiny font-medium uppercase tracking-wide text-faint">
-                      A/B subjects
+                      A/B subjects · Legacy rotation (not a test)
                     </div>
                     <table className="w-full text-sm">
                       <thead>
@@ -452,15 +483,24 @@ export default function CampaignsPage() {
                             : `after ${s.delay_hours}h`}{" "}
                           · {CONDITION_LABELS[s.condition]}
                           {s.subject_variants.length > 0 &&
-                            ` · A/B ×${s.subject_variants.length}`}
+                            !activeExp &&
+                            ` · Legacy rotation (not a test) ×${s.subject_variants.length}`}
                         </div>
                       </div>
                       <button
+                        disabled={activeExp?.status === "running"}
                         onClick={async () => {
-                          await removeStep(s.id);
-                          await open(selected.id);
+                          try {
+                            await removeStep(s.id);
+                            await open(selected.id);
+                          } catch (e) {
+                            setNote({
+                              ok: false,
+                              text: errorMessage(e, "Cannot remove step."),
+                            });
+                          }
                         }}
-                        className="text-faint hover:text-danger-text"
+                        className="text-faint hover:text-danger-text disabled:opacity-40"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -469,13 +509,32 @@ export default function CampaignsPage() {
                 )}
               </div>
 
+              {selected.steps[0] && (
+                <ExperimentPanel
+                  key={`${selected.id}-${selected.steps[0].id}`}
+                  campaignId={selected.id}
+                  campaignStatus={selected.status}
+                  step1Id={selected.steps[0].id}
+                  defaultSubject={
+                    templates.find((t) => t.id === selected.steps[0].template_id)
+                      ?.subject ?? ""
+                  }
+                  canManage={canManage(role)}
+                  onChanged={setActiveExp}
+                />
+              )}
+
               <form
                 onSubmit={addStepTo}
                 className="mt-3 flex flex-wrap items-end gap-2 border-t border-line pt-3"
               >
                 <label className="flex flex-col gap-1 text-tiny text-faint">
                   Template
-                  <select name="templateId" className={field}>
+                  <select
+                    name="templateId"
+                    disabled={activeExp?.status === "running"}
+                    className={field}
+                  >
                     <option value="">(none)</option>
                     {templates.map((t) => (
                       <option key={t.id} value={t.id}>
@@ -491,26 +550,37 @@ export default function CampaignsPage() {
                     type="number"
                     min={0}
                     defaultValue={0}
+                    disabled={activeExp?.status === "running"}
                     className={`${field} w-24`}
                   />
                 </label>
                 <label className="flex flex-col gap-1 text-tiny text-faint">
                   Condition
-                  <select name="condition" className={field} defaultValue="always">
+                  <select
+                    name="condition"
+                    disabled={activeExp?.status === "running"}
+                    className={field}
+                    defaultValue="always"
+                  >
                     <option value="always">Always send</option>
                     <option value="opened_no_reply">If opened, no reply</option>
                     <option value="not_opened">If not opened</option>
                   </select>
                 </label>
-                <label className="flex flex-1 flex-col gap-1 text-tiny text-faint">
-                  A/B subjects (comma-separated, optional)
-                  <input
-                    name="variants"
-                    placeholder="Subject A, Subject B"
-                    className={field}
-                  />
-                </label>
-                <button className="rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover">
+                {!activeExp && (
+                  <label className="flex flex-1 flex-col gap-1 text-tiny text-faint">
+                    Legacy rotation (not a test) — comma-separated subjects
+                    <input
+                      name="variants"
+                      placeholder="Subject A, Subject B"
+                      className={field}
+                    />
+                  </label>
+                )}
+                <button
+                  disabled={activeExp?.status === "running"}
+                  className="rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-40"
+                >
                   Add step
                 </button>
               </form>

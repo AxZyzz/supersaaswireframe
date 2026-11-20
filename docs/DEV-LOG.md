@@ -13,6 +13,23 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ## Sessions
 
+### 2026-11-20 — Learning Loop T01 + T02: Company key, Discover attributes, Offers, enrollment snapshot, experiments and stable company-level assignment
+
+- **T01 (finished & rebased onto `google-stack` `65ad84a`):**
+  - Migration `0052_company_key_attributes.sql` + idempotent `company_key` backfill for existing leads and prospects.
+  - Shared `INDUSTRIES`, `SIZE_BANDS`, `TRIGGER_TYPES` (`hiring | expansion | funding | product_launch`) and `MAIL_PROVIDERS` (`packages/shared/src/attributes.ts` + `apps/api/src/leads/attributes.ts`).
+  - `companyKey(email, website?)` (`apps/api/src/leads/company-key.ts`), MX-based `MailProviderResolver` + Redis 7-day cache + background BullMQ `mail-provider` queue (`apps/api/src/leads/mail-provider.ts`, `mail-provider.service.ts`), code-derived IANA timezone (`timezoneFor`), and verbatim quote verification for triggers and location (`apps/api/src/prospects/attributes.ts`).
+  - Web UI chips for city, inferred industry/size, and quoted triggers on `/discover`, plus `company_key`, `mail_provider`, `timezone`, and location on `/leads/[id]`.
+  - Unit tests (`company-key.spec.ts`) + `prospects.integration.spec.ts` passing.
+- **T02 (Offers, enrollment snapshot, experiments and stable assignment):**
+  - Migration `0053_offers_experiments_assignments.sql`: `offers` table (`campaigns.offer_id`, `prospect_runs.offer_id`), `campaign_leads.snapshot jsonb`, `experiments` (with partial unique index `WHERE status = 'running'` on `(campaign_id, step_id)`), `experiment_variants`, `experiment_assignments` (`UNIQUE (experiment_id, company_key)`), `sent_emails.experiment_id` + `variant_id`, and `FORCE ROW LEVEL SECURITY` + `owner_bypass` on every new table.
+  - **Offers (`offers.service.ts`, `offers.controller.ts`):** `GET /offers` auto-creates `"Default offer"` per workspace on first use; `POST /offers` and `PATCH /offers/:id` manage offers; wired into campaign create/edit and Discover runs.
+  - **Enrollment snapshot (`snapshot.ts`, `campaigns.service.ts`):** `roleBucket(title)` maps job titles to `founder_owner | c_level | vp_head_director | manager | individual | unknown`; `enroll()` and `schedule()` write the 19-key frozen `snapshot` once at enrollment (never updated on later lead edits).
+  - **Experiments & freeze guards (`experiments.service.ts`, `experiments.controller.ts`):** `POST /campaigns/:id/experiments`, `GET /campaigns/:id/experiments`, `GET /experiments/:id`, `PATCH /experiments/:id`, `POST /experiments/:id/start`, `POST /experiments/:id/stop`. Running experiments freeze variant copy, template copy, audience segment, sender list, and step delays (`409 experiment_running`: `"Editing copy creates a new test. Stop this one first."`).
+  - **Send-path company assignment (`experiment-assignment.ts`, `send.service.ts`):** deterministic `sha256(experiment_id + ':' + company_key)` -> uniform `[0, 1)` over active variants (50/50 in V1), inserted with `ON CONFLICT (experiment_id, company_key) DO NOTHING` in Phase 1 before dispatch. Colleagues at the same company and retries after provider errors share the same variant; leads without `company_key` are stopped with `stop_reason = 'experiment_ineligible'`; follow-up steps copy `experiment_id` and `variant_id` onto `sent_emails`; legacy campaigns keep round-robin untouched.
+  - **Web UI (`offer-select.tsx`, `experiment-panel.tsx`, `campaigns/page.tsx`, `campaign-wizard.tsx`, `winner-panel.tsx`, `discover/page.tsx`):** Offer selector with inline `"+ New offer…"`, Step 1 `"A/B test (company-level)"` panel with Start/Stop and frozen state, and legacy rotation relabelled `"Legacy rotation (not a test)"`.
+  - **Tests:** `experiment-assignment.spec.ts` (10,000-company 50/50 split, paused variant stability, `roleBucket`, snapshot keys), `experiments.integration.spec.ts` (20 leads across 12 companies, colleague sharing, retry on provider error, concurrency, `experiment_ineligible`, follow-up attribution, 409 freeze checks, snapshot immutability, RLS, legacy regression), `authz-matrix.integration.spec.ts` (`docs/AUTHZ-MATRIX.md` updated), `rls-isolation.spec.ts`, and `rls-owner-bypass.spec.ts` all green.
+
 ### 2026-11-19 — "Can't log in: Something went wrong, try again"
 
 **Cause:** environment, not code. After the PC restarted, Docker Desktop was not

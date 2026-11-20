@@ -21,10 +21,14 @@ import {
   ApplyWinnerDto,
 } from './campaign.dto';
 import { CampaignsService } from './campaigns.service';
+import { CreateExperimentDto, ExperimentsService } from './experiments.service';
 
 @Controller('campaigns')
 export class CampaignsController {
-  constructor(private readonly campaigns: CampaignsService) {}
+  constructor(
+    private readonly campaigns: CampaignsService,
+    private readonly experiments: ExperimentsService,
+  ) {}
 
   // ── steps (two-segment routes; no clash with the ':id' routes) ────────
   @Roles('admin', 'manager')
@@ -188,5 +192,25 @@ export class CampaignsController {
     @Body() dto: CreateStepDto,
   ) {
     return this.campaigns.addStep(user.orgId, id, dto);
+  }
+
+  // ── company-level experiments (Learning Loop T02) ─────────────────────
+  @Get(':id/experiments')
+  listExperiments(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.experiments.listForCampaign(user.orgId, id);
+  }
+
+  @Roles('admin', 'manager')
+  @Post(':id/experiments')
+  @HttpCode(201)
+  createExperiment(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateExperimentDto,
+  ) {
+    return this.experiments.createForCampaign(user.orgId, user.userId, id, dto);
   }
 }

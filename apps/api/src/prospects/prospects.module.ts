@@ -1,6 +1,7 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { AiModule } from '../ai/ai.module';
+import { CampaignsModule } from '../campaigns/campaigns.module';
 import { LeadsModule } from '../leads/leads.module';
 import { PROSPECT_QUEUE } from '../queue/queue.module';
 import { ProspectsController } from './prospects.controller';
@@ -12,6 +13,7 @@ import { ProspectsService } from './prospects.service';
     BullModule.registerQueue({ name: PROSPECT_QUEUE }),
     AiModule,
     LeadsModule,
+    CampaignsModule,
   ],
   controllers: [ProspectsController],
   providers: [ProspectsService, ProspectsProcessor],

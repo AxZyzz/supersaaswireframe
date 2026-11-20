@@ -13,6 +13,7 @@ export interface Icp {
 export interface ProspectRun {
   id: string;
   goal: string;
+  offer_id?: string | null;
   icp: Icp | null;
   status: "queued" | "running" | "done" | "failed";
   requested: number;
@@ -22,6 +23,13 @@ export interface ProspectRun {
   error: string | null;
   created_at: string;
   finished_at: string | null;
+}
+
+export interface ProspectTrigger {
+  type: "hiring" | "expansion" | "funding" | "product_launch";
+  quote: string;
+  url: string;
+  observed_at: string | null;
 }
 
 export interface Evidence {
@@ -57,12 +65,24 @@ export interface Prospect {
   pages: string[];
   error: string | null;
   lead_id: string | null;
+  city?: string | null;
+  region?: string | null;
+  country?: string | null;
+  size_band?: string | null;
+  triggers?: ProspectTrigger[];
+  timezone?: string | null;
+  mail_provider?: string | null;
+  company_key?: string | null;
 }
 
-export const startProspectRun = (goal: string, count: number) =>
+export const startProspectRun = (
+  goal: string,
+  count: number,
+  offerId?: string,
+) =>
   api<ProspectRun>("/prospects/runs", {
     method: "POST",
-    body: JSON.stringify({ goal, count }),
+    body: JSON.stringify({ goal, count, offerId: offerId || undefined }),
   });
 
 export const listProspectRuns = () => api<ProspectRun[]>("/prospects/runs");

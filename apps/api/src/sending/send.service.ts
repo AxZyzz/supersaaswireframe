@@ -17,6 +17,10 @@ import { buildEmail } from './send-render';
 import { UsageService } from '../usage/usage.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { effectiveLimitSql } from '../senders/warmup';
+import {
+  type AssignableVariant,
+  pickExperimentVariant,
+} from '../campaigns/experiment-assignment';
 
 type Outcome =
   'sent' | 'failed' | 'skipped' | 'deferred' | 'completed' | 'suppressed';
@@ -260,8 +264,9 @@ export class SendService implements BeforeApplicationShutdown {
         company: string | null;
         title: string | null;
         phone: string | null;
+        company_key: string | null;
       }>(
-        `SELECT email, first_name, last_name, company, title, phone
+        `SELECT email, first_name, last_name, company, title, phone, company_key
          FROM leads WHERE id = $1`,
         [cl.lead_id],
       );
@@ -270,6 +275,28 @@ export class SendService implements BeforeApplicationShutdown {
         return { outcome: 'skipped' as Outcome };
       }
       const lead = leadRes.rows[0];
+
+      // Check whether this step has a running experiment (Learning Loop T02).
+      const expRes = await c.query<{
+        id: string;
+        step_id: string;
+        allocation: { weights?: number[] } | null;
+      }>(
+        `SELECT id, step_id, allocation FROM experiments
+         WHERE campaign_id = $1 AND status = 'running' LIMIT 1`,
+        [cl.campaign_id],
+      );
+      const runningExp = expRes.rows[0] ?? null;
+      const isExperimentStep =
+        runningExp !== null && runningExp.step_id === step.id;
+
+      // Experiment eligibility: lead must have a company_key. If ineligible,
+      // do not assign and do not send.
+      if (isExperimentStep && !lead.company_key) {
+        await this.stop(c, cl.id, 'experiment_ineligible');
+        return { outcome: 'skipped' as Outcome };
+      }
+
       if (!lead.email) {
         await this.stop(c, cl.id, 'no_email');
         return { outcome: 'skipped' as Outcome };
@@ -360,20 +387,95 @@ export class SendService implements BeforeApplicationShutdown {
 
       let subject = tpl.subject;
       let variantIndex = 0;
-      const variants = step.subject_variants ?? [];
-      const winner = step.winner_index;
-      if (winner !== null && typeof variants[winner] === 'string') {
-        // approved A/B winner: every remaining lead gets it, credited to its
-        // own version (not renumbered)
-        variantIndex = winner;
-        subject = variants[winner];
-      } else if (variants.length > 0) {
-        const sentForStep = await c.query<{ n: number }>(
-          `SELECT count(*)::int AS n FROM sent_emails WHERE step_id = $1`,
-          [step.id],
+      let experimentId: string | null = null;
+      let variantId: string | null = null;
+
+      if (isExperimentStep && runningExp && lead.company_key) {
+        // New path (Learning Loop T02): company-level assignment persisted
+        // before dispatch in the same transaction.
+        const evRes = await c.query<AssignableVariant>(
+          `SELECT id, label, subject, status, is_control, created_at
+           FROM experiment_variants
+           WHERE experiment_id = $1
+           ORDER BY created_at ASC, id ASC`,
+          [runningExp.id],
         );
-        variantIndex = sentForStep.rows[0].n % variants.length;
-        subject = variants[variantIndex];
+        const expVariants = evRes.rows;
+        const weights = Array.isArray(runningExp.allocation?.weights)
+          ? runningExp.allocation.weights
+          : undefined;
+        const candidate = pickExperimentVariant(
+          runningExp.id,
+          lead.company_key,
+          expVariants,
+          weights,
+        );
+        await c.query(
+          `INSERT INTO experiment_assignments
+             (org_id, experiment_id, company_key, variant_id, hash)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (experiment_id, company_key) DO NOTHING`,
+          [
+            orgId,
+            runningExp.id,
+            lead.company_key,
+            candidate.variant.id,
+            candidate.hash,
+          ],
+        );
+        const assignedRes = await c.query<{ variant_id: string }>(
+          `SELECT variant_id FROM experiment_assignments
+           WHERE experiment_id = $1 AND company_key = $2`,
+          [runningExp.id, lead.company_key],
+        );
+        const assignedVariantId =
+          assignedRes.rows[0]?.variant_id ?? candidate.variant.id;
+        const assignedIdx = expVariants.findIndex(
+          (v) => v.id === assignedVariantId,
+        );
+        const assignedVar =
+          assignedIdx >= 0 ? expVariants[assignedIdx] : candidate.variant;
+        experimentId = runningExp.id;
+        variantId = assignedVar.id;
+        variantIndex = assignedIdx >= 0 ? assignedIdx : candidate.variantIndex;
+        subject = assignedVar.subject;
+      } else {
+        // Legacy path (untouched when no running experiment is on this step).
+        const variants = step.subject_variants ?? [];
+        const winner = step.winner_index;
+        if (winner !== null && typeof variants[winner] === 'string') {
+          // approved A/B winner: every remaining lead gets it, credited to its
+          // own version (not renumbered)
+          variantIndex = winner;
+          subject = variants[winner];
+        } else if (variants.length > 0) {
+          const sentForStep = await c.query<{ n: number }>(
+            `SELECT count(*)::int AS n FROM sent_emails WHERE step_id = $1`,
+            [step.id],
+          );
+          variantIndex = sentForStep.rows[0].n % variants.length;
+          subject = variants[variantIndex];
+        }
+
+        // Follow-up steps (step 2+): copy experiment_id / variant_id from the
+        // company's assignment if one exists for this campaign.
+        if (lead.company_key) {
+          const followUpAssign = await c.query<{
+            experiment_id: string;
+            variant_id: string;
+          }>(
+            `SELECT ea.experiment_id, ea.variant_id
+             FROM experiment_assignments ea
+             JOIN experiments e ON e.id = ea.experiment_id
+             WHERE e.campaign_id = $1 AND ea.company_key = $2
+             ORDER BY ea.assigned_at DESC LIMIT 1`,
+            [cl.campaign_id, lead.company_key],
+          );
+          if (followUpAssign.rows[0]) {
+            experimentId = followUpAssign.rows[0].experiment_id;
+            variantId = followUpAssign.rows[0].variant_id;
+          }
+        }
       }
 
       // CAN-SPAM footer identity: workspace name + postal address.
@@ -410,6 +512,8 @@ export class SendService implements BeforeApplicationShutdown {
           bodyHtml: tpl.body_html,
           vars,
           variantIndex,
+          experimentId,
+          variantId,
           trackingId: randomUUID(),
           unsubToken: cl.unsub_token,
           sender: {
@@ -469,8 +573,8 @@ export class SendService implements BeforeApplicationShutdown {
         `INSERT INTO sent_emails
            (org_id, campaign_id, campaign_lead_id, lead_id, step_id, sender_id,
             to_email, subject, message_id, provider, status, variant_index,
-            tracking_id, error)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+            experiment_id, variant_id, tracking_id, error)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
          RETURNING id`,
         [
           orgId,
@@ -485,6 +589,8 @@ export class SendService implements BeforeApplicationShutdown {
           provider,
           error ? 'failed' : 'sent',
           p.variantIndex,
+          p.experimentId,
+          p.variantId,
           p.trackingId,
           error,
         ],
@@ -515,7 +621,7 @@ export class SendService implements BeforeApplicationShutdown {
           }),
         ],
       );
-      if (senderAuthBroke) {
+      if (senderAuthBroke || (error && p.experimentId)) {
         await c.query(
           `UPDATE campaign_leads SET next_send_at = now() + interval '15 minutes',
              updated_at = now() WHERE id = $1`,

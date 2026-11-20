@@ -107,14 +107,17 @@ export class MailProviderService implements OnModuleDestroy {
   async fillOrg(orgId: string): Promise<number> {
     let total = 0;
     for (let i = 0; i < MAX_BATCHES_PER_JOB; i++) {
-      const rows = await withOrgContext(this.pool, orgId, async (c) =>
-        (
-          await c.query<{ id: string; email: string }>(
-            `SELECT id, email FROM leads
+      const rows = await withOrgContext(
+        this.pool,
+        orgId,
+        async (c) =>
+          (
+            await c.query<{ id: string; email: string }>(
+              `SELECT id, email FROM leads
               WHERE mail_provider IS NULL AND email IS NOT NULL
               ORDER BY created_at LIMIT ${BATCH}`,
-          )
-        ).rows,
+            )
+          ).rows,
       );
       if (!rows.length) break;
 

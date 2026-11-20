@@ -16,8 +16,11 @@ import type {
 } from './campaign.dto';
 import { RealtimeService } from '../realtime/realtime.service';
 import { adviseWinner, type VariantStats } from './ab-winner';
+import { assertCampaignNotFrozenInTx } from './experiments.service';
+import { OffersService } from './offers.service';
+import { buildEnrollmentSnapshot } from './snapshot';
 
-const CAMPAIGN_COLS = `id, name, status, segment_id, sender_ids, scheduled_at,
+const CAMPAIGN_COLS = `id, name, status, segment_id, offer_id, sender_ids, scheduled_at,
   started_at, archived_at, created_at, updated_at`;
 const STEP_COLS = `id, campaign_id, step_order, template_id, delay_hours,
   condition, subject_variants, created_at`;
@@ -27,6 +30,7 @@ export interface CampaignRow {
   name: string;
   status: string;
   segment_id: string | null;
+  offer_id: string | null;
   sender_ids: string[];
   scheduled_at: Date | null;
   started_at: Date | null;
@@ -52,6 +56,7 @@ export class CampaignsService {
     @Inject(PG_POOL) private readonly pool: Pool,
     private readonly usage: UsageService,
     private readonly realtime: RealtimeService,
+    private readonly offers: OffersService,
   ) {}
 
   private run<T>(orgId: string, fn: (c: PoolClient) => Promise<T>) {
@@ -81,14 +86,20 @@ export class CampaignsService {
   create(orgId: string, dto: CreateCampaignDto) {
     return this.run(orgId, async (c) => {
       if (dto.segmentId) await this.assertSegment(c, dto.segmentId);
+      const offerId = await this.offers.resolveOfferIdInTx(
+        c,
+        orgId,
+        dto.offerId,
+      );
       const res = await c.query<CampaignRow>(
-        `INSERT INTO campaigns (org_id, name, segment_id, sender_ids)
-         VALUES ($1, $2, $3, COALESCE($4,'[]')::jsonb)
+        `INSERT INTO campaigns (org_id, name, segment_id, offer_id, sender_ids)
+         VALUES ($1, $2, $3, $4, COALESCE($5,'[]')::jsonb)
          RETURNING ${CAMPAIGN_COLS}`,
         [
           orgId,
           dto.name.trim(),
           dto.segmentId ?? null,
+          offerId,
           dto.senderIds ? JSON.stringify(dto.senderIds) : null,
         ],
       );
@@ -121,6 +132,13 @@ export class CampaignsService {
       sets.push(`${col} = $${params.length}`);
     };
     return this.run(orgId, async (c) => {
+      if (
+        dto.segmentId !== undefined ||
+        dto.senderIds !== undefined ||
+        dto.offerId !== undefined
+      ) {
+        await assertCampaignNotFrozenInTx(c, id);
+      }
       if (dto.name !== undefined) add('name', dto.name.trim());
       if (dto.status !== undefined) {
         params.push(dto.status);
@@ -129,6 +147,12 @@ export class CampaignsService {
       if (dto.segmentId !== undefined) {
         if (dto.segmentId) await this.assertSegment(c, dto.segmentId);
         add('segment_id', dto.segmentId);
+      }
+      if (dto.offerId !== undefined) {
+        const offerId = dto.offerId
+          ? await this.offers.resolveOfferIdInTx(c, orgId, dto.offerId)
+          : null;
+        add('offer_id', offerId);
       }
       if (dto.senderIds !== undefined)
         add('sender_ids', JSON.stringify(dto.senderIds));
@@ -186,13 +210,14 @@ export class CampaignsService {
       if (src.rowCount === 0) throw new NotFoundException('Campaign not found');
       const s = src.rows[0];
       const dup = await c.query<CampaignRow>(
-        `INSERT INTO campaigns (org_id, name, segment_id, sender_ids, status)
-         VALUES ($1, $2, $3, $4::jsonb, 'draft')
+        `INSERT INTO campaigns (org_id, name, segment_id, offer_id, sender_ids, status)
+         VALUES ($1, $2, $3, $4, $5::jsonb, 'draft')
          RETURNING ${CAMPAIGN_COLS}`,
         [
           orgId,
           `${s.name} (copy)`,
           s.segment_id,
+          s.offer_id,
           JSON.stringify(s.sender_ids ?? []),
         ],
       );
@@ -205,6 +230,118 @@ export class CampaignsService {
       );
       return dup.rows[0];
     });
+  }
+
+  /**
+   * Enrolls eligible leads for a campaign (segment members or all org leads)
+   * and writes the frozen factor snapshot once per enrollment. Never overwrites
+   * an existing enrollment or snapshot.
+   */
+  private async enrollWithSnapshotsInTx(
+    c: PoolClient,
+    orgId: string,
+    campaignId: string,
+    segmentId: string | null,
+    offerId: string | null,
+    delayHours: number,
+    baseTimeIso?: string,
+  ): Promise<number> {
+    const resolvedOfferId = await this.offers.resolveOfferIdInTx(
+      c,
+      orgId,
+      offerId,
+    );
+    if (!offerId) {
+      await c.query(`UPDATE campaigns SET offer_id = $2 WHERE id = $1`, [
+        campaignId,
+        resolvedOfferId,
+      ]);
+    }
+
+    const candidates = await c.query<{
+      id: string;
+      email: string | null;
+      title: string | null;
+      source: string | null;
+      custom: Record<string, unknown> | null;
+      company_key: string | null;
+      city: string | null;
+      region: string | null;
+      country: string | null;
+      timezone: string | null;
+      mail_provider: string | null;
+      prospect_id: string | null;
+      discovery_run_id: string | null;
+      prospect_city: string | null;
+      prospect_region: string | null;
+      prospect_country: string | null;
+      prospect_timezone: string | null;
+      prospect_industry: string | null;
+      prospect_size_band: string | null;
+      prospect_triggers: unknown;
+      prospect_mail_provider: string | null;
+      prospect_company_key: string | null;
+      prospect_stars: number | null;
+      prospect_fit_score: number | null;
+    }>(
+      `SELECT l.id, l.email, l.title, l.source, l.custom,
+              l.company_key, l.city, l.region, l.country, l.timezone, l.mail_provider,
+              p.id AS prospect_id, p.run_id AS discovery_run_id,
+              p.city AS prospect_city, p.region AS prospect_region,
+              p.country AS prospect_country, p.timezone AS prospect_timezone,
+              p.industry AS prospect_industry, p.size_band AS prospect_size_band,
+              p.triggers AS prospect_triggers, p.mail_provider AS prospect_mail_provider,
+              p.company_key AS prospect_company_key, p.stars AS prospect_stars,
+              p.fit_score AS prospect_fit_score
+       FROM leads l
+       LEFT JOIN LATERAL (
+         SELECT id, run_id, city, region, country, timezone, industry,
+                size_band, triggers, mail_provider, company_key, stars, fit_score
+         FROM prospects pr
+         WHERE pr.lead_id = l.id
+         ORDER BY pr.updated_at DESC
+         LIMIT 1
+       ) p ON true
+       WHERE ($1::uuid IS NULL
+              OR l.id IN (SELECT lead_id FROM segment_members WHERE segment_id = $1))
+         AND NOT EXISTS (
+           SELECT 1 FROM campaign_leads cl
+           WHERE cl.campaign_id = $2 AND cl.lead_id = l.id
+         )`,
+      [segmentId, campaignId],
+    );
+
+    let enrolled = 0;
+    for (const row of candidates.rows) {
+      const snapshot = buildEnrollmentSnapshot({
+        ...row,
+        offer_id: resolvedOfferId,
+      });
+      const ins = baseTimeIso
+        ? await c.query(
+            `INSERT INTO campaign_leads
+               (org_id, campaign_id, lead_id, current_step, status, next_send_at, snapshot)
+             VALUES ($1, $2, $3, 0, 'active', $4::timestamptz + make_interval(hours => $5), $6::jsonb)
+             ON CONFLICT (campaign_id, lead_id) DO NOTHING`,
+            [
+              orgId,
+              campaignId,
+              row.id,
+              baseTimeIso,
+              delayHours,
+              JSON.stringify(snapshot),
+            ],
+          )
+        : await c.query(
+            `INSERT INTO campaign_leads
+               (org_id, campaign_id, lead_id, current_step, status, next_send_at, snapshot)
+             VALUES ($1, $2, $3, 0, 'active', now() + make_interval(hours => $4), $5::jsonb)
+             ON CONFLICT (campaign_id, lead_id) DO NOTHING`,
+            [orgId, campaignId, row.id, delayHours, JSON.stringify(snapshot)],
+          );
+      enrolled += ins.rowCount ?? 0;
+    }
+    return enrolled;
   }
 
   // Status transitions. The send worker only touches 'active' campaigns, so a
@@ -265,10 +402,13 @@ export class CampaignsService {
       throw new BadRequestException('Schedule time must be in the future');
     }
     return this.run(orgId, async (c) => {
-      const camp = await c.query<{ segment_id: string | null; status: string }>(
-        `SELECT segment_id, status FROM campaigns WHERE id = $1`,
-        [id],
-      );
+      const camp = await c.query<{
+        segment_id: string | null;
+        offer_id: string | null;
+        status: string;
+      }>(`SELECT segment_id, offer_id, status FROM campaigns WHERE id = $1`, [
+        id,
+      ]);
       if (camp.rowCount === 0)
         throw new NotFoundException('Campaign not found');
       if (camp.rows[0].status === 'archived') {
@@ -287,29 +427,21 @@ export class CampaignsService {
           'Add at least one step before scheduling',
         );
       }
-      const ins = await c.query(
-        `INSERT INTO campaign_leads
-           (org_id, campaign_id, lead_id, current_step, status, next_send_at)
-         SELECT $1, $2, l.id, 0, 'active',
-                $5::timestamptz + make_interval(hours => $3)
-         FROM leads l
-         WHERE ($4::uuid IS NULL
-                OR l.id IN (SELECT lead_id FROM segment_members WHERE segment_id = $4))
-         ON CONFLICT (campaign_id, lead_id) DO NOTHING`,
-        [
-          orgId,
-          id,
-          first.rows[0].delay_hours,
-          camp.rows[0].segment_id,
-          when.toISOString(),
-        ],
+      const enrolled = await this.enrollWithSnapshotsInTx(
+        c,
+        orgId,
+        id,
+        camp.rows[0].segment_id,
+        camp.rows[0].offer_id,
+        first.rows[0].delay_hours,
+        when.toISOString(),
       );
       const res = await c.query<CampaignRow>(
         `UPDATE campaigns SET status = 'scheduled', scheduled_at = $2,
            updated_at = now() WHERE id = $1 RETURNING ${CAMPAIGN_COLS}`,
         [id, when.toISOString()],
       );
-      return { ...res.rows[0], enrolled: ins.rowCount ?? 0 };
+      return { ...res.rows[0], enrolled };
     });
   }
 
@@ -321,6 +453,7 @@ export class CampaignsService {
       ]);
       if (camp.rowCount === 0)
         throw new NotFoundException('Campaign not found');
+      await assertCampaignNotFrozenInTx(c, campaignId);
       const steps = await c.query<{ n: number }>(
         `SELECT count(*)::int AS n FROM campaign_steps WHERE campaign_id = $1`,
         [campaignId],
@@ -380,6 +513,13 @@ export class CampaignsService {
     }
     params.push(stepId);
     return this.run(orgId, async (c) => {
+      const existing = await c.query<{ campaign_id: string }>(
+        `SELECT campaign_id FROM campaign_steps WHERE id = $1`,
+        [stepId],
+      );
+      if (existing.rowCount === 0)
+        throw new NotFoundException('Step not found');
+      await assertCampaignNotFrozenInTx(c, existing.rows[0].campaign_id);
       const res = await c.query<StepRow>(
         `UPDATE campaign_steps SET ${sets.join(', ')} WHERE id = $${params.length}
          RETURNING ${STEP_COLS}`,
@@ -392,6 +532,13 @@ export class CampaignsService {
 
   async removeStep(orgId: string, stepId: string) {
     const affected = await this.run(orgId, async (c) => {
+      const existing = await c.query<{ campaign_id: string }>(
+        `SELECT campaign_id FROM campaign_steps WHERE id = $1`,
+        [stepId],
+      );
+      if ((existing.rowCount ?? 0) > 0) {
+        await assertCampaignNotFrozenInTx(c, existing.rows[0].campaign_id);
+      }
       const res = await c.query(`DELETE FROM campaign_steps WHERE id = $1`, [
         stepId,
       ]);
@@ -501,10 +648,13 @@ export class CampaignsService {
   // engine advances campaign_leads from here; this just seeds the state.
   async enroll(orgId: string, id: string) {
     return this.run(orgId, async (c) => {
-      const camp = await c.query<{ segment_id: string | null; status: string }>(
-        `SELECT segment_id, status FROM campaigns WHERE id = $1`,
-        [id],
-      );
+      const camp = await c.query<{
+        segment_id: string | null;
+        offer_id: string | null;
+        status: string;
+      }>(`SELECT segment_id, offer_id, status FROM campaigns WHERE id = $1`, [
+        id,
+      ]);
       if (camp.rowCount === 0)
         throw new NotFoundException('Campaign not found');
       if (camp.rows[0].status === 'archived') {
@@ -521,15 +671,13 @@ export class CampaignsService {
       if (first.rowCount === 0) {
         throw new BadRequestException('Add at least one step before enrolling');
       }
-      const ins = await c.query(
-        `INSERT INTO campaign_leads
-           (org_id, campaign_id, lead_id, current_step, status, next_send_at)
-         SELECT $1, $2, l.id, 0, 'active', now() + make_interval(hours => $3)
-         FROM leads l
-         WHERE ($4::uuid IS NULL
-                OR l.id IN (SELECT lead_id FROM segment_members WHERE segment_id = $4))
-         ON CONFLICT (campaign_id, lead_id) DO NOTHING`,
-        [orgId, id, first.rows[0].delay_hours, camp.rows[0].segment_id],
+      const enrolled = await this.enrollWithSnapshotsInTx(
+        c,
+        orgId,
+        id,
+        camp.rows[0].segment_id,
+        camp.rows[0].offer_id,
+        first.rows[0].delay_hours,
       );
       await c.query(
         `UPDATE campaigns SET status = 'active',
@@ -537,7 +685,7 @@ export class CampaignsService {
          WHERE id = $1`,
         [id],
       );
-      return { enrolled: ins.rowCount ?? 0 };
+      return { enrolled };
     });
   }
 
@@ -615,6 +763,7 @@ export class CampaignsService {
     variantIndex: number,
   ) {
     return this.run(orgId, async (c) => {
+      await assertCampaignNotFrozenInTx(c, campaignId);
       const s = await c.query<{ subject_variants: string[] }>(
         `SELECT subject_variants FROM campaign_steps WHERE id = $1 AND campaign_id = $2`,
         [stepId, campaignId],

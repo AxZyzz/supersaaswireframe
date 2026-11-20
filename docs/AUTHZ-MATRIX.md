@@ -49,6 +49,8 @@
 | `GET /campaigns/:id/audience` | login | ✅ | ✅ | ✅ |
 | `POST /campaigns/:id/duplicate` | login | ✅ | ✅ | ⛔ |
 | `POST /campaigns/:id/enroll` | login | ✅ | ✅ | ⛔ |
+| `GET /campaigns/:id/experiments` | login | ✅ | ✅ | ✅ |
+| `POST /campaigns/:id/experiments` | login | ✅ | ✅ | ⛔ |
 | `POST /campaigns/:id/pause` | login | ✅ | ✅ | ⛔ |
 | `POST /campaigns/:id/resume` | login | ✅ | ✅ | ⛔ |
 | `POST /campaigns/:id/schedule` | login | ✅ | ✅ | ⛔ |
@@ -57,6 +59,10 @@
 | `GET /campaigns/:id/winner` | login | ✅ | ✅ | ✅ |
 | `DELETE /campaigns/steps/:stepId` | login | ✅ | ✅ | ⛔ |
 | `PATCH /campaigns/steps/:stepId` | login | ✅ | ✅ | ⛔ |
+| `GET /experiments/:id` | login | ✅ | ✅ | ✅ |
+| `PATCH /experiments/:id` | login | ✅ | ✅ | ⛔ |
+| `POST /experiments/:id/start` | login | ✅ | ✅ | ⛔ |
+| `POST /experiments/:id/stop` | login | ✅ | ✅ | ⛔ |
 | `POST /feedback` | login | ✅ | ✅ | ✅ |
 | `GET /health/ready` | public | — | — | — |
 | `GET /inbox` | login | ✅ | ✅ | ✅ |
@@ -101,6 +107,9 @@
 | `PUT /notifications/preferences` | login | ✅ | ✅ | ✅ |
 | `POST /notifications/read-all` | login | ✅ | ✅ | ✅ |
 | `GET /notifications/unread-count` | login | ✅ | ✅ | ✅ |
+| `GET /offers` | login | ✅ | ✅ | ✅ |
+| `POST /offers` | login | ✅ | ✅ | ⛔ |
+| `PATCH /offers/:id` | login | ✅ | ✅ | ⛔ |
 | `GET /operator/failures` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /operator/feedback` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /operator/health` | operator | ⛔ | ⛔ | ⛔ |

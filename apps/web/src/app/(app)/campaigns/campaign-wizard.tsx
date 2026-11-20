@@ -17,6 +17,8 @@ import {
 import { Template } from "@/lib/templates";
 import { Segment } from "@/lib/segments";
 import { Sender } from "@/lib/senders";
+import { OfferSelect } from "@/components/offer-select";
+import { ExperimentPanel } from "@/components/experiment-panel";
 
 const STEPS = ["Setup", "Sequence", "Senders", "Review"] as const;
 
@@ -42,6 +44,7 @@ export default function CampaignWizard({
   const [audience, setAudience] = useState<number | null>(null);
   const [name, setName] = useState("");
   const [segmentId, setSegmentId] = useState("");
+  const [offerId, setOfferId] = useState("");
   const [selectedSenders, setSelectedSenders] = useState<Set<string>>(new Set());
   const [launchMode, setLaunchMode] = useState<"now" | "schedule">("now");
   const [scheduledAt, setScheduledAt] = useState("");
@@ -68,6 +71,7 @@ export default function CampaignWizard({
         const c = await createCampaign({
           name: name.trim(),
           segmentId: segmentId || undefined,
+          offerId: offerId || undefined,
         });
         id = c.id;
         setCampaignId(id);
@@ -75,6 +79,7 @@ export default function CampaignWizard({
         await updateCampaign(id, {
           name: name.trim(),
           segmentId: segmentId || null,
+          offerId: offerId || null,
         });
       }
       await reload(id);
@@ -227,6 +232,12 @@ export default function CampaignWizard({
                   ))}
                 </select>
               </label>
+              <label className="block space-y-1">
+                <span className="text-tiny font-medium uppercase tracking-wide text-faint">
+                  Offer
+                </span>
+                <OfferSelect value={offerId} onChange={setOfferId} />
+              </label>
             </div>
           )}
 
@@ -307,7 +318,7 @@ export default function CampaignWizard({
                   </select>
                 </label>
                 <label className="flex flex-1 flex-col gap-1 text-tiny text-faint">
-                  A/B subjects (comma-separated)
+                  Legacy rotation (not a test) — comma-separated subjects
                   <input
                     name="variants"
                     placeholder="Subject A, Subject B"
@@ -318,6 +329,18 @@ export default function CampaignWizard({
                   Add
                 </button>
               </form>
+              {campaignId && detail?.steps[0] && (
+                <ExperimentPanel
+                  campaignId={campaignId}
+                  campaignStatus={detail.status}
+                  step1Id={detail.steps[0].id}
+                  defaultSubject={
+                    templates.find((t) => t.id === detail.steps[0].template_id)
+                      ?.subject ?? ""
+                  }
+                  canManage={true}
+                />
+              )}
             </div>
           )}
 

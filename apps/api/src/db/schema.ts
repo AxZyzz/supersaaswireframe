@@ -564,6 +564,25 @@ export const campaignLeadStatusEnum = pgEnum('campaign_lead_status', [
   'stopped',
 ]);
 
+// Learning Loop T02: what the workspace sells (scopes campaigns, Discover runs,
+// and later search preferences).
+export const offers = pgTable(
+  'offers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    description: text('description'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+  },
+  (t) => [index('offers_org_idx').on(t.orgId, t.createdAt)],
+);
+
 export const campaigns = pgTable(
   'campaigns',
   {
@@ -575,6 +594,10 @@ export const campaigns = pgTable(
     status: campaignStatusEnum('status').notNull().default('draft'),
     // Audience: a segment (null = all org leads at enroll time).
     segmentId: uuid('segment_id').references(() => segments.id, {
+      onDelete: 'set null',
+    }),
+    // Learning Loop T02: offer this campaign promotes.
+    offerId: uuid('offer_id').references(() => offers.id, {
       onDelete: 'set null',
     }),
     // sender_account ids to rotate across (validated at launch).
@@ -647,6 +670,8 @@ export const campaignLeads = pgTable(
     nextSendAt: timestamp('next_send_at', { withTimezone: true }),
     // Opaque token for the per-recipient unsubscribe link.
     unsubToken: uuid('unsub_token').notNull().defaultRandom(),
+    // Learning Loop T02: frozen factor snapshot at enrollment (never updated).
+    snapshot: jsonb('snapshot'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -658,6 +683,141 @@ export const campaignLeads = pgTable(
     uniqueIndex('campaign_leads_unique_idx').on(t.campaignId, t.leadId),
     index('campaign_leads_due_idx').on(t.status, t.nextSendAt),
     index('campaign_leads_org_idx').on(t.orgId),
+  ],
+);
+
+// Learning Loop T02: company-level experiments, variants, and assignments.
+export const experiments = pgTable(
+  'experiments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    campaignId: uuid('campaign_id')
+      .notNull()
+      .references(() => campaigns.id, { onDelete: 'cascade' }),
+    stepId: uuid('step_id')
+      .notNull()
+      .references(() => campaignSteps.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull().default('subject'),
+    status: text('status').notNull().default('draft'),
+    unit: text('unit').notNull().default('company'),
+    primaryMetric: text('primary_metric').notNull().default('qualified_reply'),
+    secondaryMetric: text('secondary_metric').notNull().default('booked_call'),
+    baselineRate: real('baseline_rate').notNull().default(0.03),
+    minLiftPp: real('min_lift_pp').notNull().default(2),
+    targetNPerArm: integer('target_n_per_arm'),
+    responseWindowDays: integer('response_window_days').notNull().default(14),
+    decisionDate: timestamp('decision_date', { withTimezone: true }),
+    guardrails: jsonb('guardrails')
+      .notNull()
+      .default(
+        sql`'{"bounce":0.05,"unsubscribe":0.02,"complaint":0.003}'::jsonb`,
+      ),
+    allocation: jsonb('allocation')
+      .notNull()
+      .default(sql`'{"weights":[0.5,0.5]}'::jsonb`),
+    policyVersion: text('policy_version').notNull().default('v1'),
+    offerRef: uuid('offer_ref').references(() => offers.id, {
+      onDelete: 'set null',
+    }),
+    createdBy: uuid('created_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    stoppedAt: timestamp('stopped_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('experiments_org_campaign_idx').on(
+      t.orgId,
+      t.campaignId,
+      t.createdAt,
+    ),
+    uniqueIndex('experiments_running_step_idx')
+      .on(t.campaignId, t.stepId)
+      .where(sql`${t.status} = 'running'`),
+  ],
+);
+
+export const experimentVariants = pgTable(
+  'experiment_variants',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    experimentId: uuid('experiment_id')
+      .notNull()
+      .references(() => experiments.id, { onDelete: 'cascade' }),
+    label: text('label').notNull(),
+    subject: text('subject').notNull(),
+    templateId: uuid('template_id').references(() => templates.id, {
+      onDelete: 'set null',
+    }),
+    templateVersion: integer('template_version').notNull().default(1),
+    isControl: boolean('is_control').notNull().default(false),
+    status: text('status').notNull().default('active'),
+    createdBy: uuid('created_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    approvedBy: uuid('approved_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+    pausedBy: uuid('paused_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    pausedAt: timestamp('paused_at', { withTimezone: true }),
+    pauseReason: text('pause_reason'),
+    resumedBy: uuid('resumed_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    resumedAt: timestamp('resumed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('experiment_variants_experiment_idx').on(t.experimentId, t.createdAt),
+  ],
+);
+
+export const experimentAssignments = pgTable(
+  'experiment_assignments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    experimentId: uuid('experiment_id')
+      .notNull()
+      .references(() => experiments.id, { onDelete: 'cascade' }),
+    companyKey: text('company_key').notNull(),
+    variantId: uuid('variant_id')
+      .notNull()
+      .references(() => experimentVariants.id, { onDelete: 'restrict' }),
+    assignedAt: timestamp('assigned_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    hash: text('hash').notNull(),
+    reassignedFrom: uuid('reassigned_from').references(
+      () => experimentVariants.id,
+      { onDelete: 'set null' },
+    ),
+  },
+  (t) => [
+    uniqueIndex('experiment_assignments_exp_company_idx').on(
+      t.experimentId,
+      t.companyKey,
+    ),
+    index('experiment_assignments_org_idx').on(t.orgId, t.experimentId),
   ],
 );
 
@@ -695,6 +855,12 @@ export const sentEmails = pgTable(
     provider: text('provider'),
     status: text('status').notNull().default('sent'),
     variantIndex: integer('variant_index').notNull().default(0),
+    experimentId: uuid('experiment_id').references(() => experiments.id, {
+      onDelete: 'set null',
+    }),
+    variantId: uuid('variant_id').references(() => experimentVariants.id, {
+      onDelete: 'set null',
+    }),
     trackingId: uuid('tracking_id').notNull().defaultRandom(),
     error: text('error'),
     sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
@@ -705,6 +871,7 @@ export const sentEmails = pgTable(
     index('sent_emails_lead_idx').on(t.leadId),
     uniqueIndex('sent_emails_tracking_idx').on(t.trackingId),
     index('sent_emails_sender_day_idx').on(t.senderId, t.sentAt),
+    index('sent_emails_experiment_idx').on(t.experimentId, t.variantId),
   ],
 );
 

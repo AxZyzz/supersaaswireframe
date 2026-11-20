@@ -18,6 +18,8 @@ export class StartProspectRunDto {
   @IsString() @MinLength(10) @MaxLength(1000) goal!: string;
 
   @IsOptional() @Type(() => Number) @IsInt() @Min(3) @Max(20) count?: number;
+
+  @IsOptional() @IsUUID() offerId?: string;
 }
 
 export class AddProspectsToLeadsDto {

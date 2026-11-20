@@ -17,6 +17,7 @@ import { companyKey, FREE_MAIL } from '../leads/company-key';
 import type { MailProvider } from '../leads/attributes';
 import { MailProviderService } from '../leads/mail-provider.service';
 import { LeadsService } from '../leads/leads.service';
+import { OffersService } from '../campaigns/offers.service';
 import { UsageService } from '../usage/usage.service';
 import { SegmentsService } from '../leads/segments/segments.service';
 import { PROSPECT_QUEUE } from '../queue/queue.module';
@@ -67,12 +68,13 @@ export interface ProspectIO {
   fetchPage: (url: string) => Promise<FetchedPage>;
   hasMx: (domain: string) => Promise<boolean>;
   /** MX-based mailbox provider of a domain (cached). */
-  mailProvider: (domain: string) => Promise<MailProvider>;
+  mailProvider?: (domain: string) => Promise<MailProvider>;
 }
 
 export interface RunRow {
   id: string;
   goal: string;
+  offer_id: string | null;
   icp: unknown;
   status: string;
   requested: number;
@@ -84,7 +86,7 @@ export interface RunRow {
   finished_at: Date | null;
 }
 
-const RUN_COLS = `id, goal, icp, status, requested, total, done, verified, error, created_at, finished_at`;
+const RUN_COLS = `id, goal, offer_id, icp, status, requested, total, done, verified, error, created_at, finished_at`;
 const PROSPECT_COLS = `id, run_id, company_name, domain, website_url, reason, status, summary,
   industry, location, fit_score, stars, score_parts, evidence, opportunity, unknowns, emails,
   pages, error, lead_id, created_at, updated_at,
@@ -125,6 +127,7 @@ export class ProspectsService {
     private readonly segments: SegmentsService,
     private readonly usage: UsageService,
     private readonly mailProviders: MailProviderService,
+    private readonly offers: OffersService,
   ) {}
 
   /**
@@ -157,7 +160,13 @@ export class ProspectsService {
 
   // ── API ─────────────────────────────────────────────────────────────────
 
-  async startRun(orgId: string, userId: string, goal: string, count = 12) {
+  async startRun(
+    orgId: string,
+    userId: string,
+    goal: string,
+    count = 12,
+    offerId?: string,
+  ) {
     const n = Math.min(MAX_PROSPECTS_PER_RUN, Math.max(3, Math.round(count)));
     const run = await this.run(orgId, async (c) => {
       // Serialise starts per workspace so two clicks can't both pass the
@@ -175,10 +184,15 @@ export class ProspectsService {
           'A search is already running. Wait for it to finish first.',
         );
       }
+      const resolvedOfferId = await this.offers.resolveOfferIdInTx(
+        c,
+        orgId,
+        offerId,
+      );
       const r = await c.query<RunRow>(
-        `INSERT INTO prospect_runs (org_id, created_by, goal, requested)
-         VALUES ($1, $2, $3, $4) RETURNING ${RUN_COLS}`,
-        [orgId, userId, goal.trim(), n],
+        `INSERT INTO prospect_runs (org_id, created_by, goal, requested, offer_id)
+         VALUES ($1, $2, $3, $4, $5) RETURNING ${RUN_COLS}`,
+        [orgId, userId, goal.trim(), n, resolvedOfferId],
       );
       return r.rows[0];
     });
@@ -718,7 +732,9 @@ export class ProspectsService {
     // dropped and stays explicit (null / unknown). Timezone is code-derived.
     const loc = verifyLocation(analysis, pages);
     const triggers = verifyTriggers(analysis.triggers, pages);
-    const mailProvider = await this.io.mailProvider(p.domain);
+    const mailProvider = this.io.mailProvider
+      ? await this.io.mailProvider(p.domain)
+      : 'unknown';
     const score = scoreProspect(analysis.scores ?? {}, emails);
     const real = analysis.isRealBusinessSite !== false && evidence.length > 0;
     const str = (k: string, max: number) =>
