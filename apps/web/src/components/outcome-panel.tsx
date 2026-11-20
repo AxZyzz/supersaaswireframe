@@ -80,7 +80,7 @@ export function OutcomePanel({
           <div key={o.id} className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               {provisional ? (
-                <span className="flex items-center gap-1 rounded bg-warn-bg px-2 py-0.5 text-tiny font-medium text-warn-text">
+                <span className="flex items-center gap-1 rounded bg-warning-bg px-2 py-0.5 text-tiny font-medium text-warning-text">
                   <CircleHelp size={13} />
                   {o.source === "inbox_ai"
                     ? `AI: ${label.toLowerCase()} (unconfirmed)`

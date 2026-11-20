@@ -43,6 +43,7 @@ import { useLive } from "@/lib/realtime";
 import { WinnerPanel } from "@/components/winner-panel";
 import { ExperimentPanel } from "@/components/experiment-panel";
 import { OfferSelect } from "@/components/offer-select";
+import { ReviewPanel } from "@/components/review-panel";
 import { canManage, useRole } from "@/lib/me";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -69,6 +70,7 @@ export default function CampaignsPage() {
   const [aiOpen, setAiOpen] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [activeExp, setActiveExp] = useState<Experiment | null>(null);
+  const [tab, setTab] = useState<"setup" | "review">("setup");
   const role = useRole();
 
   const applyList = useCallback(
@@ -109,6 +111,7 @@ export default function CampaignsPage() {
   const open = useCallback(
     async (id: string) => {
       setNote(null);
+      setTab("setup");
       await refresh(id);
     },
     [refresh],
@@ -363,6 +366,37 @@ export default function CampaignsPage() {
               </div>
             )}
 
+            <div role="tablist" className="flex gap-1 border-b border-line">
+              {(
+                [
+                  ["setup", "Setup"],
+                  ["review", "Review"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  role="tab"
+                  aria-selected={tab === key}
+                  onClick={() => setTab(key)}
+                  className={`-mb-px border-b-2 px-3 py-1.5 text-sm font-medium ${
+                    tab === key
+                      ? "border-accent text-accent"
+                      : "border-transparent text-muted hover:text-ink"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {tab === "review" ? (
+              <ReviewPanel
+                key={selected.id}
+                campaignId={selected.id}
+                canManage={canManage(role)}
+              />
+            ) : (
+              <>
             {/* stats */}
             {stats && (
               <div className="rounded-lg border border-line bg-surface p-4">
@@ -585,6 +619,8 @@ export default function CampaignsPage() {
                 </button>
               </form>
             </div>
+              </>
+            )}
           </div>
         )}
       </div>

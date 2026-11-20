@@ -26,7 +26,12 @@ const EMAIL = 'review-demo@supersaas.local';
 const PASSWORD = 'review-demo-123';
 const COMPANIES = 80;
 const CITIES = ['Pune', 'Mumbai', 'Bengaluru', 'Delhi'];
-const INDUSTRIES = ['saas', 'agency_marketing', 'ecommerce', 'healthcare_clinic'];
+const INDUSTRIES = [
+  'saas',
+  'agency_marketing',
+  'ecommerce',
+  'healthcare_clinic',
+];
 const TRIGGERS = ['hiring', 'expansion', 'funding', 'unknown'];
 
 async function main() {
@@ -111,7 +116,15 @@ async function main() {
         `INSERT INTO experiment_variants
            (org_id, experiment_id, label, subject, template_id, is_control, status, created_by)
          VALUES ($1,$2,$3,$4,$5,$6,'active',$7) RETURNING id`,
-        [orgId, experimentId, i === 0 ? 'A' : 'B', subject, tpl.rows[0]?.id ?? null, i === 0, userId],
+        [
+          orgId,
+          experimentId,
+          i === 0 ? 'A' : 'B',
+          subject,
+          tpl.rows[0]?.id ?? null,
+          i === 0,
+          userId,
+        ],
       );
       variants.push(v.rows[0].id);
     }
@@ -137,7 +150,14 @@ async function main() {
         const lead = await c.query<{ id: string }>(
           `INSERT INTO leads (org_id, email, first_name, company, source, company_key, city, country)
            VALUES ($1,$2,$3,$4,'seed',$5,$6,'IN') RETURNING id`,
-          [orgId, email, k === 0 ? 'Owner' : 'Manager', `Clinic ${n + 1}`, domain, city],
+          [
+            orgId,
+            email,
+            k === 0 ? 'Owner' : 'Manager',
+            `Clinic ${n + 1}`,
+            domain,
+            city,
+          ],
         );
         const snapshot = {
           company_key: domain,
@@ -160,21 +180,49 @@ async function main() {
              (org_id, campaign_id, campaign_lead_id, lead_id, step_id, to_email, subject,
               status, variant_index, experiment_id, variant_id, sent_at)
            VALUES ($1,$2,$3,$4,$5,$6,$7,'sent',$8,$9,$10,$11) RETURNING id`,
-          [orgId, campaignId, cl.rows[0].id, lead.rows[0].id, stepId, email,
-           arm === 0 ? 'Quick question about missed calls' : 'Are you losing patients to voicemail?',
-           arm, experimentId, variants[arm], sentAt],
+          [
+            orgId,
+            campaignId,
+            cl.rows[0].id,
+            lead.rows[0].id,
+            stepId,
+            email,
+            arm === 0
+              ? 'Quick question about missed calls'
+              : 'Are you losing patients to voicemail?',
+            arm,
+            experimentId,
+            variants[arm],
+            sentAt,
+          ],
         );
 
         if (k > 0) continue; // outcomes belong to the company: record them once
-        const out = async (type: string, verification: string, source: string, daysAfter: number) =>
+        const out = async (
+          type: string,
+          verification: string,
+          source: string,
+          daysAfter: number,
+        ) =>
           c.query(
             `INSERT INTO outcome_events
                (org_id, campaign_lead_id, lead_id, company_key, experiment_id, variant_id,
                 sent_email_id, type, source, verification, occurred_at, idempotency_key)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-            [orgId, cl.rows[0].id, lead.rows[0].id, domain, experimentId, variants[arm],
-             se.rows[0].id, type, source, verification,
-             new Date(sentAt.getTime() + daysAfter * 86_400_000), `seed:${type}:${n}`],
+            [
+              orgId,
+              cl.rows[0].id,
+              lead.rows[0].id,
+              domain,
+              experimentId,
+              variants[arm],
+              se.rows[0].id,
+              type,
+              source,
+              verification,
+              new Date(sentAt.getTime() + daysAfter * 86_400_000),
+              `seed:${type}:${n}`,
+            ],
           );
 
         // ~35% real opens (B a little higher), 3 bounces
@@ -185,9 +233,13 @@ async function main() {
             [orgId, se.rows[0].id, campaignId, lead.rows[0].id],
           );
         }
-        if (n === 5 || n === 40 || n === 67) await out('bounce', 'verified', 'gmail_sync', 0);
+        if (n === 5 || n === 40 || n === 67)
+          await out('bounce', 'verified', 'gmail_sync', 0);
         // B is genuinely better: A ~2/40 qualified, B ~7/40
-        const qualified = arm === 0 ? [4, 22].includes(n) : [1, 9, 15, 29, 47, 63, 71].includes(n);
+        const qualified =
+          arm === 0
+            ? [4, 22].includes(n)
+            : [1, 9, 15, 29, 47, 63, 71].includes(n);
         const replied = qualified || (n * 11) % 9 === 0;
         if (replied) await out('reply', 'verified', 'system', 2);
         if (qualified) {
@@ -201,7 +253,9 @@ async function main() {
     }
   });
 
-  console.log(`Seed: created ${EMAIL} / ${PASSWORD} with a running experiment ("Review demo: clinic follow-up").`);
+  console.log(
+    `Seed: created ${EMAIL} / ${PASSWORD} with a running experiment ("Review demo: clinic follow-up").`,
+  );
   await pool.end();
 }
 
