@@ -13,11 +13,25 @@ import { Pool, PoolClient } from 'pg';
 import { AiService } from '../ai/ai.service';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { companyKey, FREE_MAIL } from '../leads/company-key';
+import type { MailProvider } from '../leads/attributes';
+import { MailProviderService } from '../leads/mail-provider.service';
 import { LeadsService } from '../leads/leads.service';
 import { UsageService } from '../usage/usage.service';
 import { SegmentsService } from '../leads/segments/segments.service';
 import { PROSPECT_QUEUE } from '../queue/queue.module';
-import { type Offer, icpAndCandidatesPrompt, researchPrompt } from './prompts';
+import {
+  ATTR_PROMPT_VERSION,
+  type Offer,
+  icpAndCandidatesPrompt,
+  researchPrompt,
+} from './prompts';
+import {
+  cleanIndustry,
+  cleanSizeBand,
+  verifyLocation,
+  verifyTriggers,
+} from './attributes';
 import {
   cleanOpportunity,
   cleanUnknowns,
@@ -29,7 +43,6 @@ import {
   extractEmails,
   fetchPage,
   type FetchedPage,
-  FREE_MAIL,
   hasMx,
   htmlToText,
   metaDescription,
@@ -53,6 +66,8 @@ const STALE_RUN_MINUTES = 45;
 export interface ProspectIO {
   fetchPage: (url: string) => Promise<FetchedPage>;
   hasMx: (domain: string) => Promise<boolean>;
+  /** MX-based mailbox provider of a domain (cached). */
+  mailProvider: (domain: string) => Promise<MailProvider>;
 }
 
 export interface RunRow {
@@ -72,7 +87,9 @@ export interface RunRow {
 const RUN_COLS = `id, goal, icp, status, requested, total, done, verified, error, created_at, finished_at`;
 const PROSPECT_COLS = `id, run_id, company_name, domain, website_url, reason, status, summary,
   industry, location, fit_score, stars, score_parts, evidence, opportunity, unknowns, emails,
-  pages, error, lead_id, created_at, updated_at`;
+  pages, error, lead_id, created_at, updated_at,
+  city, region, country, size_band, triggers, timezone, mail_provider, company_key,
+  attr_model, attr_prompt_version`;
 
 interface ProspectRow {
   id: string;
@@ -84,12 +101,21 @@ interface ProspectRow {
   stars: number | null;
   website_url: string | null;
   lead_id: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
+  mail_provider: string | null;
 }
 
 @Injectable()
 export class ProspectsService {
   private readonly logger = new Logger(ProspectsService.name);
-  io: ProspectIO = { fetchPage, hasMx };
+  io: ProspectIO = {
+    fetchPage,
+    hasMx,
+    // resolved lazily: `this.mailProviders` is injected after field init
+    mailProvider: (d) => this.mailProviders.lookupDomain(d),
+  };
 
   constructor(
     @Inject(PG_POOL) private readonly pool: Pool,
@@ -98,6 +124,7 @@ export class ProspectsService {
     private readonly leads: LeadsService,
     private readonly segments: SegmentsService,
     private readonly usage: UsageService,
+    private readonly mailProviders: MailProviderService,
   ) {}
 
   /**
@@ -260,9 +287,22 @@ export class ProspectsService {
               website: p.website_url ?? `https://${p.domain}`,
               expellyStars: p.stars,
               expellyFitScore: p.fit_score,
+              // factors the learning loop reads (verified on the company's site)
+              ...(p.city ? { city: p.city } : {}),
+              ...(p.region ? { region: p.region } : {}),
+              ...(p.country ? { country: p.country } : {}),
             },
           })) as { id: string };
           leadId = lead.id;
+          if (p.mail_provider) {
+            const provider = p.mail_provider;
+            await this.run(orgId, (c) =>
+              c.query(
+                `UPDATE leads SET mail_provider = $2 WHERE id = $1 AND mail_provider IS NULL`,
+                [lead.id, provider],
+              ),
+            );
+          }
         } catch (e) {
           // already a lead (same email): reuse it
           const existing = await this.run(
@@ -549,7 +589,11 @@ export class ProspectsService {
     offer: Offer,
     p: { id: string; domain: string },
   ) {
-    await this.save(orgId, p.id, { status: 'researching' });
+    // the company key is known from the domain alone, whatever happens next
+    await this.save(orgId, p.id, {
+      status: 'researching',
+      company_key: companyKey(null, p.domain),
+    });
 
     // robots.txt first (unreachable robots = no rules)
     let rules: string[] = [];
@@ -644,6 +688,7 @@ export class ProspectsService {
     }
 
     let analysis: Record<string, unknown>;
+    let model = '';
     try {
       const res = await this.ai.generate(
         orgId,
@@ -657,6 +702,7 @@ export class ProspectsService {
         }),
       );
       analysis = JSON.parse(res.text) as Record<string, unknown>;
+      model = res.model;
     } catch (e) {
       return this.save(orgId, p.id, {
         status: 'unverified',
@@ -668,6 +714,11 @@ export class ProspectsService {
     }
 
     const evidence = verifyEvidence(analysis.facts, pages);
+    // Attributes are verified like evidence: what the pages don't back up is
+    // dropped and stays explicit (null / unknown). Timezone is code-derived.
+    const loc = verifyLocation(analysis, pages);
+    const triggers = verifyTriggers(analysis.triggers, pages);
+    const mailProvider = await this.io.mailProvider(p.domain);
     const score = scoreProspect(analysis.scores ?? {}, emails);
     const real = analysis.isRealBusinessSite !== false && evidence.length > 0;
     const str = (k: string, max: number) =>
@@ -677,8 +728,17 @@ export class ProspectsService {
       website_url: home.url,
       company_name: str('companyName', 200) || (await this.nameOf(orgId, p.id)),
       summary: str('summary', 600),
-      industry: str('industry', 120),
+      industry: cleanIndustry(analysis.industry),
       location: str('location', 120),
+      city: loc.city,
+      region: loc.region,
+      country: loc.country,
+      timezone: loc.timezone,
+      size_band: cleanSizeBand(analysis.sizeBand),
+      triggers,
+      mail_provider: mailProvider,
+      attr_model: model,
+      attr_prompt_version: ATTR_PROMPT_VERSION,
       evidence,
       opportunity: cleanOpportunity(analysis.opportunity),
       unknowns: cleanUnknowns(analysis.unknowns),

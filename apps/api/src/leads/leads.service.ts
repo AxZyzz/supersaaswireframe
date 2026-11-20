@@ -8,6 +8,8 @@ import { Pool, PoolClient } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { UsageService } from '../usage/usage.service';
+import { deriveLeadAttrs } from './lead-attributes';
+import { MailProviderService } from './mail-provider.service';
 import type {
   CreateLeadDto,
   CreateNoteDto,
@@ -17,7 +19,8 @@ import type {
 } from './dto/lead.dto';
 
 const LEAD_COLS = `id, email, first_name, last_name, company, title, phone,
-  status, score, source, custom, created_at, updated_at`;
+  status, score, source, custom, company_key, mail_provider, timezone, city, region,
+  country, created_at, updated_at`;
 
 export interface LeadRow {
   id: string;
@@ -31,6 +34,12 @@ export interface LeadRow {
   score: 'hot' | 'warm' | 'cold' | null;
   source: string | null;
   custom: Record<string, unknown>;
+  company_key: string | null;
+  mail_provider: string | null;
+  timezone: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -88,6 +97,7 @@ export class LeadsService {
   constructor(
     @Inject(PG_POOL) private readonly pool: Pool,
     private readonly usage: UsageService,
+    private readonly mailProvider: MailProviderService,
   ) {}
 
   private run<T>(orgId: string, fn: (c: PoolClient) => Promise<T>) {
@@ -157,11 +167,14 @@ export class LeadsService {
   async create(orgId: string, dto: CreateLeadDto) {
     return this.run(orgId, async (c) => {
       await this.usage.assertCanAdd(c, orgId, 'leads');
+      const a = deriveLeadAttrs({ email: dto.email, custom: dto.custom });
       const res = await c.query<LeadRow>(
         `INSERT INTO leads
            (org_id, email, first_name, last_name, company, title, phone,
-            status, score, source, custom)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,'new'),$9,$10,COALESCE($11,'{}'::jsonb))
+            status, score, source, custom,
+            company_key, city, region, country, timezone)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,'new'),$9,$10,COALESCE($11,'{}'::jsonb),
+                 $12,$13,$14,$15,$16)
          RETURNING ${LEAD_COLS}`,
         [
           orgId,
@@ -175,6 +188,11 @@ export class LeadsService {
           dto.score ?? null,
           dto.source ?? null,
           dto.custom ? JSON.stringify(dto.custom) : null,
+          a.companyKey,
+          a.city,
+          a.region,
+          a.country,
+          a.timezone,
         ],
       );
       const lead = res.rows[0];
@@ -184,13 +202,18 @@ export class LeadsService {
         [orgId, lead.id],
       );
       return lead;
+    }).then(async (lead) => {
+      // mail provider is filled in the background, after the request
+      if (lead.email) await this.mailProvider.enqueue(orgId);
+      return lead;
     });
   }
 
   // Public REST API upsert-by-email. Used by the API-key-guarded /v1 route so
   // external systems can sync leads idempotently.
   async apiUpsert(orgId: string, dto: CreateLeadDto) {
-    return this.run(orgId, async (c) => {
+    const a = deriveLeadAttrs({ email: dto.email, custom: dto.custom });
+    const out = await this.run(orgId, async (c) => {
       if (dto.email) {
         const existing = await c.query<{ id: string }>(
           `SELECT id FROM leads WHERE lower(email) = lower($1) LIMIT 1`,
@@ -208,6 +231,11 @@ export class LeadsService {
                status     = COALESCE($7, status),
                score      = COALESCE($8, score),
                source     = COALESCE($9, source),
+               company_key = COALESCE($10, company_key),
+               city       = COALESCE($11, city),
+               region     = COALESCE($12, region),
+               country    = COALESCE($13, country),
+               timezone   = COALESCE($14, timezone),
                updated_at = now()
              WHERE id = $1 RETURNING ${LEAD_COLS}`,
             [
@@ -220,6 +248,11 @@ export class LeadsService {
               dto.status ?? null,
               dto.score ?? null,
               dto.source ?? null,
+              a.companyKey,
+              a.city,
+              a.region,
+              a.country,
+              a.timezone,
             ],
           );
           await c.query(
@@ -232,8 +265,10 @@ export class LeadsService {
       await this.usage.assertCanAdd(c, orgId, 'leads');
       const res = await c.query<LeadRow>(
         `INSERT INTO leads
-           (org_id, email, first_name, last_name, company, title, phone, status, score, source)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,'new'),$9,COALESCE($10,'api'))
+           (org_id, email, first_name, last_name, company, title, phone, status, score, source,
+            company_key, city, region, country, timezone)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,'new'),$9,COALESCE($10,'api'),
+                 $11,$12,$13,$14,$15)
          RETURNING ${LEAD_COLS}`,
         [
           orgId,
@@ -246,6 +281,11 @@ export class LeadsService {
           dto.status ?? null,
           dto.score ?? null,
           dto.source ?? null,
+          a.companyKey,
+          a.city,
+          a.region,
+          a.country,
+          a.timezone,
         ],
       );
       await c.query(
@@ -254,6 +294,8 @@ export class LeadsService {
       );
       return { lead: res.rows[0], created: true };
     });
+    if (out.created && out.lead.email) await this.mailProvider.enqueue(orgId);
+    return out;
   }
 
   async findOne(orgId: string, id: string) {
@@ -305,7 +347,39 @@ export class LeadsService {
     if (dto.source !== undefined) add('source', dto.source);
     if (dto.custom !== undefined) add('custom', JSON.stringify(dto.custom));
 
-    return this.run(orgId, async (c) => {
+    let emailChanged = false;
+    const out = await this.run(orgId, async (c) => {
+      if (
+        sets.length > 0 &&
+        (dto.email !== undefined || dto.custom !== undefined)
+      ) {
+        // The company key follows the email and website, so re-derive it
+        // from the merged record. Location is only ever filled, never wiped.
+        const cur = await c.query<{
+          email: string | null;
+          custom: Record<string, unknown>;
+        }>(`SELECT email, custom FROM leads WHERE id = $1 FOR UPDATE`, [id]);
+        if (cur.rowCount === 0) throw new NotFoundException('Lead not found');
+        const email = dto.email !== undefined ? dto.email : cur.rows[0].email;
+        const a = deriveLeadAttrs({
+          email,
+          custom: dto.custom ?? cur.rows[0].custom,
+        });
+        add('company_key', a.companyKey);
+        if (a.city) add('city', a.city);
+        if (a.region) add('region', a.region);
+        if (a.country) add('country', a.country);
+        if (a.timezone) add('timezone', a.timezone);
+        if (
+          dto.email !== undefined &&
+          (dto.email ?? '').toLowerCase() !==
+            (cur.rows[0].email ?? '').toLowerCase()
+        ) {
+          // new mailbox: forget the old provider, the background job refills it
+          sets.push('mail_provider = NULL');
+          emailChanged = !!dto.email;
+        }
+      }
       if (sets.length > 0) {
         sets.push(`updated_at = now()`);
         params.push(id);
@@ -329,6 +403,8 @@ export class LeadsService {
       if (res.rowCount === 0) throw new NotFoundException('Lead not found');
       return res.rows[0];
     });
+    if (emailChanged) await this.mailProvider.enqueue(orgId);
+    return out;
   }
 
   /** forget = GDPR erasure: delete the person's data but keep their address
@@ -464,6 +540,12 @@ export class LeadsService {
            phone = COALESCE(p.phone, m.phone),
            score = COALESCE(p.score, m.score),
            source = COALESCE(p.source, m.source),
+           company_key = COALESCE(p.company_key, m.company_key),
+           mail_provider = COALESCE(p.mail_provider, m.mail_provider),
+           timezone = COALESCE(p.timezone, m.timezone),
+           city = COALESCE(p.city, m.city),
+           region = COALESCE(p.region, m.region),
+           country = COALESCE(p.country, m.country),
            updated_at = now()
          FROM (
            SELECT * FROM leads WHERE id = ANY($2::uuid[])

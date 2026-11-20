@@ -12,6 +12,11 @@ export const IMPORTABLE_FIELDS = [
   'status',
   'score',
   'source',
+  // Learning Loop T01: where the company is, and its website (company key)
+  'city',
+  'region',
+  'country',
+  'website',
 ] as const;
 
 export type ImportableField = (typeof IMPORTABLE_FIELDS)[number];

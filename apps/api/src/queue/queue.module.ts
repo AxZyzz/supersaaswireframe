@@ -9,6 +9,8 @@ export const CAMPAIGN_SEND_QUEUE = 'campaign-send';
 export const SYSTEM_JOBS_QUEUE = 'system-jobs';
 /** Expelly prospect discovery runs (goal → verified companies). */
 export const PROSPECT_QUEUE = 'prospect-research';
+/** Fills leads.mail_provider from MX records, off the request path (T01). */
+export const MAIL_PROVIDER_QUEUE = 'mail-provider';
 
 /**
  * Worker options shared by every queue, tuned for a metered Redis (Upstash

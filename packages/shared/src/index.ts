@@ -26,3 +26,9 @@ export type ReplyClassification = (typeof REPLY_CLASSIFICATIONS)[number];
 
 export const SENDER_PROVIDERS = ['ses', 'gmail', 'smtp'] as const;
 export type SenderProvider = (typeof SENDER_PROVIDERS)[number];
+
+// ── Learning Loop T01: Discover attributes (factors we learn from) ──────────
+// Canonical lists. apps/api keeps a mirror (apps/api/src/leads/attributes.ts)
+// because the API image doesn't ship this package yet; a Jest test fails if
+// the two ever drift.
+export * from './attributes';

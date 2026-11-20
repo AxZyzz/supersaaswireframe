@@ -222,6 +222,13 @@ export const leads = pgTable(
     custom: jsonb('custom')
       .notNull()
       .default(sql`'{}'::jsonb`),
+    // Learning Loop T01: the company this lead belongs to + Discover factors
+    companyKey: text('company_key'),
+    mailProvider: text('mail_provider'),
+    timezone: text('timezone'),
+    city: text('city'),
+    region: text('region'),
+    country: text('country'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -233,6 +240,7 @@ export const leads = pgTable(
     index('leads_org_idx').on(t.orgId),
     index('leads_org_status_idx').on(t.orgId, t.status),
     index('leads_org_created_idx').on(t.orgId, t.createdAt),
+    index('leads_org_company_key_idx').on(t.orgId, t.companyKey),
     // Dedupe key: one lead per email per org (case-insensitive), NULL emails
     // allowed and never collide (partial index).
     uniqueIndex('leads_org_email_idx')

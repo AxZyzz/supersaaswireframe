@@ -30,6 +30,10 @@ export const MAX_LEN: Partial<Record<ImportableField, number>> = {
   phone: 40,
   source: 100,
   status: 40,
+  city: 80,
+  region: 80,
+  country: 80,
+  website: 200,
 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -84,6 +88,19 @@ const SYNONYMS: Record<ImportableField, string[]> = {
   status: ['status', 'leadstatus', 'stage', 'leadstage'],
   score: ['score', 'leadscore', 'temperature', 'priority'],
   source: ['source', 'leadsource', 'origin', 'channel'],
+  city: ['city', 'town', 'companycity', 'hqcity'],
+  region: ['state', 'region', 'province', 'stateprovince', 'companystate'],
+  country: ['country', 'nation', 'companycountry', 'hqcountry'],
+  website: [
+    'website',
+    'companywebsite',
+    'web',
+    'site',
+    'domain',
+    'companydomain',
+    'websiteurl',
+    'companyurl',
+  ],
 };
 
 const nonEmpty = (vals: string[]) => vals.map((v) => v.trim()).filter(Boolean);
@@ -95,6 +112,17 @@ export function valuesFit(field: ImportableField, samples: string[]): boolean {
   const share = (pred: (v: string) => boolean) =>
     vals.filter(pred).length / vals.length;
   if (field === 'email') return share((v) => EMAIL_RE.test(v)) >= 0.6;
+  // a company website is the one short field that IS a URL / domain (but a
+  // LinkedIn or other social profile link is a person, not the company site)
+  if (field === 'website')
+    return (
+      share(
+        (v) =>
+          /^(https?:\/\/|www\.)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(v) &&
+          !/(linkedin|facebook|twitter|instagram)\.com/i.test(v) &&
+          !EMAIL_RE.test(v),
+      ) >= 0.6
+    );
   const max = MAX_LEN[field];
   const shortPlain = (v: string) =>
     (!max || v.length <= max) &&
@@ -194,6 +222,10 @@ const FIELD_HELP: Record<ImportableField, string> = {
     'a CRM lead stage such as new / contacted / interested (not an email-verification status)',
   score: 'lead temperature: hot / warm / cold',
   source: 'where the lead came from, e.g. "LinkedIn", "Webinar"',
+  city: 'city where the company is based',
+  region: 'state / province / region',
+  country: 'country name or code',
+  website: "the company's website or domain (not a social profile)",
 };
 
 /** Prompt: headers + up to 5 short sample values per column → JSON mapping. */

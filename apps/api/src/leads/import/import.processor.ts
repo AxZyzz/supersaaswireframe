@@ -10,6 +10,8 @@ import { LEAD_IMPORT_QUEUE, WORKER_OPTIONS } from '../../queue/queue.module';
 import type { ImportJobData } from './import.dto';
 import { SYSTEM_STATUSES } from '../lead-statuses';
 import { EMAIL_RE, MAX_LEN } from './column-mapping';
+import { deriveLeadAttrs } from '../lead-attributes';
+import { MailProviderService } from '../mail-provider.service';
 
 const SCORES = new Set(['hot', 'warm', 'cold']);
 const MAX_ROWS = 10_000;
@@ -26,6 +28,7 @@ export class ImportProcessor extends WorkerHost {
   constructor(
     @Inject(PG_POOL) private readonly pool: Pool,
     private readonly usage: UsageService,
+    private readonly mailProvider: MailProviderService,
   ) {
     super();
   }
@@ -34,6 +37,8 @@ export class ImportProcessor extends WorkerHost {
     const { jobId, orgId, csv, mapping, onDuplicate, source } = job.data;
     try {
       await this.run(jobId, orgId, csv, mapping, onDuplicate, source ?? 'csv');
+      // mail provider is looked up after the import, never inside it
+      await this.mailProvider.enqueue(orgId);
     } catch (err) {
       this.logger.error(`Import ${jobId} failed`, err as Error);
       await withOrgContext(this.pool, orgId, (c) =>
@@ -220,6 +225,13 @@ export class ImportProcessor extends WorkerHost {
     /** Source for NEW leads without a mapped source column; updates keep theirs. */
     defaultSource = 'csv',
   ): Promise<'imported' | 'updated' | 'skipped' | 'limit'> {
+    const a = deriveLeadAttrs({
+      email: lead.email,
+      website: lead.website,
+      city: lead.city,
+      region: lead.region,
+      country: lead.country,
+    });
     if (lead.email) {
       const existing = await c.query<{ id: string }>(
         `SELECT id FROM leads WHERE lower(email) = lower($1) LIMIT 1`,
@@ -238,6 +250,13 @@ export class ImportProcessor extends WorkerHost {
              status     = COALESCE($7, status),
              score      = COALESCE($8, score),
              source     = COALESCE($9, source),
+             company_key = COALESCE($10, company_key),
+             city       = COALESCE($11, city),
+             region     = COALESCE($12, region),
+             country    = COALESCE($13, country),
+             timezone   = COALESCE($14, timezone),
+             custom     = CASE WHEN $15::text IS NULL THEN custom
+                          ELSE jsonb_set(custom, '{website}', to_jsonb($15::text)) END,
              updated_at = now()
            WHERE id = $1`,
           [
@@ -250,6 +269,12 @@ export class ImportProcessor extends WorkerHost {
             lead.status ?? null,
             lead.score ?? null,
             lead.source ?? null,
+            a.companyKey,
+            a.city,
+            a.region,
+            a.country,
+            a.timezone,
+            lead.website ?? null,
           ],
         );
         await this.event(c, orgId, id, 'updated');
@@ -261,8 +286,12 @@ export class ImportProcessor extends WorkerHost {
     budget.left--;
     const res = await c.query<{ id: string }>(
       `INSERT INTO leads
-         (org_id, email, first_name, last_name, company, title, phone, status, score, source)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,'new'),$9,COALESCE($10,$11))
+         (org_id, email, first_name, last_name, company, title, phone, status, score, source,
+          company_key, city, region, country, timezone, custom)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,'new'),$9,COALESCE($10,$11),
+               $12,$13,$14,$15,$16,
+               CASE WHEN $17::text IS NULL THEN '{}'::jsonb
+                    ELSE jsonb_build_object('website', $17::text) END)
        RETURNING id`,
       [
         orgId,
@@ -276,6 +305,12 @@ export class ImportProcessor extends WorkerHost {
         lead.score ?? null,
         lead.source ?? null,
         defaultSource,
+        a.companyKey,
+        a.city,
+        a.region,
+        a.country,
+        a.timezone,
+        lead.website ?? null,
       ],
     );
     await this.event(c, orgId, res.rows[0].id, 'imported');

@@ -1,4 +1,8 @@
 import type { AIGenerateOptions } from '../ai/providers/ai-provider';
+import { INDUSTRIES, SIZE_BANDS, TRIGGER_TYPES } from '../leads/attributes';
+
+/** Bumped whenever the attribute part of the research prompt changes. */
+export const ATTR_PROMPT_VERSION = 'attrs/1';
 
 /** What the workspace sells (Knowledge Base), used to judge fit. */
 export interface Offer {
@@ -88,8 +92,24 @@ const RESEARCH_SCHEMA = {
     isRealBusinessSite: { type: 'boolean' },
     companyName: { type: 'string' },
     summary: { type: 'string' },
-    industry: { type: 'string' },
+    industry: { type: 'string', enum: [...INDUSTRIES] },
     location: { type: 'string' },
+    city: { type: 'string' },
+    region: { type: 'string' },
+    country: { type: 'string' },
+    sizeBand: { type: 'string', enum: [...SIZE_BANDS] },
+    triggers: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', enum: [...TRIGGER_TYPES] },
+          quote: { type: 'string' },
+          url: { type: 'string' },
+        },
+        required: ['type', 'quote', 'url'],
+      },
+    },
     facts: {
       type: 'array',
       items: {
@@ -150,6 +170,14 @@ export function researchPrompt(input: {
       '  timing 0-20 (visible signals like hiring, growth, launches; 0 if none on the pages),',
       '  commercial 0-15 (can likely afford/needs it). Be strict; unknown = low.',
       '- isRealBusinessSite: false if the pages are a parked domain, directory, or unrelated.',
+      '- city / region / country: where the business is based, as written on the pages (address, contact',
+      '  page, footer). Leave a field empty if the pages do not say.',
+      `- industry: one of ${INDUSTRIES.join(', ')}. sizeBand: one of ${SIZE_BANDS.join(', ')}.`,
+      '  Both are your best inference from the pages; use unknown when unsure.',
+      `- triggers: buying signals the pages state, type one of ${TRIGGER_TYPES.join(', ')}`,
+      '  (hiring = open roles; expansion = new location/office/market; funding = raised money;',
+      '  product_launch = new product or feature). Each needs a VERBATIM quote (12-300 characters) and the',
+      '  url of the page it comes from. No quote, no trigger. An empty list means none found.',
     ].join('\n'),
     messages: [
       {
@@ -162,6 +190,6 @@ export function researchPrompt(input: {
     tier: 'fast',
     maxTokens: 2000,
     jsonSchema: RESEARCH_SCHEMA,
-    promptVersion: 'prospect-research@1',
+    promptVersion: 'prospect-research@2',
   };
 }

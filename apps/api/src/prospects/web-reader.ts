@@ -367,9 +367,8 @@ const EMAIL_RE =
 const NOT_A_CONTACT =
   /\.(png|jpe?g|gif|svg|webp|css|js)$|@(example|sentry|sentry-next|wixpress|domain|email|yourdomain|yourcompany|company|mysite|website)\.|^(you|your|name|user|someone|john\.?doe|jane\.?doe|firstname|first\.last)@/i;
 
-/** Free mailboxes small local businesses often publish instead of a domain address. */
-export const FREE_MAIL =
-  /^(gmail|googlemail|yahoo|ymail|outlook|hotmail|live|msn|icloud|me|proton|protonmail|zoho|rediffmail|aol)\.[a-z.]+$/i;
+// FREE_MAIL (free mailboxes small local businesses publish) lives in
+// ../leads/company-key so the company key and Discover share one list.
 
 /**
  * Email addresses that literally appear on the page (text or mailto links).

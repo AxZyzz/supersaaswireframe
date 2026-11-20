@@ -12,6 +12,13 @@ export interface Lead {
   score: "hot" | "warm" | "cold" | null;
   source: string | null;
   custom: Record<string, unknown>;
+  /** Learning Loop T01: the company this lead belongs to (website domain, or email:<address> for free mail). */
+  company_key: string | null;
+  mail_provider: "google" | "microsoft" | "zoho" | "other" | "unknown" | null;
+  timezone: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -145,6 +152,10 @@ export const IMPORTABLE_FIELDS = [
   "status",
   "score",
   "source",
+  "city",
+  "region",
+  "country",
+  "website",
 ] as const;
 
 export const FIELD_LABELS: Record<(typeof IMPORTABLE_FIELDS)[number], string> = {
@@ -158,6 +169,10 @@ export const FIELD_LABELS: Record<(typeof IMPORTABLE_FIELDS)[number], string> = 
   status: "Lead status",
   score: "Score (hot / warm / cold)",
   source: "Source",
+  city: "City",
+  region: "State / region",
+  country: "Country",
+  website: "Company website",
 };
 
 /** Column -> field suggestions: AI when available, else rules (server decides). */
