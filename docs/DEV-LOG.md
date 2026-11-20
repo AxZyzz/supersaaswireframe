@@ -13,6 +13,42 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ## Sessions
 
+### 2026-11-21 — Learning Loop T06: Insights (what works by location, send time, industry, role and more)
+
+Built on `ll/T06` from `google-stack` `984344b`. No migration, no cloud, no AI. Read-only and exploratory.
+
+- **Rules (`apps/api/src/insights/insight-rules.ts`, pure):** leader rule (a group needs 30 reached companies; "best" needs 3 events and
+  its Wilson lower bound above the overall rate; "worst" when the upper bound is below it; otherwise "No clear leader yet" with the
+  top group in grey; < 30 = "not enough data yet"), at most 5 headlines (largest significant gap first), confounding hint (a
+  best bucket that is > 60% one value of another factor, and that value is 20+ points over-represented overall: "Most of these were
+  also hiring. Compare within trigger before deciding."), fit-score (stars) warning, send-time honesty (<= 2 blocks used = "we can't
+  compare times yet", never a "best time"), headline metric = confirmed qualified once >= 50% of interested replies are settled.
+  One deviation from the brief: the "< 3 events" drop applies to being called best, not to being called worst (a bucket with
+  almost no replies is exactly what "worst" should catch).
+- **Timezone (`send-time.ts`):** send time in the company's own timezone (snapshot) via `Intl`, else the workspace zone (counted and labelled);
+  blocks 6-8 ... 20-22, "other" outside. 04:30 UTC to Asia/Kolkata = 10:00 = the 10 am-12 block.
+- **Source (`types.ts`, `postgres-insights.source.ts`, `aggregate-insights.ts`):** `InsightsSource` interface (`factorFunnel`, `sendTimeGrid`, plus
+  one-pass `all`) returning one fixed row shape; `PostgresInsightsSource` reads one row per company from snapshots, step-1 sends, real
+  opens and CURRENT outcomes inside `withOrgContext`; `INSIGHTS_SOURCE=postgres|bigquery` (bigquery says "arrives with T07").
+  `source-contract.ts` is the shared contract T07's BigQuery source must pass. 17 factors (country, region, city, industry, size,
+  trigger, role, lead source, stars, mail provider, send day, send hour, sequence step as a distribution, subject version, sender,
+  subject length, personalised subject) plus the day x hour heatmap; funnel (discovered -> eligible -> reached -> bounced -> opened ->
+  replied -> qualified -> booked) for the 6 Discover-searchable factors. Unit = reached company (sent, not bounced); one company is one
+  row; a reply not tied to the company's enrollment is never credited.
+- **API:** `GET /insights?offerId&campaignId(,..)&from&to`, all roles, cached 10 minutes per workspace + filters in Redis (fails open;
+  cache key is versioned so a changed response shape is never served stale after a deploy). In `docs/AUTHZ-MATRIX.md`.
+- **Web:** `/review/insights` (sidebar Review now opens it; `Insights | Replies to confirm` tabs): filters (offer, campaign, date range,
+  metric), headline cards with the exploratory note and a disabled "Test next batch" on searchable factors, fit-score warning, send-time
+  heatmap (low-data cells hatched; says how much is in recipient vs workspace time), a section per factor (bars with n and the 95% range,
+  "unknown" always visible, funnel table). Metric switch changes headlines and bars (per-metric headlines come from the API).
+- **Seed:** `npm run seed:experiment -w apps/api` now also adds "Insights demo: clinic outreach": 400 companies, 4 cities, 3 industries,
+  varied send times, with a confounded Pune effect, Tue-Thu morning and founder effects, and random stars.
+- **Checked by hand:** API vs an independent SQL count over the seeded demo: city (Pune 108/23/10, Delhi 107/10/2, Mumbai 96/6/3,
+  Bengaluru 83/12/6 reached/replied/qualified) and trigger (hiring 162 reached, 17 qualified, 36 replied) match exactly.
+- **Tests:** `insight-rules.spec.ts` (28: leader rule, headlines, confounding, stars, send-time honesty, timezone), `insights.integration.spec.ts`
+  (15: one company per two contacts, bounce/provisional/unattributed handling, recipient timezone + workspace fallback, narrow send window,
+  filters, Discover funnel, unknown buckets, simulated data excluded, cross-workspace isolation, roles, cache) and a Playwright spec.
+
 ### 2026-11-21 — Learning Loop T05: Review API, read-only Review tab and "Try simulation"
 
 Built on `ll/T05` from `google-stack` `3f76e84`. Read-only: it computes and shows; approve buttons arrive in T11/T12.
