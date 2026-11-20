@@ -13,6 +13,39 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ## Sessions
 
+### 2026-11-21 — Learning Loop T05: Review API, read-only Review tab and "Try simulation"
+
+Built on `ll/T05` from `google-stack` `3f76e84`. Read-only: it computes and shows; approve buttons arrive in T11/T12.
+
+- **Migration `0055_reviews.sql`:** `reviews` (revision per experiment, `inputs`, `result`, `explanation`,
+  `explanation_source`, `inputs_hash`, `simulated`, `scenario`), `UNIQUE (experiment_id, revision)`, RLS + `owner_bypass`.
+  Simulated rows have `simulated = true` and no experiment; a CHECK keeps real rows tied to an experiment.
+- **Aggregation (`review/review-data.service.ts`, `review-aggregate.ts`):** one per-company SQL row set inside
+  `withOrgContext`, then a pure `aggregate()` (also used by the simulation, so both are counted identically). Unit = company:
+  two contacts = one company; opens = real opens only (bots are stored as `bot_open`); qualified/booked = the CURRENT
+  verified outcome inside the response window from the company's first send (late replies stored, not counted);
+  provisional AI labels shown as "unconfirmed", never counted; window closed / earliest full read from first sends;
+  outcome coverage from the T03 helper; unattributed + ambiguous flags from T03. Audience slices by city / industry /
+  trigger (buckets under 10 companies fold into "other", "unknown" always shown), labelled exploratory.
+  `delivered` = sent minus bounced for real data (so a delivery imbalance without a bounce-rate breach can only appear in a simulation).
+- **Endpoints (`review/`):** `GET /campaigns/:id/review` (computes once if none yet, `404 no_experiment` otherwise),
+  `POST /campaigns/:id/review/refresh` (admin/manager; unchanged inputs keep the revision, any change saves N+1; 1 per 30 s
+  per campaign, in memory, fine while the API is one instance), `GET /reviews/:id`, `GET /review/scenarios`,
+  `POST /review/simulate`. All in `docs/AUTHZ-MATRIX.md`. Explanation = the T04 deterministic template (`explanation_source = template`).
+- **Simulation (`review/simulation.ts`):** 5 scenarios (`valid_winner`, `inconclusive_small`, `high_open_low_conv`,
+  `delivery_imbalance`, `misleading_city`), fixed seed, exact counts, same aggregate + policy as real data; stored with
+  `simulated = true`, never touches real tables, never returned by real-results queries.
+- **Web:** campaign page gets Setup / Review tabs; Review shows the goal strip (status pill, decision date, revision, Refresh),
+  variant table with a source tooltip on every number (opens greyed as diagnostic), lift card with interval bar and the
+  minimum-lift line, the 8 checks, the recommendation card (buttons disabled: "Arrives in the next update"), slices, and
+  a "Try simulation" dropdown with a yellow SIMULATED DATA banner and "Back to real results". Also fixed the campaign
+  detail pane overflowing sideways (`min-w-0`) and the T03 unconfirmed badge using a token that does not exist.
+- **Seed:** `npm run seed:experiment -w apps/api` (`review-demo@supersaas.local`, local only) builds a running experiment with
+  80 companies, opens, bounces, replies, verified outcomes and 2 unconfirmed AI labels.
+- **Tests:** `review.integration.spec.ts` (21: one company per two contacts, late reply excluded, provisional not verified,
+  unattributed flag, revisions only on change, audit link, simulations isolated, cross-org 404, roles, 429), `simulation.spec.ts`
+  (7), and a Playwright spec (`apps/e2e/tests/review.spec.ts`) that opens the seeded Review tab, runs a simulation and sees the banner.
+
 ### 2026-11-21 — Learning Loop T04: Review statistics library and decision policy (pure code)
 
 New folder `apps/api/src/review/policy/` (`POLICY_VERSION = 'review-policy/1'`): no database, no AI, no Nest.
