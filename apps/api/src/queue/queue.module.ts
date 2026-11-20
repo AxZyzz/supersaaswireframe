@@ -9,6 +9,25 @@ export const CAMPAIGN_SEND_QUEUE = 'campaign-send';
 export const SYSTEM_JOBS_QUEUE = 'system-jobs';
 
 /**
+ * Worker options shared by every queue, tuned for a metered Redis (Upstash
+ * bills per command). BullMQ's defaults wake an idle worker every 5 s
+ * (drainDelay) and run a stalled-job check every 30 s: measured locally that
+ * was ~9 commands/s (~24M/month) with nothing to do. New jobs still start
+ * instantly (adding a job wakes the blocked worker) and delayed/repeatable
+ * jobs still fire on time (the block ends at the next due job), so the
+ * longer idle wait only cuts empty polling. REDIS_IDLE_POLL_SECONDS tunes it.
+ */
+const idleSeconds = Math.max(
+  5,
+  Number(process.env.REDIS_IDLE_POLL_SECONDS) || 300,
+);
+export const WORKER_OPTIONS = {
+  drainDelay: idleSeconds,
+  // stalled-job recovery only matters after a crash mid-job
+  stalledInterval: idleSeconds * 1000,
+};
+
+/**
  * BullMQ infrastructure. One Redis connection shared by every queue; each
  * worker type registers its own queue by name. This is the general job-queue
  * backbone — import now, AI classification / sending / analytics later (E5–E8).

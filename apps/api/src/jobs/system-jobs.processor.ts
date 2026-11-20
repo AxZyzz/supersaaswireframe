@@ -5,7 +5,7 @@ import { WeeklySummaryService } from '../analytics/weekly-summary.service';
 import { SheetsService } from '../integrations/sheets.service';
 import { GmailReplySyncService } from '../inbox/gmail-reply-sync.service';
 import { NotificationEmailService } from '../notifications/notification-email.service';
-import { SYSTEM_JOBS_QUEUE } from '../queue/queue.module';
+import { SYSTEM_JOBS_QUEUE, WORKER_OPTIONS } from '../queue/queue.module';
 
 /**
  * Repeatable housekeeping jobs, one Redis-backed schedule shared by every API
@@ -18,7 +18,7 @@ import { SYSTEM_JOBS_QUEUE } from '../queue/queue.module';
  * instance neither registers nor removes schedules, and skips any tick it
  * receives. Tests call the services directly.
  */
-@Processor(SYSTEM_JOBS_QUEUE)
+@Processor(SYSTEM_JOBS_QUEUE, WORKER_OPTIONS)
 export class SystemJobsProcessor
   extends WorkerHost
   implements OnApplicationBootstrap

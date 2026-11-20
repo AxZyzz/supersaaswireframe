@@ -1,11 +1,14 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { SEGMENT_REFRESH_QUEUE } from '../../queue/queue.module';
+import {
+  SEGMENT_REFRESH_QUEUE,
+  WORKER_OPTIONS,
+} from '../../queue/queue.module';
 import type { SegmentRefreshJobData } from './segment.dto';
 import { SegmentsService } from './segments.service';
 
-@Processor(SEGMENT_REFRESH_QUEUE)
+@Processor(SEGMENT_REFRESH_QUEUE, WORKER_OPTIONS)
 export class SegmentRefreshProcessor extends WorkerHost {
   private readonly logger = new Logger(SegmentRefreshProcessor.name);
 

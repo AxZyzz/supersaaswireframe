@@ -250,6 +250,24 @@ mail should they get into the platform"):
   refused only with the right password, resend retires old links, link works once
   and signs in, existing users confirmed).
 
+**Then (Aman):** email confirmation deployed live (`c65a2d7`, migration 0048 on
+Cloud SQL). New branch **`hackathon`** (from `google-stack`; all buildathon work
+goes here only; `main`, `google-stack`, `cloud-session` kept). Supabase MCP added
+in `.mcp.json` (project ref only); the Supabase move runs as a separate task
+session. "Redis is using so many commands, optimise it."
+- **Measured** (local API, `redis-cli MONITOR`, 2 min idle): 221 client calls /
+  1,135 operations; each BullMQ worker woke every 5 s (`drainDelay` default)
+  and ran a stalled check every 30 s.
+- **Fix:** shared `WORKER_OPTIONS` on all 4 queues: `drainDelay` 300 s,
+  `stalledInterval` 300 s (`REDIS_IDLE_POLL_SECONDS`). New jobs still start
+  instantly (adding a job wakes the worker); repeatables still fire on time.
+  Result: 108 client calls / 575 operations per 2 min (−51%).
+- **Limit found:** BullMQ hard-codes a 10 s maximum block when a queue holds a
+  delayed job, so the queues with repeatable jobs (campaign-send 30 s tick,
+  system-jobs) still wake every 10 s. Next option (needs Aman's go): run the
+  repeating ticks from an in-process timer with a Redis lock instead of BullMQ
+  repeatables.
+
 **Start order after a reboot:** Docker Desktop → `docker start
 supersaas-postgres supersaas-redis` → API (`npm run start:dev -w apps/api`) →
 web (`npm run dev -w apps/web`).
