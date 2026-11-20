@@ -3,6 +3,10 @@
 What each piece is, why it's there, what it costs, and the exact commands.
 Region everywhere: **`asia-south1` (Mumbai)**. Decided 2026-11-19.
 
+> **2026-11-20: the live database is now Supabase, not Cloud SQL.** See
+> [DEPLOY-SUPABASE.md](DEPLOY-SUPABASE.md). The Cloud Run parts below still apply; the Cloud SQL
+> steps (4, 5, `--add-cloudsql-instances`) are history.
+
 ```
  Browser ──https──► supersaas-web (Cloud Run, Next.js)
                         │  /api/*  (proxied, so login cookies are first-party)

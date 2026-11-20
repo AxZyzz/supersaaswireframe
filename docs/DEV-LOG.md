@@ -833,3 +833,13 @@ New synthesis note Build Summary at Aman's request: full record of what's built 
 
 ### [2026-11-12] update | SuperSaaS cloud-session merged into main
 Aman approved. `main` fast-forwarded `bc80d24` → `8afb3e3` (16 commits: Gmail OAuth sender, password reset, email notifications + weekly summary, Google Sheets sync + Integrations, security review fixes, operator pause-sending, verified-only senders, test isolation) and pushed. Pre-checks: remote unchanged, clean tree, pure fast-forward, 276/277 tests + E2E + lint + build green at `8afb3e3`. `cloud-session` branch kept.
+
+### [2026-11-20] update | SuperSaaS live database moved to Supabase
+Cloud SQL had been suspended once when a billing account closed, and Google credits end around submission, so the live Postgres moved to Supabase (free plan). Firebase was ruled out because the app needs Postgres RLS, roles and SQL functions. Aman chose a fresh start (no data copy) and to keep the existing **Seoul** project (Mumbai not chosen; about 100 ms+ per DB round trip from Cloud Run Mumbai).
+- **Migration 0049 `supabase_lockdown`** (`0927621`): revokes everything Supabase grants `anon`/`authenticated`/`service_role` in `public` (incl. default privileges); `migrate.ts` re-applies it every run. Without it non-RLS tables (`users`, `refresh_tokens`…) and the SECURITY DEFINER functions were reachable with the public key. Tested first on a throwaway Postgres mimicking Supabase. Live result: 0 exposed tables/functions; REST probes with the publishable key → 401; advisor clean.
+- **TLS verify-full**: Supabase's root CA (`deploy/supabase-ca.crt`) baked into the API image (`954f2cb`); URLs use `sslrootcert=/repo/apps/api/supabase-ca.crt`. Without it: `SELF_SIGNED_CERT_IN_CHAIN`.
+- `supersaas_app` logs in through the Supavisor session pooler as `supersaas_app.<ref>`: no BYPASSRLS, DDL denied, login function OK.
+- Cut-over (Aman's go): image `api:954f2cb`; secret versions `database-url` v2 / `migrate-database-url` v2 (v1 = Cloud SQL, kept for rollback); `supersaas-api` revision `00010-zvm` and `supersaas-migrate` with `--clear-cloudsql-instances`; migrate job ran OK from Cloud Run; `/health/ready` db+redis OK, web loads, login path reaches the DB.
+- Free-plan limits: 500 MB, no automatic backups (manual `pg_dump`), pause after 7 days of low activity (the 30 s scheduler keeps it active; warning email a week before).
+- Open: Aman re-signs up + reconnects Gmail; decide stop/delete of Cloud SQL `supersaas-db` (still running, costs money, deletion protection on); optionally switch the Data API off in the dashboard.
+Doc: `docs/DEPLOY-SUPABASE.md`.
