@@ -13,6 +13,7 @@ import { CryptoModule } from './crypto/crypto.module';
 import { DbModule } from './db/db.module';
 import { InboxModule } from './inbox/inbox.module';
 import { OutcomesModule } from './outcomes/outcomes.module';
+import { InsightsModule } from './insights/insights.module';
 import { ReviewModule } from './review/review.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { JobsModule } from './jobs/jobs.module';
@@ -61,6 +62,7 @@ import { UsageModule } from './usage/usage.module';
     InboxModule,
     OutcomesModule,
     ReviewModule,
+    InsightsModule,
     NotificationsModule,
     OperatorModule,
   ],

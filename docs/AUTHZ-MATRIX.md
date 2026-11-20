@@ -76,6 +76,7 @@
 | `POST /inbox/gmail-sync` | login | ✅ | ✅ | ✅ |
 | `POST /inbox/simulate-reply` | login | ✅ | ✅ | ⛔ |
 | `GET /inbox/unread-count` | login | ✅ | ✅ | ✅ |
+| `GET /insights` | login | ✅ | ✅ | ✅ |
 | `GET /integrations` | login | ✅ | ✅ | ✅ |
 | `DELETE /integrations/google-sheets` | login | ✅ | ✅ | ⛔ |
 | `POST /integrations/google-sheets/connect` | login | ✅ | ✅ | ⛔ |
