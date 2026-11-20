@@ -225,7 +225,7 @@ async function main() {
             ],
           );
 
-        // ~35% real opens (B a little higher), 3 bounces
+        // ~35% real opens (B a little higher), 2 bounces (one per version, 2.5% each)
         if ((n * 13) % 100 < (arm === 0 ? 33 : 38)) {
           await c.query(
             `INSERT INTO email_events (org_id, sent_email_id, campaign_id, lead_id, type)
@@ -233,7 +233,7 @@ async function main() {
             [orgId, se.rows[0].id, campaignId, lead.rows[0].id],
           );
         }
-        if (n === 5 || n === 40 || n === 67)
+        if (n === 5 || n === 40)
           await out('bounce', 'verified', 'gmail_sync', 0);
         // B is genuinely better: A ~2/40 qualified, B ~7/40
         const qualified =

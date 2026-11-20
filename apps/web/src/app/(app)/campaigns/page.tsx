@@ -257,7 +257,7 @@ export default function CampaignsPage() {
       </aside>
 
       {/* detail */}
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         {!selected ? (
           <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-line-mid bg-surface">
             <p className="text-sm text-muted">
