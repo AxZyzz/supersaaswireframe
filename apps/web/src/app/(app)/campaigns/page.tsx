@@ -394,6 +394,12 @@ export default function CampaignsPage() {
                 key={selected.id}
                 campaignId={selected.id}
                 canManage={canManage(role)}
+                templateId={
+                  [...selected.steps].sort(
+                    (a, b) => a.step_order - b.step_order,
+                  )[0]?.template_id ?? null
+                }
+                onChanged={() => void refresh(selected.id)}
               />
             ) : (
               <>
@@ -448,7 +454,7 @@ export default function CampaignsPage() {
                 {stats.variants.length > 1 && !activeExp && (
                   <div className="mt-4">
                     <div className="mb-1.5 text-tiny font-medium uppercase tracking-wide text-faint">
-                      A/B subjects · Legacy rotation (not a test)
+                      A/B subjects · Legacy rotation (suggestion only)
                     </div>
                     <table className="w-full text-sm">
                       <thead>

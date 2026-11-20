@@ -23,6 +23,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "ts-node src/db/seed.ts",
     "seed:experiment": "ts-node scripts/seed-experiment.ts",
+    "seed:review-actions": "ts-node scripts/seed-review-actions.ts",
     "operator": "ts-node scripts/operator.ts",
     "eval": "ts-node scripts/eval.ts",
     "db:migrate:prod": "ts-node src/db/migrate.ts"

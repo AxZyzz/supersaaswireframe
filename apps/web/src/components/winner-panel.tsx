@@ -83,7 +83,7 @@ export function WinnerPanel({
       {steps.map((s) => (
         <div key={s.stepId} className="rounded-lg border border-line bg-panel p-3">
           <div className="mb-2 flex items-center gap-1.5 text-tiny font-semibold uppercase tracking-wide text-faint">
-            <Trophy size={12} className="text-amber-500" /> Legacy rotation (not a test) · Winner check · step {s.stepOrder}
+            <Trophy size={12} className="text-amber-500" /> Legacy rotation (suggestion only) · Winner check · step {s.stepOrder}
             <span className="font-normal normal-case tracking-normal">(judged on replies)</span>
           </div>
           <div className="space-y-1.5">

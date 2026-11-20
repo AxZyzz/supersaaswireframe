@@ -72,6 +72,8 @@ export interface ReviewAction {
 
 export interface ExperimentMeta {
   id: string;
+  campaignId: string;
+  stepId: string;
   campaignName: string;
   status: string;
   offerName: string | null;
@@ -131,6 +133,79 @@ export const simulateReview = (scenario: string) =>
     method: "POST",
     body: JSON.stringify({ scenario }),
   });
+
+// ── T11: actions (keep, pause, resume, challenger) ──────────────────────────
+
+export type ActionKind = "keep_testing" | "pause_variant" | "resume_variant" | "approve_challenger";
+
+/** One row of the action history (who did what, when, why, before and after). */
+export interface ActionRecord {
+  id: string;
+  reviewId: string;
+  experimentId: string;
+  revision: number;
+  actionId: string;
+  type: ActionKind;
+  status: string;
+  payload: { variantId?: string; variantLabel?: string; challengerSubject?: string };
+  reason: string | null;
+  requestedBy: { id: string; name: string } | null;
+  approvedBy: { id: string; name: string } | null;
+  before: unknown;
+  after: unknown;
+  requestedAt: string;
+  appliedAt: string | null;
+  revertedAt: string | null;
+  revertsActionId: string | null;
+  canRevert: boolean;
+  replayed: boolean;
+}
+
+export interface ChallengerDraft {
+  id: string;
+  subject: string;
+  source: string;
+  createdAt: string;
+}
+
+/** Made when a confirm dialog opens: a repeat of the same request is a no-op. */
+export const newKey = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `k-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+const post = <T>(path: string, body?: unknown) =>
+  api<T>(path, { method: "POST", body: JSON.stringify(body ?? {}) });
+
+export const listReviewActions = (campaignId: string) =>
+  api<ActionRecord[]>(`/campaigns/${campaignId}/review/actions`);
+
+export const approveReviewAction = (
+  reviewId: string,
+  actionId: string,
+  body: { revision: number; idempotencyKey: string; reason?: string; draftId?: string },
+) => post<ActionRecord>(`/reviews/${reviewId}/actions/${actionId}/approve`, body);
+
+export const resumeVariant = (
+  experimentId: string,
+  variantId: string,
+  body: { revision: number; idempotencyKey: string; reason?: string },
+) => post<ActionRecord>(`/experiments/${experimentId}/variants/${variantId}/resume`, body);
+
+export const revertReviewAction = (
+  id: string,
+  body: { idempotencyKey: string; reason: string },
+) => post<ActionRecord>(`/review-actions/${id}/revert`, body);
+
+export const listChallengerDrafts = (reviewId: string) =>
+  api<ChallengerDraft[]>(`/reviews/${reviewId}/challenger-drafts`);
+
+export const createChallengerDrafts = (reviewId: string) =>
+  post<{ actionId: string; drafts: ChallengerDraft[] }>(`/reviews/${reviewId}/challenger-drafts`);
+
+/** Server error code (e.g. "stale_review") from a failed call, if any. */
+export const errorCode = (e: unknown): string | null =>
+  (e as { body?: { error?: string } } | null)?.body?.error ?? null;
 
 // ── display helpers ────────────────────────────────────────────────────────
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Check, FlaskConical, RefreshCw, X } from "lucide-react";
 import { ApiError, errorMessage } from "@/lib/api";
 import { toast } from "@/components/feedback";
+import { ReviewActions } from "@/components/review-actions";
 import {
   ArmCounts,
   ArmReport,
@@ -60,13 +61,19 @@ function Num({
   );
 }
 
-/** Review tab of a campaign: read-only; approving arrives in a later update. */
+/** Review tab of a campaign: the results, and (for managers) the actions on them. */
 export function ReviewPanel({
   campaignId,
   canManage,
+  templateId = null,
+  onChanged,
 }: {
   campaignId: string;
   canManage: boolean;
+  /** The first step's email: used to preview a challenger. */
+  templateId?: string | null;
+  /** After an action changed the test (pause, resume, new challenger). */
+  onChanged?: () => void;
 }) {
   const [real, setReal] = useState<Review | null>(null);
   const [sim, setSim] = useState<Review | null>(null);
@@ -340,18 +347,15 @@ export function ReviewPanel({
           Written from the numbers above, not by AI ({current.explanationSource}). Policy{" "}
           {current.policyVersion}.
         </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {["Keep testing", "Review a challenger", "Apply to next search"].map((label) => (
-            <button
-              key={label}
-              disabled
-              title="Arrives in the next update"
-              className="cursor-not-allowed rounded border border-line-mid px-3 py-1.5 text-sm text-faint opacity-60"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <ReviewActions
+          review={current}
+          canManage={canManage}
+          templateId={templateId}
+          onChanged={() => {
+            void load();
+            onChanged?.();
+          }}
+        />
       </div>
 
       {/* 6. audience slices */}
