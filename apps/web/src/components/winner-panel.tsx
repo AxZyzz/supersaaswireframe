@@ -19,6 +19,8 @@ interface StepAdvice {
   }[];
   suggestion: { index: number; probBest: number } | null;
   reason: string;
+  /** Version already sent to the remaining leads, if approved. */
+  winnerIndex: number | null;
 }
 
 const letter = (i: number) => String.fromCharCode(65 + i);
@@ -113,7 +115,12 @@ export function WinnerPanel({
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <p className="flex-1 text-tiny text-muted">{s.reason}</p>
-            {s.suggestion && canManage && (
+            {s.winnerIndex !== null && (
+              <span className="rounded-full bg-accent-soft px-2 py-0.5 text-tiny font-medium text-accent">
+                Winner applied: {letter(s.winnerIndex)} goes to remaining leads
+              </span>
+            )}
+            {s.winnerIndex === null && s.suggestion && canManage && (
               <button
                 disabled={busy}
                 onClick={() => void apply(s.stepId, s.suggestion!.index)}

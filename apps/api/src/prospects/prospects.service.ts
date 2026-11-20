@@ -6,6 +6,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { Pool, PoolClient } from 'pg';
@@ -13,6 +14,7 @@ import { AiService } from '../ai/ai.service';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { LeadsService } from '../leads/leads.service';
+import { UsageService } from '../usage/usage.service';
 import { SegmentsService } from '../leads/segments/segments.service';
 import { PROSPECT_QUEUE } from '../queue/queue.module';
 import { type Offer, icpAndCandidatesPrompt, researchPrompt } from './prompts';
@@ -42,6 +44,10 @@ export const MAX_PROSPECTS_PER_RUN = 20;
 const PAGE_TEXT_LIMIT = 6_000;
 const TOTAL_TEXT_LIMIT = 16_000;
 const RESEARCH_CONCURRENCY = 3;
+/** One company check may not hold a worker longer than this. */
+const PROSPECT_DEADLINE_MS = 120_000;
+/** A search still queued/running after this was interrupted (restart, crash). */
+const STALE_RUN_MINUTES = 45;
 
 /** Test seam: swap the network for fixtures. */
 export interface ProspectIO {
@@ -91,7 +97,32 @@ export class ProspectsService {
     private readonly ai: AiService,
     private readonly leads: LeadsService,
     private readonly segments: SegmentsService,
+    private readonly usage: UsageService,
   ) {}
+
+  /**
+   * Searches left queued/running by a restart or crash never finish on their
+   * own: mark them failed (and their half-checked companies) so the page and
+   * the one-search-at-a-time rule don't wait on them forever.
+   */
+  private async sweepStale(c: PoolClient) {
+    const stale = await c.query<{ id: string }>(
+      `UPDATE prospect_runs SET status = 'failed', finished_at = now(),
+         error = 'Interrupted (the server restarted). Start the search again.'
+       WHERE status IN ('queued','running')
+         AND created_at < now() - make_interval(mins => $1)
+       RETURNING id`,
+      [STALE_RUN_MINUTES],
+    );
+    if (stale.rowCount) {
+      await c.query(
+        `UPDATE prospects SET status = 'unverified', updated_at = now(),
+           error = 'Not checked: the search was interrupted'
+         WHERE run_id = ANY($1::uuid[]) AND status IN ('pending','researching')`,
+        [stale.rows.map((r) => r.id)],
+      );
+    }
+  }
 
   private run<T>(orgId: string, fn: (c: PoolClient) => Promise<T>) {
     return withOrgContext(this.pool, orgId, fn);
@@ -102,9 +133,15 @@ export class ProspectsService {
   async startRun(orgId: string, userId: string, goal: string, count = 12) {
     const n = Math.min(MAX_PROSPECTS_PER_RUN, Math.max(3, Math.round(count)));
     const run = await this.run(orgId, async (c) => {
+      // Serialise starts per workspace so two clicks can't both pass the
+      // busy check, then enforce the plan's monthly search budget.
+      await c.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [
+        `${orgId}:prospect-run`,
+      ]);
+      await this.sweepStale(c);
+      await this.usage.assertCanAdd(c, orgId, 'prospectSearchesPerMonth');
       const busy = await c.query(
-        `SELECT 1 FROM prospect_runs WHERE status IN ('queued','running')
-           AND created_at > now() - interval '30 minutes' LIMIT 1`,
+        `SELECT 1 FROM prospect_runs WHERE status IN ('queued','running') LIMIT 1`,
       );
       if (busy.rowCount) {
         throw new ConflictException(
@@ -118,24 +155,41 @@ export class ProspectsService {
       );
       return r.rows[0];
     });
-    await this.queue.add(
-      'run',
-      { orgId, runId: run.id },
-      { removeOnComplete: true, removeOnFail: 50, attempts: 1 },
-    );
+    try {
+      await this.queue.add(
+        'run',
+        { orgId, runId: run.id },
+        { removeOnComplete: true, removeOnFail: 50, attempts: 1 },
+      );
+    } catch (err) {
+      // e.g. Redis down or over its quota: don't leave a run "queued" forever
+      await this.run(orgId, (c) =>
+        c.query(
+          `UPDATE prospect_runs SET status = 'failed', finished_at = now(),
+             error = 'Could not start the search. Try again in a minute.'
+           WHERE id = $1`,
+          [run.id],
+        ),
+      );
+      this.logger.warn(
+        `prospect run ${run.id} not queued: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      throw new ServiceUnavailableException(
+        'Could not start the search right now. Try again in a minute.',
+      );
+    }
     return run;
   }
 
   listRuns(orgId: string) {
-    return this.run(
-      orgId,
-      async (c) =>
-        (
-          await c.query<RunRow>(
-            `SELECT ${RUN_COLS} FROM prospect_runs ORDER BY created_at DESC LIMIT 20`,
-          )
-        ).rows,
-    );
+    return this.run(orgId, async (c) => {
+      await this.sweepStale(c);
+      return (
+        await c.query<RunRow>(
+          `SELECT ${RUN_COLS} FROM prospect_runs ORDER BY created_at DESC LIMIT 20`,
+        )
+      ).rows;
+    });
   }
 
   getRun(orgId: string, runId: string) {
@@ -170,6 +224,14 @@ export class ProspectsService {
           )
         ).rows,
     );
+    // Resolve the segment BEFORE creating leads: an existing manual segment
+    // with this name is reused (two adds in the same minute, or adding more
+    // to a named list), so leads never end up outside any segment.
+    const name = (
+      segmentName?.trim() ||
+      `Expelly · ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`
+    ).slice(0, 80);
+    const seg = await this.resolveSegment(orgId, name);
     const leadIds: string[] = [];
     const skipped: { domain: string; reason: string }[] = [];
     for (const p of rows) {
@@ -232,14 +294,6 @@ export class ProspectsService {
       leadIds.push(leadId);
     }
     if (!leadIds.length) return { added: 0, skipped, segment: null };
-    const name = (
-      segmentName?.trim() ||
-      `Expelly · ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
-    ).slice(0, 80);
-    const seg = (await this.segments.create(orgId, {
-      name,
-      type: 'manual',
-    })) as { id: string; name: string };
     await this.segments.addMembers(orgId, seg.id, leadIds);
     return {
       added: leadIds.length,
@@ -252,8 +306,10 @@ export class ProspectsService {
 
   async process(orgId: string, runId: string) {
     const run = await this.run(orgId, async (c) => {
+      // a finished/failed run is never redone (e.g. a stale job re-delivered)
       const r = await c.query<RunRow>(
-        `UPDATE prospect_runs SET status = 'running' WHERE id = $1 RETURNING ${RUN_COLS}`,
+        `UPDATE prospect_runs SET status = 'running'
+         WHERE id = $1 AND status IN ('queued','running') RETURNING ${RUN_COLS}`,
         [runId],
       );
       return r.rows[0];
@@ -261,6 +317,38 @@ export class ProspectsService {
     if (!run) return;
     try {
       const offer = await this.offer(orgId);
+      // Restarted mid-run (deploy/crash): the companies are already chosen.
+      // Don't pay for the AI planning call again; finish the unchecked ones.
+      const resumed = await this.run(
+        orgId,
+        async (c) =>
+          (
+            await c.query<{
+              id: string;
+              company_name: string;
+              domain: string;
+              status: string;
+            }>(
+              `SELECT id, company_name, domain, status FROM prospects WHERE run_id = $1`,
+              [runId],
+            )
+          ).rows,
+      );
+      if (resumed.length) {
+        const todo = resumed
+          .filter((p) => p.status === 'pending' || p.status === 'researching')
+          .map((p) => ({ id: p.id, name: p.company_name, domain: p.domain }));
+        const icp = run.icp as Record<string, unknown> | null;
+        await this.researchAll(
+          orgId,
+          run,
+          typeof icp?.summary === 'string' ? icp.summary : run.goal,
+          offer,
+          todo,
+        );
+        await this.finishRun(orgId, runId);
+        return;
+      }
       const res = await this.ai.generate(
         orgId,
         'prospect-icp',
@@ -305,30 +393,8 @@ export class ProspectsService {
 
       const icpSummary =
         typeof icp?.summary === 'string' ? icp.summary : run.goal;
-      let next = 0;
-      const worker = async () => {
-        while (next < prospects.length) {
-          const p = prospects[next++];
-          await this.researchOne(orgId, run, icpSummary, offer, p);
-          await this.run(orgId, (c) =>
-            c.query(
-              `UPDATE prospect_runs SET done = done + 1,
-                 verified = (SELECT count(*) FROM prospects WHERE run_id = $1 AND status = 'verified')
-               WHERE id = $1`,
-              [runId],
-            ),
-          );
-        }
-      };
-      await Promise.all(
-        Array.from({ length: RESEARCH_CONCURRENCY }, () => worker()),
-      );
-      await this.run(orgId, (c) =>
-        c.query(
-          `UPDATE prospect_runs SET status = 'done', finished_at = now() WHERE id = $1`,
-          [runId],
-        ),
-      );
+      await this.researchAll(orgId, run, icpSummary, offer, prospects);
+      await this.finishRun(orgId, runId);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.warn(`prospect run ${runId} failed: ${msg}`);
@@ -338,6 +404,109 @@ export class ProspectsService {
           [runId, msg.slice(0, 300)],
         ),
       );
+    }
+  }
+
+  /**
+   * Check companies RESEARCH_CONCURRENCY at a time. Each one is isolated (an
+   * error or a slow site only affects that company) and capped at
+   * PROSPECT_DEADLINE_MS; progress is recounted from the rows, so a resumed
+   * run can't show more done than total.
+   */
+  private async researchAll(
+    orgId: string,
+    run: RunRow,
+    icpSummary: string,
+    offer: Offer,
+    prospects: { id: string; name: string; domain: string }[],
+  ) {
+    let next = 0;
+    const worker = async () => {
+      while (next < prospects.length) {
+        const p = prospects[next++];
+        let timer: NodeJS.Timeout | undefined;
+        try {
+          await Promise.race([
+            this.researchOne(orgId, run, icpSummary, offer, p),
+            new Promise<never>((_, reject) => {
+              timer = setTimeout(
+                () => reject(new Error('Checking this website took too long')),
+                PROSPECT_DEADLINE_MS,
+              );
+            }),
+          ]);
+        } catch (err) {
+          await this.save(orgId, p.id, {
+            status: 'unverified',
+            error: (err instanceof Error ? err.message : 'Check failed').slice(
+              0,
+              200,
+            ),
+          }).catch(() => undefined);
+        } finally {
+          clearTimeout(timer);
+        }
+        await this.recount(orgId, run.id);
+      }
+    };
+    await Promise.all(
+      Array.from({ length: RESEARCH_CONCURRENCY }, () => worker()),
+    );
+  }
+
+  private recount(orgId: string, runId: string) {
+    return this.run(orgId, (c) =>
+      c.query(
+        `UPDATE prospect_runs SET
+           total = (SELECT count(*) FROM prospects WHERE run_id = $1),
+           done = (SELECT count(*) FROM prospects WHERE run_id = $1
+                     AND status NOT IN ('pending','researching')),
+           verified = (SELECT count(*) FROM prospects WHERE run_id = $1 AND status = 'verified')
+         WHERE id = $1`,
+        [runId],
+      ),
+    );
+  }
+
+  private async finishRun(orgId: string, runId: string) {
+    await this.recount(orgId, runId);
+    await this.run(orgId, (c) =>
+      c.query(
+        `UPDATE prospect_runs SET status = 'done', finished_at = now() WHERE id = $1`,
+        [runId],
+      ),
+    );
+  }
+
+  /** Existing manual segment with this name, else a new one. */
+  private async resolveSegment(
+    orgId: string,
+    name: string,
+  ): Promise<{ id: string; name: string }> {
+    const find = () =>
+      this.run(
+        orgId,
+        async (c) =>
+          (
+            await c.query<{ id: string; name: string }>(
+              `SELECT id, name FROM segments
+               WHERE lower(name) = lower($1) AND type = 'manual' LIMIT 1`,
+              [name],
+            )
+          ).rows[0],
+      );
+    const existing = await find();
+    if (existing) return existing;
+    try {
+      return await this.segments.create(orgId, {
+        name,
+        type: 'manual',
+      });
+    } catch (e) {
+      // created concurrently: use that one
+      const again = await find();
+      if (again) return again;
+      throw e;
     }
   }
 
@@ -445,6 +614,10 @@ export class ProspectsService {
 
     // Real emails only: exactly as they appear on the company's pages.
     const host = p.domain;
+    // acme.com may redirect to acme-group.com: its addresses are own too
+    const finalHost = new URL(home.url).hostname
+      .toLowerCase()
+      .replace(/^www\./, '');
     const found = new Map<string, string>();
     for (const f of fetched) {
       for (const e of extractEmails(f.html))
@@ -455,7 +628,11 @@ export class ProspectsService {
     const emails: ProspectEmail[] = [];
     for (const [email, url] of found) {
       const d = email.split('@')[1];
-      const own = d === host || d.endsWith(`.${host}`);
+      const own =
+        d === host ||
+        d.endsWith(`.${host}`) ||
+        d === finalHost ||
+        d.endsWith(`.${finalHost}`);
       if (!own && !FREE_MAIL.test(d)) continue;
       emails.push({
         email,

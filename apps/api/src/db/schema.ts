@@ -604,6 +604,8 @@ export const campaignSteps = pgTable(
     delayHours: integer('delay_hours').notNull().default(0),
     condition: stepConditionEnum('condition').notNull().default('always'),
     // A/B subject variants (strings). Empty = use the template's subject.
+    // Approved A/B winner: original index into subject_variants (0051).
+    winnerIndex: integer('winner_index'),
     subjectVariants: jsonb('subject_variants')
       .notNull()
       .default(sql`'[]'::jsonb`),

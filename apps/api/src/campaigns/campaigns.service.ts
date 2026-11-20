@@ -363,8 +363,11 @@ export class CampaignsService {
       params.push(dto.condition);
       sets.push(`condition = $${params.length}::step_condition`);
     }
-    if (dto.subjectVariants !== undefined)
+    if (dto.subjectVariants !== undefined) {
       add('subject_variants', JSON.stringify(dto.subjectVariants));
+      // new versions = new test: an earlier winner's index no longer applies
+      add('winner_index', null);
+    }
     if (sets.length === 0) {
       return this.run(orgId, async (c) => {
         const res = await c.query<StepRow>(
@@ -552,8 +555,9 @@ export class CampaignsService {
         id: string;
         step_order: number;
         subject_variants: string[];
+        winner_index: number | null;
       }>(
-        `SELECT id, step_order, subject_variants FROM campaign_steps
+        `SELECT id, step_order, subject_variants, winner_index FROM campaign_steps
          WHERE campaign_id = $1 AND jsonb_array_length(subject_variants) >= 2
          ORDER BY step_order`,
         [campaignId],
@@ -561,6 +565,7 @@ export class CampaignsService {
       const out: (ReturnType<typeof adviseWinner> & {
         stepId: string;
         stepOrder: number;
+        winnerIndex: number | null;
       })[] = [];
       for (const s of steps.rows) {
         const r = await c.query<{
@@ -595,6 +600,7 @@ export class CampaignsService {
           stepId: s.id,
           stepOrder: s.step_order,
           ...adviseWinner(variants),
+          winnerIndex: s.winner_index,
         });
       }
       return out;
@@ -619,11 +625,13 @@ export class CampaignsService {
       if (typeof subject !== 'string') {
         throw new BadRequestException('No such version');
       }
+      // Keep the list (and so every version's index and stats) as it is;
+      // the send loop uses this version for the remaining leads.
       await c.query(
-        `UPDATE campaign_steps SET subject_variants = $2::jsonb WHERE id = $1`,
-        [stepId, JSON.stringify([subject])],
+        `UPDATE campaign_steps SET winner_index = $2 WHERE id = $1`,
+        [stepId, variantIndex],
       );
-      return { stepId, subject };
+      return { stepId, subject, winnerIndex: variantIndex };
     });
   }
 }

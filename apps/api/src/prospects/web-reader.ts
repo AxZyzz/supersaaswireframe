@@ -149,13 +149,16 @@ export function getOnce(u: URL, budgetMs: number): Promise<RawResponse> {
         res.on('close', () => {
           if (!res.complete) done(new Error('connection closed mid-response'));
         });
+        // Redirect and non-page bodies are discarded: settle, then close the
+        // socket so a slow/dripping server can't keep it streaming after we
+        // stopped listening (the deadline timer is already cleared).
         if (status >= 300 && status < 400) {
-          res.resume();
-          return done(null, { status, location, type, body: '' });
+          done(null, { status, location, type, body: '' });
+          return res.destroy();
         }
         if (!/text\/html|application\/xhtml|text\/plain/i.test(type)) {
-          res.resume();
-          return done(null, { status, type, body: '' });
+          done(null, { status, type, body: '' });
+          return res.destroy();
         }
         const enc = String(res.headers['content-encoding'] ?? '');
         const decoder =

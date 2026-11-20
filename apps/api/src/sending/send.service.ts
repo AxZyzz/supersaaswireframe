@@ -1,6 +1,11 @@
 import { clickKey, signClick } from './link-signing';
 import { GmailAuthError } from '../senders/providers/gmail.provider';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  BeforeApplicationShutdown,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { Pool, PoolClient } from 'pg';
@@ -22,6 +27,7 @@ interface StepRow {
   delay_hours: number;
   condition: string;
   subject_variants: string[];
+  winner_index: number | null;
 }
 
 interface SenderRow {
@@ -36,7 +42,7 @@ interface SenderRow {
 }
 
 @Injectable()
-export class SendService {
+export class SendService implements BeforeApplicationShutdown {
   private readonly logger = new Logger(SendService.name);
 
   constructor(
@@ -53,6 +59,18 @@ export class SendService {
 
   private get baseUrl(): string {
     return this.config.get<string>('API_URL', 'http://localhost:4000');
+  }
+
+  /** Set when the API is shutting down: the loop stops between leads. */
+  private stopping = false;
+
+  /**
+   * Deploys and scale-downs: finish the lead in hand, start no new one. The
+   * tick scheduler waits (capped) for the in-flight tick, so no email is left
+   * half-recorded and nothing is sent twice by the next instance.
+   */
+  beforeApplicationShutdown() {
+    this.stopping = true;
   }
 
   // Process all due sends (optionally for one org). Returns per-outcome counts.
@@ -75,6 +93,7 @@ export class SendService {
     };
     const touched = new Set<string>();
     for (const row of due.rows) {
+      if (this.stopping) break; // shutting down: leave the rest for next tick
       try {
         const outcome = await this.processLead(
           row.org_id,
@@ -217,7 +236,7 @@ export class SendService {
       const senderIds = campRes.rows[0].sender_ids ?? [];
 
       const stepsRes = await c.query<StepRow>(
-        `SELECT id, template_id, delay_hours, condition, subject_variants
+        `SELECT id, template_id, delay_hours, condition, subject_variants, winner_index
          FROM campaign_steps WHERE campaign_id = $1 ORDER BY step_order`,
         [cl.campaign_id],
       );
@@ -342,7 +361,13 @@ export class SendService {
       let subject = tpl.subject;
       let variantIndex = 0;
       const variants = step.subject_variants ?? [];
-      if (variants.length > 0) {
+      const winner = step.winner_index;
+      if (winner !== null && typeof variants[winner] === 'string') {
+        // approved A/B winner: every remaining lead gets it, credited to its
+        // own version (not renumbered)
+        variantIndex = winner;
+        subject = variants[winner];
+      } else if (variants.length > 0) {
         const sentForStep = await c.query<{ n: number }>(
           `SELECT count(*)::int AS n FROM sent_emails WHERE step_id = $1`,
           [step.id],
