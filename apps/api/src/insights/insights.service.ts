@@ -58,6 +58,8 @@ export interface InsightsResponse {
   /** The metric the headlines use: confirmed qualified once half the interested replies are settled. */
   headlineMetric: Metric;
   headlines: Insight[];
+  /** The same headlines for every metric, so the page can switch instantly. */
+  headlinesByMetric: Record<Metric, Insight[]>;
   /** "Most opens from Mumbai": diagnostics, kept apart from the headlines. */
   diagnostics: Insight[];
   factors: FactorView[];
@@ -75,6 +77,11 @@ export interface InsightsResponse {
 }
 
 const CACHE_TTL_SECONDS = 600;
+/**
+ * Bump whenever the response shape changes: a cached copy of the old shape
+ * would otherwise be served to the new code for up to 10 minutes after a deploy.
+ */
+const CACHE_VERSION = 2;
 
 /**
  * Insights (Learning Loop T06): turns a source's bucket rows into plain
@@ -124,7 +131,7 @@ export class InsightsService implements OnModuleDestroy {
       .update(JSON.stringify(norm))
       .digest('hex')
       .slice(0, 20);
-    return `${process.env.QUEUE_PREFIX || 'bull'}:insights:v1:${orgId}:${h}`;
+    return `${process.env.QUEUE_PREFIX || 'bull'}:insights:v${CACHE_VERSION}:${orgId}:${h}`;
   }
 
   async get(
@@ -181,9 +188,14 @@ export class InsightsService implements OnModuleDestroy {
       factors
         .filter((f) => f.def.kind === 'rate' && f.comparable)
         .map((f) => f.evals[m] as FactorEval);
-    const headlines = buildInsights(
-      ranked(lead === 'qualified' ? 'qualified' : 'reply'),
-    );
+    const headlinesByMetric = {} as Record<Metric, Insight[]>;
+    for (const m of METRICS) {
+      headlinesByMetric[m] = buildInsights(
+        ranked(m),
+        m === 'open' ? 2 : undefined,
+      );
+    }
+    const headlines = headlinesByMetric[lead];
     const diagnostics = buildInsights(ranked('open'), 2);
 
     const stars = starsCheck(data.buckets.stars);
@@ -205,6 +217,7 @@ export class InsightsService implements OnModuleDestroy {
       totals: data.totals,
       headlineMetric: lead === 'qualified' ? 'qualified' : 'reply',
       headlines,
+      headlinesByMetric,
       diagnostics,
       factors,
       stars,

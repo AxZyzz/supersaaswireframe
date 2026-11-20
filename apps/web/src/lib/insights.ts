@@ -109,6 +109,7 @@ export interface InsightsResponse {
   totals: BucketRow;
   headlineMetric: Metric;
   headlines: Insight[];
+  headlinesByMetric: Record<Metric, Insight[]>;
   diagnostics: Insight[];
   factors: FactorView[];
   stars: { warn: boolean; message: string | null };

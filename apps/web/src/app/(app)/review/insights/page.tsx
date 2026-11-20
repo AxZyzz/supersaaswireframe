@@ -42,7 +42,8 @@ export default function InsightsPage() {
   const [offerId, setOfferId] = useState("");
   const [campaignId, setCampaignId] = useState("");
   const [range, setRange] = useState("all");
-  const [metric, setMetric] = useState<Metric>("reply");
+  // null = follow the strongest signal the data supports (until a person picks one)
+  const [picked, setPicked] = useState<Metric | null>(null);
   const [data, setData] = useState<InsightsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,8 +64,6 @@ export default function InsightsPage() {
         from: days ? new Date(Date.now() - days * 86_400_000).toISOString() : undefined,
       });
       setData(res);
-      // follow the strongest signal the data supports, unless the person picked one
-      setMetric((m) => (m === "reply" ? res.headlineMetric : m));
     } catch (e) {
       setError(errorMessage(e, "Couldn't load insights."));
       toast(errorMessage(e), "error");
@@ -76,6 +75,8 @@ export default function InsightsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const metric: Metric = picked ?? data?.headlineMetric ?? "reply";
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-4 sm:p-6">
@@ -131,7 +132,7 @@ export default function InsightsPage() {
             {METRICS.map((m) => (
               <button
                 key={m}
-                onClick={() => setMetric(m)}
+                onClick={() => setPicked(m)}
                 aria-pressed={metric === m}
                 className={`rounded border px-2 py-1 text-sm ${
                   metric === m
@@ -152,7 +153,7 @@ export default function InsightsPage() {
       {data && (
         <>
           <Summary data={data} />
-          <Headlines data={data} />
+          <Headlines data={data} metric={metric} />
           {data.stars.warn && (
             <div
               role="alert"
@@ -206,8 +207,12 @@ function Summary({ data }: { data: InsightsResponse }) {
   );
 }
 
-function Headlines({ data }: { data: InsightsResponse }) {
-  const all: Insight[] = [...data.headlines, ...data.diagnostics];
+function Headlines({ data, metric }: { data: InsightsResponse; metric: Metric }) {
+  // opens are always a diagnostic: kept apart unless that is the metric chosen
+  const all: Insight[] =
+    metric === "open"
+      ? data.headlinesByMetric.open
+      : [...data.headlinesByMetric[metric], ...data.diagnostics];
   if (data.totals.reached === 0) {
     return (
       <div className={`${card} text-sm text-muted`}>
