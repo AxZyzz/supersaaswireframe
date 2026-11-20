@@ -33,9 +33,11 @@
 | `DELETE /auth/me` | login | ✅ | ✅ | ✅ |
 | `GET /auth/me` | login | ✅ | ✅ | ✅ |
 | `POST /auth/refresh` | public | — | — | — |
+| `POST /auth/resend-verification` | public | — | — | — |
 | `POST /auth/reset-password` | public | — | — | — |
 | `POST /auth/signup` | public | — | — | — |
 | `POST /auth/switch-org` | login | ✅ | ✅ | ✅ |
+| `POST /auth/verify-email` | public | — | — | — |
 | `GET /beta/mode` | public | — | — | — |
 | `GET /campaigns` | login | ✅ | ✅ | ✅ |
 | `POST /campaigns` | login | ✅ | ✅ | ⛔ |

@@ -55,6 +55,9 @@ export const users = pgTable(
     // A2B staff with access to the cross-tenant operator console (T8.6).
     // Granted only via `npm run operator:grant`, never through the API.
     isOperator: boolean('is_operator').notNull().default(false),
+    // Set when the owner clicked the confirmation link (or joined by invite).
+    // Sign-in is refused while null if email verification is on.
+    emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -151,6 +154,28 @@ export const passwordResets = pgTable(
   (t) => [
     uniqueIndex('password_resets_token_idx').on(t.tokenHash),
     index('password_resets_user_idx').on(t.userId, t.createdAt),
+  ],
+);
+
+// Email confirmation links (sign-up). Same shape and rules as
+// password_resets: only the SHA-256 is stored, single use, expiring.
+export const emailVerifications = pgTable(
+  'email_verifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('email_verifications_token_idx').on(t.tokenHash),
+    index('email_verifications_user_idx').on(t.userId, t.createdAt),
   ],
 );
 

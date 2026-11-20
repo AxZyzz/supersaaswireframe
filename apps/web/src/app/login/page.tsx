@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api, ApiError, setSession } from "@/lib/api";
+import { CheckInbox } from "@/components/check-inbox";
 
 /** Same-origin path from ?next= (e.g. back to an invite link). Anything that
  *  could leave the site (//host, /\host, absolute URLs) falls back. */
@@ -20,6 +21,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [unconfirmed, setUnconfirmed] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,6 +35,15 @@ export default function LoginPage() {
       setSession(res.accessToken);
       router.replace(safeNext());
     } catch (err) {
+      if (
+        err instanceof ApiError &&
+        err.status === 403 &&
+        (err.body as { code?: string } | null)?.code === "EMAIL_NOT_VERIFIED"
+      ) {
+        setUnconfirmed(true);
+        setBusy(false);
+        return;
+      }
       setError(
         err instanceof ApiError && err.status === 401
           ? "Invalid email or password."
@@ -57,6 +68,15 @@ export default function LoginPage() {
         <p className="mb-6 text-sm text-muted">
           Welcome back. Enter your details.
         </p>
+
+        {unconfirmed && (
+          <div className="mb-6">
+            <CheckInbox
+              email={email.trim().toLowerCase()}
+              intro="Your email isn't confirmed yet. We sent a confirmation link to"
+            />
+          </div>
+        )}
 
         <form onSubmit={onSubmit} className="space-y-4">
           <label className="block">

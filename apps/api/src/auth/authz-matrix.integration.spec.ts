@@ -42,6 +42,9 @@ const PUBLIC_ALLOWLIST = [
   'POST /auth/logout',
   'POST /auth/forgot-password',
   'POST /auth/reset-password',
+  // email confirmation: the person isn't signed in yet
+  'POST /auth/verify-email',
+  'POST /auth/resend-verification',
   'GET /t/o/:trackingId',
   'GET /t/c/:trackingId',
   'GET /u/:token',

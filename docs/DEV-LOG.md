@@ -217,6 +217,39 @@ delete; that didn't exist: only one-by-one from a lead's page).
   Leads page: red **Delete** in the selection bar with a confirm that says what
   goes with the leads. Integration test + verified in the browser.
 
+**Then (Aman, 2026-11-20):** the live site went down: the buildathon billing
+account closed ("billing is disabled for this project"); Cloud SQL suspended
+(BILLING_ISSUE). Aman linked a new event-credit billing account; Cloud SQL
+resumed by itself at 06:48 UTC, but both Cloud Run services stayed on Google's
+503 page until forced onto a new revision (`gcloud run services update
+--update-env-vars=RESTARTED_AT=...`). Lesson: after a billing outage, restart
+both services. Decision: move the database to Supabase (free) so the
+buildathon build doesn't depend on Google Cloud credits; new branch
+`hackathon` for that work.
+
+**Email confirmation at sign-up** (Aman: "only after clicking the link from the
+mail should they get into the platform"):
+- Migration `0048`: `users.email_verified_at` (existing users set to confirmed so
+  nobody is locked out) + `email_verifications` (SHA-256 of token, single use,
+  24 h, like password resets).
+- Sign-up creates user + workspace but returns `{ verificationRequired, email }`
+  and no session; emails "Confirm your email" with a button to
+  `/verify-email?token=`. `POST /auth/verify-email` confirms and signs in
+  (token pair, refresh cookie). Login with a correct password but unconfirmed
+  email → 403 `EMAIL_NOT_VERIFIED` (wrong password still 401, so no account
+  probing). `POST /auth/resend-verification` always `{ok:true}`, retires older
+  links, 3 per 10 min per IP. Invite registrations are confirmed by the invite.
+- Switch `EMAIL_VERIFICATION=on|off`; blank = on in production, off in dev/tests
+  (E2E sets off).
+- System emails (confirmation, password reset, notifications) now use the
+  app-theme layout: grey canvas, white card, SuperSaaS header, indigo button,
+  copy-paste link fallback.
+- Web: "Check your inbox" panel with Resend after sign-up and on login;
+  `/verify-email` page signs in and goes to the dashboard.
+- Test: `email-verification.integration.spec.ts` (sign-up without session, login
+  refused only with the right password, resend retires old links, link works once
+  and signs in, existing users confirmed).
+
 **Start order after a reboot:** Docker Desktop → `docker start
 supersaas-postgres supersaas-redis` → API (`npm run start:dev -w apps/api`) →
 web (`npm run dev -w apps/web`).

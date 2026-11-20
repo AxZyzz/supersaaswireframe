@@ -126,16 +126,34 @@ const esc = (s: string) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-/** Minimal, client-safe HTML version of a system email. */
+const FONT =
+  "font-family:Inter,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;";
+
+/**
+ * HTML version of a system email in the app's light theme (same look as the
+ * starter templates): grey canvas, white card, SuperSaaS header, indigo
+ * button, quiet footer. Email-safe: tables + inline styles only.
+ */
 export function renderHtml(m: SystemMail): string {
   const paras = m.text
     .split(/\n{2,}/)
     .map(
-      (p) => `<p style="margin:0 0 14px">${esc(p).replace(/\n/g, '<br>')}</p>`,
+      (p) =>
+        `<p style="${FONT}margin:0 0 14px;font-size:15px;line-height:1.6;color:#333333;">${esc(p).replace(/\n/g, '<br>')}</p>`,
     )
     .join('');
   const button = m.action
-    ? `<p style="margin:20px 0"><a href="${esc(m.action.url)}" style="background:#3E63DD;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;display:inline-block">${esc(m.action.label)}</a></p>`
+    ? `<div style="margin:22px 0 6px;"><a href="${esc(m.action.url)}" style="${FONT}display:inline-block;background:#3e63dd;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;line-height:20px;padding:11px 22px;border-radius:6px;">${esc(m.action.label)}</a></div>` +
+      `<p style="${FONT}margin:14px 0 0;font-size:12px;line-height:1.5;color:#818181;">Button not working? Paste this link into your browser:<br><span style="color:#3e63dd;word-break:break-all;">${esc(m.action.url)}</span></p>`
     : '';
-  return `<div style="font-family:Inter,Arial,sans-serif;font-size:14px;line-height:1.5;color:#1c2024;max-width:560px">${paras}${button}</div>`;
+  return (
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f7f7f8;"><tr><td align="center" style="padding:24px 12px;">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;background:#ffffff;border:1px solid #ebebeb;border-radius:10px;"><tr><td style="padding:28px 32px;">` +
+    `<div style="${FONT}margin:0 0 20px;font-size:14px;font-weight:700;color:#3e63dd;"><span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:5px;background:#3e63dd;color:#ffffff;font-size:10px;margin-right:8px;">SS</span>SuperSaaS</div>` +
+    paras +
+    button +
+    `</td></tr></table>` +
+    `<p style="${FONT}margin:16px 0 0;font-size:12px;line-height:1.5;color:#818181;">Sent by SuperSaaS · A2B AI Technologies</p>` +
+    `</td></tr></table>`
+  );
 }

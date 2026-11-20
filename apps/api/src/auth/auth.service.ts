@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   UnauthorizedException,
@@ -27,6 +28,19 @@ import type {
 const BCRYPT_ROUNDS = 12;
 const REFRESH_TTL_DAYS = 30;
 const RESET_TTL_MINUTES = 60;
+const VERIFY_TTL_HOURS = 24;
+
+/**
+ * Email confirmation at sign-up. EMAIL_VERIFICATION=on|off; unset means on
+ * in production and off elsewhere (tests, local dev) so existing flows and
+ * the test suite don't need an inbox. Read per call so tests can flip it.
+ */
+export function verificationRequired(): boolean {
+  const v = process.env.EMAIL_VERIFICATION;
+  if (v === 'on') return true;
+  if (v === 'off') return false;
+  return process.env.NODE_ENV === 'production';
+}
 // bcrypt only uses the first 72 BYTES of a password; anything after is
 // silently ignored (two passwords sharing those bytes would both work).
 // Refuse longer ones instead of quietly weakening them.
@@ -114,7 +128,10 @@ export class AuthService {
   }) {
     // invite-only beta: refuse before anything is created
     await this.beta.assertInvite(input.email, input.inviteCode);
-    const { id: userId, email } = await this.createUser(input);
+    const mustVerify = verificationRequired();
+    const { id: userId, email } = await this.createUser(input, {
+      verified: !mustVerify,
+    });
 
     const orgId = randomUUID();
     const slug = this.slugify(input.orgName, orgId);
@@ -132,8 +149,13 @@ export class AuthService {
       await seedDefaultTemplates(c, orgId);
     });
 
-    const tokens = await this.issueTokens(userId, orgId, 'admin');
     await this.beta.markJoined(email);
+    if (mustVerify) {
+      // No session yet: they get in by clicking the emailed link.
+      await this.sendVerification(userId, email, input.name.trim());
+      return { verificationRequired: true as const, email };
+    }
+    const tokens = await this.issueTokens(userId, orgId, 'admin');
     return {
       user: { id: userId, email, name: input.name.trim() },
       org: { id: orgId, name: input.orgName.trim(), slug },
@@ -142,11 +164,16 @@ export class AuthService {
   }
 
   /** Insert a user (no membership). Shared by signup and invite registration. */
-  async createUser(input: {
-    email: string;
-    password: string;
-    name: string;
-  }): Promise<{ id: string; email: string; name: string }> {
+  async createUser(
+    input: {
+      email: string;
+      password: string;
+      name: string;
+    },
+    /** true when the address is already proven (invite link, or
+     *  verification switched off) */
+    opts: { verified?: boolean } = {},
+  ): Promise<{ id: string; email: string; name: string }> {
     const email = input.email.trim().toLowerCase();
     assertHashablePassword(input.password);
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
@@ -160,9 +187,9 @@ export class AuthService {
     }
 
     const userRes = await this.pool.query<{ id: string }>(
-      `INSERT INTO users (email, password_hash, name)
-       VALUES ($1, $2, $3) RETURNING id`,
-      [email, passwordHash, input.name.trim()],
+      `INSERT INTO users (email, password_hash, name, email_verified_at)
+       VALUES ($1, $2, $3, CASE WHEN $4::boolean THEN now() END) RETURNING id`,
+      [email, passwordHash, input.name.trim(), opts.verified === true],
     );
     return { id: userRes.rows[0].id, email, name: input.name.trim() };
   }
@@ -173,14 +200,33 @@ export class AuthService {
       id: string;
       password_hash: string;
       name: string;
-    }>(`SELECT id, password_hash, name FROM users WHERE email = $1`, [
-      normalized,
-    ]);
+      email_verified_at: Date | null;
+    }>(
+      `SELECT id, password_hash, name, email_verified_at FROM users WHERE email = $1`,
+      [normalized],
+    );
     // Constant-shape failure: hash compare even on unknown email.
     const row = res.rows[0];
     const ok = await bcrypt.compare(password, row?.password_hash ?? DUMMY_HASH);
     if (!row || !ok) throw new UnauthorizedException('Invalid credentials');
+    // Checked only after a correct password, so this can't reveal which
+    // emails have accounts.
+    if (verificationRequired() && !row.email_verified_at) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        code: 'EMAIL_NOT_VERIFIED',
+        message:
+          'Confirm your email first: open the link we sent you. Need a new one? Resend it below.',
+      });
+    }
 
+    return this.sessionFor(row.id, normalized, row.name);
+  }
+
+  /** Signs a user in to their first workspace (login, email confirmation). */
+  private async sessionFor(userId: string, email: string, name: string) {
+    const row = { id: userId, name };
+    const normalized = email;
     const memberships = await this.membershipsOf(row.id);
     if (memberships.length === 0) {
       throw new UnauthorizedException('No workspace membership');
@@ -286,6 +332,83 @@ export class AuthService {
     const target = memberships.find((m) => m.orgId === orgId);
     if (!target) throw new UnauthorizedException('Not a member of that org');
     return this.issueTokens(userId, target.orgId, target.role);
+  }
+
+  /** Emails a fresh 24-hour confirmation link (older unused ones retired). */
+  private async sendVerification(userId: string, email: string, name: string) {
+    const raw = randomBytes(32).toString('base64url');
+    await this.pool.query(
+      `UPDATE email_verifications SET used_at = now()
+       WHERE user_id = $1 AND used_at IS NULL`,
+      [userId],
+    );
+    await this.pool.query(
+      `INSERT INTO email_verifications (user_id, token_hash, expires_at)
+       VALUES ($1, $2, now() + make_interval(hours => $3))`,
+      [userId, this.hashToken(raw), VERIFY_TTL_HOURS],
+    );
+    const webUrl = this.config
+      .get<string>('WEB_URL', 'http://localhost:3000')
+      .replace(/\/$/, '');
+    await this.mail.send({
+      to: email,
+      subject: 'Confirm your email for SuperSaaS',
+      text:
+        `Hi ${name},\n\n` +
+        `Thanks for signing up. Confirm this is your email address to finish ` +
+        `creating your account. The link works once and expires in ${VERIFY_TTL_HOURS} hours.\n\n` +
+        `If you didn't sign up for SuperSaaS, ignore this email.`,
+      action: {
+        label: 'Confirm email',
+        url: `${webUrl}/verify-email?token=${raw}`,
+      },
+    });
+  }
+
+  /**
+   * Confirmation link clicked: marks the email verified (single use, not
+   * expired) and signs the user straight in.
+   */
+  async verifyEmail(token: string) {
+    const r = await this.pool.query<{ user_id: string }>(
+      `UPDATE email_verifications SET used_at = now()
+       WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()
+       RETURNING user_id`,
+      [this.hashToken(token)],
+    );
+    const userId = r.rows[0]?.user_id;
+    if (!userId) {
+      throw new BadRequestException(
+        'This confirmation link is invalid or has expired. Log in to get a new one.',
+      );
+    }
+    const u = await this.pool.query<{ email: string; name: string }>(
+      `UPDATE users SET email_verified_at = COALESCE(email_verified_at, now()),
+         updated_at = now()
+       WHERE id = $1 RETURNING email, name`,
+      [userId],
+    );
+    return this.sessionFor(userId, u.rows[0].email, u.rows[0].name);
+  }
+
+  /**
+   * "Resend confirmation email". Same answer whether or not the email exists
+   * or is already confirmed, so it can't be used to probe for accounts.
+   */
+  async resendVerification(email: string): Promise<{ ok: true }> {
+    const normalized = email.trim().toLowerCase();
+    const res = await this.pool.query<{
+      id: string;
+      name: string;
+      email_verified_at: Date | null;
+    }>(`SELECT id, name, email_verified_at FROM users WHERE email = $1`, [
+      normalized,
+    ]);
+    const user = res.rows[0];
+    if (user && !user.email_verified_at) {
+      await this.sendVerification(user.id, normalized, user.name);
+    }
+    return { ok: true };
   }
 
   /**
