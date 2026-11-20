@@ -76,7 +76,7 @@ export function AppearanceSection() {
     <section className="rounded-lg border border-line bg-surface p-5">
       <h2 className="text-sm font-semibold text-ink2">Appearance</h2>
       <p className="mb-4 text-sm text-muted">
-        Choose how SuperSaaS looks in this browser. You can also switch from the icon in the top bar.
+        Choose how Expelly looks in this browser. You can also switch from the icon in the top bar.
       </p>
       <div role="radiogroup" aria-label="Theme" className="grid gap-3 sm:grid-cols-3">
         {OPTIONS.map((o) => {

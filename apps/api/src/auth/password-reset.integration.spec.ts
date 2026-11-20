@@ -80,7 +80,7 @@ describe('Password reset integration', () => {
     const first = lastResetToken();
     expect(first).toBeTruthy();
     const sent = mail.outbox[mail.outbox.length - 1];
-    expect(sent.subject).toMatch(/Reset your SuperSaaS password/);
+    expect(sent.subject).toMatch(/Reset your Expelly password/);
     expect(sent.action!.url).toMatch(/\/reset-password\?token=/);
 
     // only the newest link works

@@ -45,7 +45,7 @@ Admins can do everything. Managers run campaigns, senders and templates. Agents 
     body: `On Leads, choose **Import CSV** (admins and managers), pick a CSV or Excel file (up to 5 MB) and map each column to a lead field. Unmapped columns are skipped.
 
 ## From Google Sheets
-In the same dialog choose **Google Sheet**. The first time, **Connect Google Sheets** and sign in: SuperSaaS only asks to *view* your spreadsheets. Paste the sheet's link, pick the tab, map the columns (the first row must be the column names) and import. The sheet must be owned by, or shared with, the connected Google account.
+In the same dialog choose **Google Sheet**. The first time, **Connect Google Sheets** and sign in: Expelly only asks to *view* your spreadsheets. Paste the sheet's link, pick the tab, map the columns (the first row must be the column names) and import. The sheet must be owned by, or shared with, the connected Google account.
 
 Leave **Keep in sync** on to re-import new and changed rows every hour. Manage synced sheets in **Settings → Integrations**: *Sync now*, pause the hourly sync, or remove a sheet. Removing a sheet or disconnecting Google keeps the leads already imported.
 
@@ -134,7 +134,7 @@ Unknown tokens are left as-is so typos show up in the preview instead of silentl
     body: `Each sender is a mailbox campaigns send from. SMTP mailboxes and Gmail accounts connect today; Amazon SES is rolling out.
 
 ## Connecting Gmail
-In **Settings → Sender accounts** choose **Connect Gmail** and sign in with Google. Keep the *Send email on your behalf* box ticked. SuperSaaS only asks for permission to send, not to read your mail. The account appears verified and starts on the warm-up ramp. If Google access is ever revoked, the sender turns *unverified*; choose **reconnect** next to it.
+In **Settings → Sender accounts** choose **Connect Gmail** and sign in with Google. Keep the *Send email on your behalf* box ticked. Expelly only asks for permission to send, not to read your mail. The account appears verified and starts on the warm-up ramp. If Google access is ever revoked, the sender turns *unverified*; choose **reconnect** next to it.
 
 ## Protecting your reputation
 - **Daily limit** per sender (default 50) caps how much it sends in a day.

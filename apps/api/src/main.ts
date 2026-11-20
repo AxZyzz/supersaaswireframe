@@ -45,7 +45,7 @@ async function bootstrap() {
   // API docs are a recon map — dev only unless explicitly switched on.
   if (!isProd || process.env.SWAGGER === 'on') {
     const swagger = new DocumentBuilder()
-      .setTitle('SuperSaaS API')
+      .setTitle('Expelly API')
       .setDescription('AI outreach platform — V1 API')
       .setVersion('0.1.0')
       .addBearerAuth()

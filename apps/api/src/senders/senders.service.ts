@@ -253,7 +253,7 @@ export class SendersService {
     try {
       res = await provider.send({
         to,
-        subject: 'SuperSaaS test email',
+        subject: 'Expelly test email',
         text: `This is a test send from sender ${sender.from_email}.`,
         html: `<p>This is a test send from <strong>${sender.from_email}</strong>.</p>`,
       });

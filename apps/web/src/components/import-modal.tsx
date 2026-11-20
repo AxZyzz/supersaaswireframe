@@ -329,7 +329,7 @@ export function ImportModal({
               ) : !gs.connected ? (
                 <div className="rounded-lg border border-line bg-panel p-4 text-sm">
                   <p className="mb-3 text-muted">
-                    Connect a Google account to import from its sheets. SuperSaaS only
+                    Connect a Google account to import from its sheets. Expelly only
                     asks to <b>view</b> your spreadsheets, never to change them.
                   </p>
                   <button

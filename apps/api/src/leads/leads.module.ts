@@ -52,6 +52,6 @@ import { AiModule } from '../ai/ai.module';
     LeadStatusesService,
   ],
   // Sheets sync (T2.8) feeds rows through the same import pipeline.
-  exports: [ImportService],
+  exports: [ImportService, LeadsService, SegmentsService],
 })
 export class LeadsModule {}

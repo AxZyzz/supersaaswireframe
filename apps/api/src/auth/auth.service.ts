@@ -352,12 +352,12 @@ export class AuthService {
       .replace(/\/$/, '');
     await this.mail.send({
       to: email,
-      subject: 'Confirm your email for SuperSaaS',
+      subject: 'Confirm your email for Expelly',
       text:
         `Hi ${name},\n\n` +
         `Thanks for signing up. Confirm this is your email address to finish ` +
         `creating your account. The link works once and expires in ${VERIFY_TTL_HOURS} hours.\n\n` +
-        `If you didn't sign up for SuperSaaS, ignore this email.`,
+        `If you didn't sign up for Expelly, ignore this email.`,
       action: {
         label: 'Confirm email',
         url: `${webUrl}/verify-email?token=${raw}`,
@@ -442,10 +442,10 @@ export class AuthService {
       .replace(/\/$/, '');
     await this.mail.send({
       to: normalized,
-      subject: 'Reset your SuperSaaS password',
+      subject: 'Reset your Expelly password',
       text:
         `Hi ${user.name},\n\n` +
-        `Someone asked to reset the password for your SuperSaaS account. ` +
+        `Someone asked to reset the password for your Expelly account. ` +
         `Use the link below within ${RESET_TTL_MINUTES} minutes to choose a new one.\n\n` +
         `If this wasn't you, ignore this email: your password stays the same.`,
       action: {

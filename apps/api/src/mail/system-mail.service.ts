@@ -131,7 +131,7 @@ const FONT =
 
 /**
  * HTML version of a system email in the app's light theme (same look as the
- * starter templates): grey canvas, white card, SuperSaaS header, indigo
+ * starter templates): grey canvas, white card, Expelly header, indigo
  * button, quiet footer. Email-safe: tables + inline styles only.
  */
 export function renderHtml(m: SystemMail): string {
@@ -149,11 +149,11 @@ export function renderHtml(m: SystemMail): string {
   return (
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f7f7f8;"><tr><td align="center" style="padding:24px 12px;">` +
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;background:#ffffff;border:1px solid #ebebeb;border-radius:10px;"><tr><td style="padding:28px 32px;">` +
-    `<div style="${FONT}margin:0 0 20px;font-size:14px;font-weight:700;color:#3e63dd;"><span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:5px;background:#3e63dd;color:#ffffff;font-size:10px;margin-right:8px;">SS</span>SuperSaaS</div>` +
+    `<div style="${FONT}margin:0 0 20px;font-size:14px;font-weight:700;color:#3e63dd;"><span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:5px;background:#3e63dd;color:#ffffff;font-size:10px;margin-right:8px;">Ex</span>Expelly</div>` +
     paras +
     button +
     `</td></tr></table>` +
-    `<p style="${FONT}margin:16px 0 0;font-size:12px;line-height:1.5;color:#818181;">Sent by SuperSaaS · A2B AI Technologies</p>` +
+    `<p style="${FONT}margin:16px 0 0;font-size:12px;line-height:1.5;color:#818181;">Sent by Expelly · A2B AI Technologies</p>` +
     `</td></tr></table>`
   );
 }

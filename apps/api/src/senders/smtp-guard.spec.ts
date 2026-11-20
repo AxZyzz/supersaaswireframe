@@ -25,6 +25,16 @@ describe('SMTP SSRF guard', () => {
     'fd00::1',
     '::ffff:127.0.0.1',
     '::ffff:10.0.0.1',
+    // Same mapped addresses in the hex spelling WHATWG URL produces
+    // ("[::ffff:127.0.0.1]" → "[::ffff:7f00:1]"); the old text match missed it.
+    '::ffff:7f00:1',
+    '::ffff:a9fe:a9fe',
+    '0:0:0:0:0:ffff:7f00:1',
+    '::FFFF:A9FE:A9FE',
+    '::7f00:1', // IPv4-compatible ::/96
+    '64:ff9b::a9fe:a9fe', // NAT64
+    '2002:7f00:1::', // 6to4 wrapping 127.0.0.1
+    'fe80::1%eth0',
   ])('treats %s as internal', (ip) => {
     expect(isInternalAddress(ip)).toBe(true);
   });
@@ -34,6 +44,8 @@ describe('SMTP SSRF guard', () => {
     '172.32.0.1',
     '142.250.72.5',
     '2607:f8b0:4005:80a::200e',
+    '::ffff:8.8.8.8',
+    '::ffff:808:808', // mapped public address, hex spelling
   ])('treats %s as public', (ip) => expect(isInternalAddress(ip)).toBe(false));
 
   it('only allows mail ports', () => {
@@ -53,6 +65,8 @@ describe('SMTP SSRF guard', () => {
       'localhost',
       'mail.localhost',
       '::1',
+      '::ffff:7f00:1',
+      '::ffff:a9fe:a9fe',
     ]) {
       expect(() => assertSmtpTarget(h, 587)).toThrow(/public mail server/);
     }

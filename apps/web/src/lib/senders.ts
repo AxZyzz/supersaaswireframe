@@ -76,10 +76,13 @@ export const gmailStatus = () =>
   api<{ enabled: boolean }>("/senders/gmail/status");
 
 /** Google consent URL; navigate the browser to it. */
-export const gmailConnect = (fromName?: string) =>
+export const gmailConnect = (
+  fromName?: string,
+  returnTo: "/settings" | "/onboarding" = "/settings",
+) =>
   api<{ url: string }>("/senders/gmail/connect", {
     method: "POST",
-    body: JSON.stringify(fromName ? { fromName } : {}),
+    body: JSON.stringify({ ...(fromName ? { fromName } : {}), returnTo }),
   });
 
 export const dnsCheck = (domain: string) =>

@@ -121,7 +121,7 @@ export default function SettingsPage() {
           <HelpLink slug="leads-api" />
         </div>
         <p className="mb-4 text-sm text-muted">
-          Push leads into SuperSaaS from external systems. Send the key as an{" "}
+          Push leads into Expelly from external systems. Send the key as an{" "}
           <code className="rounded bg-panel px-1">X-Api-Key</code> header to{" "}
           <code className="rounded bg-panel px-1">POST {API_URL}/v1/leads</code>.
         </p>

@@ -36,7 +36,10 @@ type Provider = "ses" | "smtp";
 export function SendersSection({
   showDnsCheck = true,
   readOnly = false,
+  returnTo = "/settings",
 }: {
+  /** Where Google sends the browser back to after Connect Gmail. */
+  returnTo?: "/settings" | "/onboarding";
   /** Onboarding has its own domain step, so it hides the inline checker. */
   showDnsCheck?: boolean;
   /** Agents can see senders but not add, verify, test or delete them. */
@@ -80,7 +83,7 @@ export function SendersSection({
     setBusyId("gmail");
     setNote(null);
     try {
-      const { url } = await gmailConnect(gmailName.trim() || undefined);
+      const { url } = await gmailConnect(gmailName.trim() || undefined, returnTo);
       window.location.assign(url);
     } catch (e) {
       setNote({ ok: false, text: errorMessage(e, "Couldn't start Gmail sign-in.") });

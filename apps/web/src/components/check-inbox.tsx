@@ -39,7 +39,7 @@ export function CheckInbox({ email, intro }: { email: string; intro?: string }) 
       <h2 className="mb-1 text-section font-semibold text-ink2">Check your inbox</h2>
       <p className="text-sm text-muted">
         {intro ?? "We sent a confirmation link to"} <b className="text-ink">{email}</b>.
-        Click it to finish and get into SuperSaaS. The link works for 24 hours.
+        Click it to finish and get into Expelly. The link works for 24 hours.
       </p>
       <p className="mt-3 text-tiny text-faint">
         Not there? Check spam and promotions, or send a new link.

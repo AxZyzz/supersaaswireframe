@@ -61,11 +61,14 @@ describe('Gmail OAuth integration', () => {
   // The browser-binding cookie from the latest connect (OAuth CSRF guard);
   // callback() sends it like the same browser would.
   let browserCookie = '';
-  const startConnect = async (fromName?: string) => {
+  const startConnect = async (fromName?: string, returnTo?: string) => {
     const res = await http()
       .post('/senders/gmail/connect')
       .set(jwt())
-      .send(fromName ? { fromName } : {})
+      .send({
+        ...(fromName ? { fromName } : {}),
+        ...(returnTo ? { returnTo } : {}),
+      })
       .expect(200);
     const set = ([] as string[]).concat(res.headers['set-cookie'] ?? []);
     browserCookie = (set.find((c) => c.startsWith('ss_goauth=')) ?? '').split(
@@ -274,6 +277,36 @@ describe('Gmail OAuth integration', () => {
     expect(
       ([] as string[]).concat(ok.headers['set-cookie'] ?? []).join(';'),
     ).toMatch(/ss_goauth=;/);
+  });
+
+  it('returns to onboarding when started there, even if Google is cancelled', async () => {
+    let state = (await startConnect(undefined, '/onboarding')).searchParams.get(
+      'state',
+    )!;
+    // the workspace is at its 3-sender limit by now: reconnect an existing one
+    googleReturns(200, okTokens('Aman.Sales@Gmail.com'));
+    const ok = await callback({ code: 'auth-code-onb', state });
+    expect(ok.headers.location).toMatch(/\/onboarding\?/);
+    expect(resultOf(ok.headers.location)).toEqual({
+      gmail: 'reconnected',
+      email: 'aman.sales@gmail.com',
+    });
+
+    state = (await startConnect(undefined, '/onboarding')).searchParams.get(
+      'state',
+    )!;
+    const cancelled = await callback({ error: 'access_denied', state });
+    expect(cancelled.headers.location).toMatch(/\/onboarding\?/);
+    expect(resultOf(cancelled.headers.location).gmail).toBe('error');
+  });
+
+  it('never returns to a page outside the allow-list', async () => {
+    const state = (
+      await startConnect(undefined, 'https://evil.example/phish')
+    ).searchParams.get('state')!;
+    const r = await callback({ error: 'access_denied', state });
+    expect(r.headers.location).toMatch(/\/settings\?/);
+    expect(r.headers.location).not.toContain('evil');
   });
 
   it('an access token is not accepted as a connect state', async () => {
