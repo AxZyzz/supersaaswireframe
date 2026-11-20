@@ -53,6 +53,8 @@
 | `POST /campaigns/:id/experiments` | login | ✅ | ✅ | ⛔ |
 | `POST /campaigns/:id/pause` | login | ✅ | ✅ | ⛔ |
 | `POST /campaigns/:id/resume` | login | ✅ | ✅ | ⛔ |
+| `GET /campaigns/:id/review` | login | ✅ | ✅ | ✅ |
+| `POST /campaigns/:id/review/refresh` | login | ✅ | ✅ | ⛔ |
 | `POST /campaigns/:id/schedule` | login | ✅ | ✅ | ⛔ |
 | `GET /campaigns/:id/stats` | login | ✅ | ✅ | ✅ |
 | `POST /campaigns/:id/steps` | login | ✅ | ✅ | ⛔ |
@@ -145,6 +147,9 @@
 | `GET /prospects/runs/:id` | login | ✅ | ✅ | ✅ |
 | `GET /review/rubric` | login | ✅ | ✅ | ✅ |
 | `PUT /review/rubric` | login | ✅ | ✅ | ⛔ |
+| `GET /review/scenarios` | login | ✅ | ✅ | ✅ |
+| `POST /review/simulate` | login | ✅ | ✅ | ✅ |
+| `GET /reviews/:id` | login | ✅ | ✅ | ✅ |
 | `GET /segments` | login | ✅ | ✅ | ✅ |
 | `POST /segments` | login | ✅ | ✅ | ⛔ |
 | `DELETE /segments/:id` | login | ✅ | ✅ | ⛔ |

@@ -1239,3 +1239,43 @@ export const outcomeEvents = pgTable(
     index('outcome_events_cl_type_idx').on(t.orgId, t.campaignLeadId, t.type),
   ],
 );
+
+// ── Learning Loop T05: Review revisions ──────────────────────────────────
+// One row per Review revision. inputs = what the T04 policy was given,
+// result = what it said (+ audience slices), explanation = plain words.
+// Simulated rows ("Try simulation") have no experiment and are filtered out of
+// every query that reads real results.
+export const reviews = pgTable(
+  'reviews',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    experimentId: uuid('experiment_id').references(() => experiments.id, {
+      onDelete: 'cascade',
+    }),
+    revision: integer('revision').notNull().default(1),
+    policyVersion: text('policy_version').notNull(),
+    simulated: boolean('simulated').notNull().default(false),
+    scenario: text('scenario'),
+    inputsHash: text('inputs_hash').notNull(),
+    computedAt: timestamp('computed_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: uuid('created_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    inputs: jsonb('inputs').notNull(),
+    result: jsonb('result').notNull(),
+    explanation: jsonb('explanation').notNull(),
+    explanationSource: text('explanation_source').notNull().default('template'),
+  },
+  (t) => [
+    uniqueIndex('reviews_experiment_revision_idx').on(
+      t.experimentId,
+      t.revision,
+    ),
+    index('reviews_org_experiment_idx').on(t.orgId, t.experimentId),
+  ],
+);
