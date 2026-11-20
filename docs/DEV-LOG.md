@@ -13,6 +13,30 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ## Sessions
 
+### 2026-11-21 — Learning Loop T04: Review statistics library and decision policy (pure code)
+
+New folder `apps/api/src/review/policy/` (`POLICY_VERSION = 'review-policy/1'`): no database, no AI, no Nest.
+It imports only siblings and Node `crypto`, and a test enforces that. T05 wires it to data and screens.
+
+- **`stats.ts`:** Wilson interval, Newcombe hybrid-score interval (method 10) for a difference, inverse normal
+  (Acklam), sample size per arm (`lower_bound` promotion rule and classic `significance`), sample-ratio-mismatch
+  chi-square and a two-proportion test.
+- **`gates.ts`:** the 8 gates (window mature, outcome coverage, assignment balance, delivery balance, attribution
+  clean, copy frozen, guardrails, minimum sample), each with plain-words reason and next-check date.
+- **`decide.ts`:** one decision: `guardrail_breach` (checked first, it is urgent), `keep_collecting`, `promote`
+  (challenger lower bound >= minimum lift, or keep control + propose pausing a clearly worse challenger), or
+  `inconclusive` (with sample needed, or "not worth continuing" when that is > 3x current n). Allowed actions with
+  stable ids, findings `F1..Fn`, opens shown as a labelled diagnostic only. Never forces a loser.
+- **`explain-template.ts`:** deterministic plain-English explanation in the T09 shape `{summary, points[{text, findingIds}]}`.
+- **Input additions beyond the brief:** `earliestFullRead` (so "window not mature" can give a date), optional
+  `reviewId` (action ids) and `expectedShareControl` (default 0.5).
+- **Reference checks:** Newcombe (1998) 56/70 vs 48/80 -> 0.2000, (0.0524, 0.3339) matches to 4 decimals. Other values come
+  from an independent pure-Python implementation of the same formulas (statsmodels was not installed; not statsmodels output).
+- **Sample size table:** baseline 3%, target +4 pp, min +2 pp, lower-bound rule = **1,849 companies per arm**.
+- **Tests:** 90 tests in 4 suites, `policy/` at 100% statements/branches/functions/lines (named fixtures: valid winner,
+  small sample, high opens/low conversion, delivery imbalance, SRM, guardrail breach, immature window, low coverage,
+  clearly worse challenger, plus snapshot determinism). README in the folder explains each gate in plain words.
+
 ### 2026-11-21 — Learning Loop T03: Outcome events, attribution and human verification
 
 Aman had T01 and T02 built in another tool (commits `766eec8`, `e0b2d16` on `ll/T02`); they were re-checked here
