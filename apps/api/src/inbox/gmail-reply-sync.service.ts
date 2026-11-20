@@ -8,6 +8,8 @@ import {
   googleAccessToken,
 } from '../senders/providers/gmail.provider';
 import { SendersService } from '../senders/senders.service';
+import { keys } from '../outcomes/outcome-logic';
+import { OutcomesService } from '../outcomes/outcomes.service';
 import { InboxService } from './inbox.service';
 
 const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1/users/me';
@@ -124,6 +126,7 @@ export class GmailReplySyncService {
     @Inject(PG_POOL) private readonly pool: Pool,
     private readonly senders: SendersService,
     private readonly inbox: InboxService,
+    private readonly outcomes: OutcomesService,
   ) {}
 
   /** Scheduler tick: every eligible Gmail sender not synced in the last minute. */
@@ -305,6 +308,7 @@ export class GmailReplySyncService {
         body: stripQuoted(bodyText(msg)).slice(0, 20000),
         messageId: h.get('message-id'),
         inReplyTo: h.get('in-reply-to')?.trim(),
+        source: 'gmail_sync',
       });
       return 'reply';
     } catch (err) {
@@ -323,15 +327,25 @@ export class GmailReplySyncService {
   private handleBounce(orgId: string, email: string): Promise<boolean> {
     return withOrgContext(this.pool, orgId, async (c) => {
       const last = await c.query<{
+        id: string;
         campaign_id: string | null;
         lead_id: string | null;
       }>(
-        `SELECT campaign_id, lead_id FROM sent_emails
+        `SELECT id, campaign_id, lead_id FROM sent_emails
          WHERE lower(to_email) = $1 ORDER BY sent_at DESC LIMIT 1`,
         [email],
       );
       if (!last.rows[0]) return false;
       const { campaign_id, lead_id } = last.rows[0];
+      // T03: the bounce is an outcome event, tied to the email that bounced
+      await this.outcomes.record(c, orgId, {
+        type: 'bounce',
+        source: 'gmail_sync',
+        verification: 'verified',
+        idempotencyKey: keys.bounce(last.rows[0].id),
+        leadId: lead_id,
+        sentEmailId: last.rows[0].id,
+      });
       await c.query(
         `INSERT INTO suppression_list (org_id, email, reason)
          VALUES ($1, $2, 'bounced')

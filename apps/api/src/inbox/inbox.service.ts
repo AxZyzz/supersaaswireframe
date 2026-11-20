@@ -17,6 +17,8 @@ import {
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { RealtimeService } from '../realtime/realtime.service';
+import { keys } from '../outcomes/outcome-logic';
+import { OutcomesService } from '../outcomes/outcomes.service';
 import { SendersService } from '../senders/senders.service';
 
 export interface IngestReplyInput {
@@ -28,6 +30,8 @@ export interface IngestReplyInput {
   // Caller-supplied classification (manual tools / tests). When absent the
   // reply is classified by the AI layer.
   classification?: ReplyClass;
+  // Where the reply came from; recorded on its outcome event (default: system).
+  source?: 'gmail_sync' | 'system';
 }
 
 export type ReplyAction = 'stopped' | 'rescheduled' | 'none';
@@ -120,6 +124,7 @@ export class InboxService {
     private readonly notifications: NotificationsService,
     private readonly realtime: RealtimeService,
     private readonly senders: SendersService,
+    private readonly outcomes: OutcomesService,
   ) {}
 
   /**
@@ -240,53 +245,68 @@ export class InboxService {
     input: IngestReplyInput,
   ): Promise<IngestResult> {
     // Phase 1: match the reply to the email it answers + load KB (short tx).
-    const { match, kb } = await withOrgContext(this.pool, orgId, async (c) => {
-      let m: MatchedSend | undefined;
-      const cols = `id AS sent_email_id, campaign_id, campaign_lead_id,
+    const { match, kb, ambiguous } = await withOrgContext(
+      this.pool,
+      orgId,
+      async (c) => {
+        let m: MatchedSend | undefined;
+        // The thread (In-Reply-To) names the exact email; matching by address
+        // alone is a guess when the lead sits in several campaigns.
+        let ambiguous = false;
+        const cols = `id AS sent_email_id, campaign_id, campaign_lead_id,
         sender_id, lead_id, subject`;
-      if (input.inReplyTo) {
-        const r = await c.query<MatchedSend>(
-          `SELECT ${cols} FROM sent_emails
+        if (input.inReplyTo) {
+          const r = await c.query<MatchedSend>(
+            `SELECT ${cols} FROM sent_emails
            WHERE message_id = $1 AND lead_id IS NOT NULL LIMIT 1`,
-          [input.inReplyTo],
-        );
-        m = r.rows[0];
-      }
-      if (!m) {
-        const r = await c.query<MatchedSend>(
-          `SELECT ${cols} FROM sent_emails
+            [input.inReplyTo],
+          );
+          m = r.rows[0];
+        }
+        if (!m) {
+          const r = await c.query<MatchedSend>(
+            `SELECT ${cols} FROM sent_emails
            WHERE lower(to_email) = lower($1) AND lead_id IS NOT NULL
            ORDER BY sent_at DESC LIMIT 1`,
-          [input.fromEmail],
-        );
-        m = r.rows[0];
-      }
-      if (!m) {
-        // No prior send — still thread it if the sender is a known lead.
-        const l = await c.query<{ id: string }>(
-          `SELECT id FROM leads WHERE lower(email) = lower($1) LIMIT 1`,
-          [input.fromEmail],
-        );
-        if (l.rowCount === 0) {
-          throw new NotFoundException('Reply sender is not a known lead');
+            [input.fromEmail],
+          );
+          m = r.rows[0];
+          if (m) {
+            const n = await c.query<{ n: number }>(
+              `SELECT count(DISTINCT campaign_lead_id)::int AS n FROM sent_emails
+             WHERE lower(to_email) = lower($1) AND campaign_lead_id IS NOT NULL`,
+              [input.fromEmail],
+            );
+            ambiguous = (n.rows[0]?.n ?? 0) > 1;
+          }
         }
-        m = {
-          sent_email_id: null,
-          campaign_id: null,
-          campaign_lead_id: null,
-          sender_id: null,
-          lead_id: l.rows[0].id,
-          subject: input.subject ?? '',
-        };
-      }
-      const k = await c.query<OrgKnowledge>(
-        `SELECT description, audience, offer, pain_points AS "painPoints",
+        if (!m) {
+          // No prior send — still thread it if the sender is a known lead.
+          const l = await c.query<{ id: string }>(
+            `SELECT id FROM leads WHERE lower(email) = lower($1) LIMIT 1`,
+            [input.fromEmail],
+          );
+          if (l.rowCount === 0) {
+            throw new NotFoundException('Reply sender is not a known lead');
+          }
+          m = {
+            sent_email_id: null,
+            campaign_id: null,
+            campaign_lead_id: null,
+            sender_id: null,
+            lead_id: l.rows[0].id,
+            subject: input.subject ?? '',
+          };
+        }
+        const k = await c.query<OrgKnowledge>(
+          `SELECT description, audience, offer, pain_points AS "painPoints",
            usps, competitors, testimonials
          FROM org_knowledge WHERE org_id = $1`,
-        [orgId],
-      );
-      return { match: m, kb: k.rows[0] ?? null };
-    });
+          [orgId],
+        );
+        return { match: m, kb: k.rows[0] ?? null, ambiguous };
+      },
+    );
 
     // Phase 2: classify outside any transaction (may be a network call).
     const { classification, confidence } = input.classification
@@ -319,11 +339,12 @@ export class InboxService {
         conversationId = created.rows[0].id;
       }
 
-      await c.query(
+      const msg = await c.query<{ id: string }>(
         `INSERT INTO conversation_messages
            (org_id, conversation_id, direction, from_email, subject, body_text,
             message_id, in_reply_to, classification, confidence)
-         VALUES ($1,$2,'inbound',$3,$4,$5,$6,$7,$8,$9)`,
+         VALUES ($1,$2,'inbound',$3,$4,$5,$6,$7,$8,$9)
+         RETURNING id`,
         [
           orgId,
           conversationId,
@@ -360,6 +381,36 @@ export class InboxService {
          VALUES ($1,$2,'email_replied',$3::jsonb)`,
         [orgId, match.lead_id, JSON.stringify({ classification })],
       );
+
+      // T03: the reply is a verified fact; an AI "interested" is only a
+      // provisional qualified reply until a person confirms it. The same
+      // message (or conversation) can't be counted twice.
+      const base = {
+        leadId: match.lead_id,
+        campaignLeadId: match.campaign_lead_id,
+        sentEmailId: match.sent_email_id,
+        conversationId,
+        unattributed: ambiguous,
+        reason: ambiguous
+          ? 'Lead is in several campaigns and the reply names none of them'
+          : null,
+      };
+      await this.outcomes.record(c, orgId, {
+        ...base,
+        type: 'reply',
+        source: input.source ?? 'system',
+        verification: 'verified',
+        idempotencyKey: keys.reply(input.messageId ?? msg.rows[0].id),
+      });
+      if (classification === 'interested') {
+        await this.outcomes.record(c, orgId, {
+          ...base,
+          type: 'qualified_reply',
+          source: 'inbox_ai',
+          verification: 'provisional',
+          idempotencyKey: keys.qualified(conversationId),
+        });
+      }
 
       const action = await this.applyAutomations(
         c,
@@ -679,6 +730,7 @@ export class InboxService {
     id: string,
     patch: ConversationPatch,
     actorUserId?: string,
+    actorRole?: string,
   ) {
     // Assignment + conversion have side effects; handle them in one tx first.
     if (patch.assignedUserId !== undefined || patch.converted !== undefined) {
@@ -727,6 +779,24 @@ export class InboxService {
         }
 
         if (patch.converted !== undefined) {
+          const was = await c.query<{ on: boolean }>(
+            `SELECT converted_at IS NOT NULL AS "on" FROM conversations WHERE id = $1`,
+            [id],
+          );
+          // only a real change is an outcome (re-sending "on" is a no-op)
+          if ((was.rows[0]?.on ?? false) !== patch.converted) {
+            await this.outcomes.recordBooked(
+              c,
+              orgId,
+              {
+                id,
+                lead_id: cv.lead_id,
+                campaign_lead_id: cv.campaign_lead_id,
+              },
+              patch.converted,
+              { userId: actorUserId, role: actorRole },
+            );
+          }
           await c.query(
             `UPDATE conversations SET converted_at = CASE WHEN $2 THEN now() ELSE NULL END
              WHERE id = $1`,

@@ -941,6 +941,8 @@ export const orgKnowledge = pgTable('org_knowledge', {
   usps: text('usps'),
   competitors: text('competitors'),
   testimonials: text('testimonials'),
+  // Learning Loop T03: what counts as a "qualified" reply (shown to reviewers)
+  qualificationRubric: text('qualification_rubric'),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -1175,5 +1177,66 @@ export const gmailSeenMessages = pgTable(
   (t) => [
     primaryKey({ columns: [t.senderId, t.gmailMessageId] }),
     index('gmail_seen_messages_org_idx').on(t.orgId, t.seenAt),
+  ],
+);
+
+// ── Learning Loop T03: outcome events ────────────────────────────────────
+// Idempotent record of every result that matters. Corrections insert a new
+// row with supersedes_id; v_outcomes_current (SQL view, migration 0054) shows
+// the latest. experiment_id / variant_id stay null when the event can't be
+// attributed with certainty (never guessed).
+export const outcomeEvents = pgTable(
+  'outcome_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    campaignLeadId: uuid('campaign_lead_id').references(
+      () => campaignLeads.id,
+      { onDelete: 'set null' },
+    ),
+    leadId: uuid('lead_id').references(() => leads.id, {
+      onDelete: 'set null',
+    }),
+    companyKey: text('company_key'),
+    experimentId: uuid('experiment_id').references(() => experiments.id, {
+      onDelete: 'set null',
+    }),
+    variantId: uuid('variant_id').references(() => experimentVariants.id, {
+      onDelete: 'set null',
+    }),
+    conversationId: uuid('conversation_id').references(
+      () => conversations.id,
+      { onDelete: 'set null' },
+    ),
+    sentEmailId: uuid('sent_email_id').references(() => sentEmails.id, {
+      onDelete: 'set null',
+    }),
+    type: text('type').notNull(),
+    source: text('source').notNull(),
+    verification: text('verification').notNull(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: uuid('created_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    verifiedBy: uuid('verified_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    reason: text('reason'),
+    supersedesId: uuid('supersedes_id'),
+    idempotencyKey: text('idempotency_key').notNull(),
+  },
+  (t) => [
+    uniqueIndex('outcome_events_idem_idx').on(t.orgId, t.idempotencyKey),
+    index('outcome_events_exp_type_idx').on(t.orgId, t.experimentId, t.type),
+    index('outcome_events_company_idx').on(t.orgId, t.companyKey),
+    index('outcome_events_cl_type_idx').on(t.orgId, t.campaignLeadId, t.type),
   ],
 );

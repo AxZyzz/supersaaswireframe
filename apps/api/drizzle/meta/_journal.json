@@ -379,6 +379,13 @@
       "when": 1785604140000,
       "tag": "0053_offers_experiments_assignments",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1785604200000,
+      "tag": "0054_outcome_events",
+      "breakpoints": true
     }
   ]
 }

@@ -69,7 +69,7 @@ export class InboxController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateConversationDto,
   ) {
-    return this.inbox.update(user.orgId, id, dto, user.userId);
+    return this.inbox.update(user.orgId, id, dto, user.userId, user.role);
   }
 
   /** Send a reply to the lead from the conversation's sender (T7.3). */

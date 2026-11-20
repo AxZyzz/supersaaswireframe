@@ -61,6 +61,7 @@
 | `PATCH /campaigns/steps/:stepId` | login | ✅ | ✅ | ⛔ |
 | `GET /experiments/:id` | login | ✅ | ✅ | ✅ |
 | `PATCH /experiments/:id` | login | ✅ | ✅ | ⛔ |
+| `GET /experiments/:id/outcome-coverage` | login | ✅ | ✅ | ✅ |
 | `POST /experiments/:id/start` | login | ✅ | ✅ | ⛔ |
 | `POST /experiments/:id/stop` | login | ✅ | ✅ | ⛔ |
 | `POST /feedback` | login | ✅ | ✅ | ✅ |
@@ -133,10 +134,17 @@
 | `GET /orgs/members` | login | ✅ | ✅ | ⛔ |
 | `DELETE /orgs/members/:userId` | login | ✅ | ⛔ | ⛔ |
 | `PATCH /orgs/members/:userId` | login | ✅ | ⛔ | ⛔ |
+| `GET /outcomes` | login | ✅ | ✅ | ✅ |
+| `POST /outcomes` | login | ✅ | ✅ | ✅ |
+| `POST /outcomes/:id/verify` | login | ✅ | ✅ | ✅ |
+| `GET /outcomes/history/:conversationId` | login | ✅ | ✅ | ✅ |
+| `GET /outcomes/unattributed` | login | ✅ | ✅ | ✅ |
 | `POST /prospects/add-to-leads` | login | ✅ | ✅ | ⛔ |
 | `GET /prospects/runs` | login | ✅ | ✅ | ✅ |
 | `POST /prospects/runs` | login | ✅ | ✅ | ⛔ |
 | `GET /prospects/runs/:id` | login | ✅ | ✅ | ✅ |
+| `GET /review/rubric` | login | ✅ | ✅ | ✅ |
+| `PUT /review/rubric` | login | ✅ | ✅ | ⛔ |
 | `GET /segments` | login | ✅ | ✅ | ✅ |
 | `POST /segments` | login | ✅ | ✅ | ⛔ |
 | `DELETE /segments/:id` | login | ✅ | ✅ | ⛔ |
