@@ -7,6 +7,8 @@ export const SEGMENT_REFRESH_QUEUE = 'segment-refresh';
 export const CAMPAIGN_SEND_QUEUE = 'campaign-send';
 /** Scheduled housekeeping: notification emails, weekly summary, Sheets sync. */
 export const SYSTEM_JOBS_QUEUE = 'system-jobs';
+/** Expelly prospect discovery runs (goal → verified companies). */
+export const PROSPECT_QUEUE = 'prospect-research';
 
 /**
  * Worker options shared by every queue, tuned for a metered Redis (Upstash

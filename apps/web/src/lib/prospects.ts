@@ -1,0 +1,85 @@
+import { api } from "@/lib/api";
+
+export interface Icp {
+  summary?: string;
+  industries?: string[];
+  regions?: string[];
+  companySize?: string;
+  buyerRoles?: string[];
+  signals?: string[];
+  exclusions?: string[];
+}
+
+export interface ProspectRun {
+  id: string;
+  goal: string;
+  icp: Icp | null;
+  status: "queued" | "running" | "done" | "failed";
+  requested: number;
+  total: number;
+  done: number;
+  verified: number;
+  error: string | null;
+  created_at: string;
+  finished_at: string | null;
+}
+
+export interface Evidence {
+  fact: string;
+  quote: string;
+  url: string;
+}
+
+export interface ProspectEmail {
+  email: string;
+  url: string;
+  onCompanyDomain: boolean;
+  mx: boolean;
+}
+
+export interface Prospect {
+  id: string;
+  company_name: string;
+  domain: string;
+  website_url: string | null;
+  reason: string | null;
+  status: "pending" | "researching" | "verified" | "unverified" | "rejected" | "unreachable";
+  summary: string | null;
+  industry: string | null;
+  location: string | null;
+  fit_score: number | null;
+  stars: number | null;
+  score_parts: Record<"icp" | "opportunity" | "timing" | "commercial" | "contact", number> | null;
+  evidence: Evidence[];
+  opportunity: { hypothesis: string; service: string; discoveryQuestion: string } | null;
+  unknowns: string[];
+  emails: ProspectEmail[];
+  pages: string[];
+  error: string | null;
+  lead_id: string | null;
+}
+
+export const startProspectRun = (goal: string, count: number) =>
+  api<ProspectRun>("/prospects/runs", {
+    method: "POST",
+    body: JSON.stringify({ goal, count }),
+  });
+
+export const listProspectRuns = () => api<ProspectRun[]>("/prospects/runs");
+
+export const getProspectRun = (id: string) =>
+  api<ProspectRun & { prospects: Prospect[] }>(`/prospects/runs/${id}`);
+
+export const addProspectsToLeads = (prospectIds: string[], segmentName?: string) =>
+  api<{
+    added: number;
+    skipped: { domain: string; reason: string }[];
+    segment: { id: string; name: string } | null;
+  }>("/prospects/add-to-leads", {
+    method: "POST",
+    body: JSON.stringify({ prospectIds, segmentName: segmentName || undefined }),
+  });
+
+/** A prospect can become a lead only with a real on-site email that accepts mail. */
+export const contactable = (p: Prospect) =>
+  p.status === "verified" && p.emails.some((e) => e.mx);

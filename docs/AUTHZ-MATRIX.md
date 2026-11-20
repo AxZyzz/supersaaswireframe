@@ -44,6 +44,7 @@
 | `DELETE /campaigns/:id` | login | ✅ | ✅ | ⛔ |
 | `GET /campaigns/:id` | login | ✅ | ✅ | ✅ |
 | `PATCH /campaigns/:id` | login | ✅ | ✅ | ⛔ |
+| `POST /campaigns/:id/apply-winner` | login | ✅ | ✅ | ⛔ |
 | `POST /campaigns/:id/archive` | login | ✅ | ✅ | ⛔ |
 | `GET /campaigns/:id/audience` | login | ✅ | ✅ | ✅ |
 | `POST /campaigns/:id/duplicate` | login | ✅ | ✅ | ⛔ |
@@ -53,6 +54,7 @@
 | `POST /campaigns/:id/schedule` | login | ✅ | ✅ | ⛔ |
 | `GET /campaigns/:id/stats` | login | ✅ | ✅ | ✅ |
 | `POST /campaigns/:id/steps` | login | ✅ | ✅ | ⛔ |
+| `GET /campaigns/:id/winner` | login | ✅ | ✅ | ✅ |
 | `DELETE /campaigns/steps/:stepId` | login | ✅ | ✅ | ⛔ |
 | `PATCH /campaigns/steps/:stepId` | login | ✅ | ✅ | ⛔ |
 | `POST /feedback` | login | ✅ | ✅ | ✅ |
@@ -122,6 +124,10 @@
 | `GET /orgs/members` | login | ✅ | ✅ | ⛔ |
 | `DELETE /orgs/members/:userId` | login | ✅ | ⛔ | ⛔ |
 | `PATCH /orgs/members/:userId` | login | ✅ | ⛔ | ⛔ |
+| `POST /prospects/add-to-leads` | login | ✅ | ✅ | ⛔ |
+| `GET /prospects/runs` | login | ✅ | ✅ | ✅ |
+| `POST /prospects/runs` | login | ✅ | ✅ | ⛔ |
+| `GET /prospects/runs/:id` | login | ✅ | ✅ | ✅ |
 | `GET /segments` | login | ✅ | ✅ | ✅ |
 | `POST /segments` | login | ✅ | ✅ | ⛔ |
 | `DELETE /segments/:id` | login | ✅ | ✅ | ⛔ |

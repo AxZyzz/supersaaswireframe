@@ -14,6 +14,7 @@ import {
   LogOut,
   Send,
   Settings,
+  Sparkles,
   Users,
 } from "lucide-react";
 import { logout } from "@/lib/api";
@@ -23,6 +24,7 @@ import { disconnectLive, useLive } from "@/lib/realtime";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/discover", label: "Discover", icon: Sparkles },
   { href: "/leads", label: "Leads", icon: Users },
   { href: "/segments", label: "Segments", icon: Filter },
   { href: "/campaigns", label: "Campaigns", icon: Send },

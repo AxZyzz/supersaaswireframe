@@ -12,25 +12,13 @@ import { Search } from "lucide-react";
 import { api, ApiError, ensureSession } from "@/lib/api";
 import { applyBrand } from "@/lib/branding";
 import type { Org } from "@/lib/org";
+import { pageTitle } from "@/lib/page-title";
 
 interface Me {
   userId: string;
   orgId: string;
   role: string;
 }
-
-const TITLES: [string, string][] = [
-  ["/leads", "Leads"],
-  ["/campaigns", "Campaigns"],
-  ["/segments", "Segments"],
-  ["/inbox", "Inbox"],
-  ["/templates", "Templates"],
-  ["/analytics", "Analytics"],
-  ["/settings", "Settings"],
-  ["/help", "Help"],
-  ["/operator", "Operator console"],
-  ["/dashboard", "Dashboard"],
-];
 
 export default function AppLayout({
   children,
@@ -112,8 +100,7 @@ export default function AppLayout({
     );
   }
 
-  const title =
-    TITLES.find(([prefix]) => pathname.startsWith(prefix))?.[1] ?? "Dashboard";
+  const title = pageTitle(pathname);
 
   return (
     <div className="flex h-screen overflow-hidden bg-page print:block print:h-auto print:overflow-visible">
