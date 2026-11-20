@@ -6,7 +6,7 @@ import { Pool, PoolClient } from 'pg';
 import { UsageService } from '../../usage/usage.service';
 import { PG_POOL } from '../../db/db.module';
 import { withOrgContext } from '../../db/tenant-context';
-import { LEAD_IMPORT_QUEUE } from '../../queue/queue.module';
+import { LEAD_IMPORT_QUEUE, WORKER_OPTIONS } from '../../queue/queue.module';
 import type { ImportJobData } from './import.dto';
 import { SYSTEM_STATUSES } from '../lead-statuses';
 import { EMAIL_RE, MAX_LEN } from './column-mapping';
@@ -19,7 +19,7 @@ interface RowError {
   reason: string;
 }
 
-@Processor(LEAD_IMPORT_QUEUE)
+@Processor(LEAD_IMPORT_QUEUE, WORKER_OPTIONS)
 export class ImportProcessor extends WorkerHost {
   private readonly logger = new Logger(ImportProcessor.name);
 

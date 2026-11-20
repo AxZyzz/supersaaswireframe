@@ -1,7 +1,7 @@
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { Queue } from 'bullmq';
-import { CAMPAIGN_SEND_QUEUE } from '../queue/queue.module';
+import { CAMPAIGN_SEND_QUEUE, WORKER_OPTIONS } from '../queue/queue.module';
 import { SendService } from './send.service';
 
 // Repeatable BullMQ job that drives the send loop. Each tick processes all due
@@ -9,7 +9,7 @@ import { SendService } from './send.service';
 // repeatable schedule is skipped under tests (jest sets NODE_ENV=test) and can
 // be disabled with SEND_SCHEDULER=off — tests/dev drive tick() manually via
 // POST /sending/tick.
-@Processor(CAMPAIGN_SEND_QUEUE)
+@Processor(CAMPAIGN_SEND_QUEUE, WORKER_OPTIONS)
 export class SendProcessor
   extends WorkerHost
   implements OnApplicationBootstrap
