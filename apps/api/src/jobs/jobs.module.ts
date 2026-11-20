@@ -6,6 +6,8 @@ import { InboxModule } from '../inbox/inbox.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SYSTEM_JOBS_QUEUE } from '../queue/queue.module';
 import { SystemJobsProcessor } from './system-jobs.processor';
+import { TickSchedulerService } from './tick-scheduler.service';
+import { SendingModule } from '../sending/sending.module';
 
 @Module({
   imports: [
@@ -14,7 +16,8 @@ import { SystemJobsProcessor } from './system-jobs.processor';
     AnalyticsModule,
     IntegrationsModule,
     InboxModule,
+    SendingModule,
   ],
-  providers: [SystemJobsProcessor],
+  providers: [SystemJobsProcessor, TickSchedulerService],
 })
 export class JobsModule {}

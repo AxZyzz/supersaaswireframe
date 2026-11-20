@@ -50,21 +50,13 @@ export class SystemJobsProcessor
   } as const;
 
   async onApplicationBootstrap() {
-    // Disabled instances (tests, JOBS_SCHEDULER=off) leave the shared Redis
-    // schedule alone, so they never switch off other instances' jobs.
+    // The timers moved to TickSchedulerService (one Redis command per run
+    // instead of a repeatable job that keeps the worker waking every 10 s).
+    // Retire the Redis-side schedules older builds registered. Disabled
+    // instances (tests, JOBS_SCHEDULER=off) leave Redis alone.
     if (!this.enabled) return;
-    const wanted = SystemJobsProcessor.SCHEDULES;
-    // Retire schedules this build no longer has (renamed/removed jobs)...
     for (const s of await this.queue.getJobSchedulers()) {
-      const id = s.id ?? s.key;
-      if (!(id in wanted)) await this.queue.removeJobScheduler(id);
-    }
-    // ...then upsert the current ones (idempotent across instances/restarts).
-    for (const [id, repeat] of Object.entries(wanted)) {
-      await this.queue.upsertJobScheduler(id, repeat, {
-        name: id,
-        opts: { removeOnComplete: true, removeOnFail: 50 },
-      });
+      await this.queue.removeJobScheduler(s.id ?? s.key);
     }
   }
 
