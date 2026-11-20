@@ -38,6 +38,8 @@ import { listSenders, Sender } from "@/lib/senders";
 import CampaignWizard from "./campaign-wizard";
 import AiBuilder from "./ai-builder";
 import { useLive } from "@/lib/realtime";
+import { WinnerPanel } from "@/components/winner-panel";
+import { canManage, useRole } from "@/lib/me";
 
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-neut-bg text-muted",
@@ -62,6 +64,7 @@ export default function CampaignsPage() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const role = useRole();
 
   const applyList = useCallback(
     ([c, t, s, sn]: Awaited<ReturnType<typeof fetchList>>) => {
@@ -411,6 +414,12 @@ export default function CampaignsPage() {
                         ))}
                       </tbody>
                     </table>
+                    <WinnerPanel
+                      key={selected.id}
+                      campaignId={selected.id}
+                      canManage={canManage(role)}
+                      onApplied={() => void refresh(selected.id)}
+                    />
                   </div>
                 )}
               </div>

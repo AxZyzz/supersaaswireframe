@@ -18,6 +18,7 @@ import {
   ScheduleDto,
   UpdateCampaignDto,
   UpdateStepDto,
+  ApplyWinnerDto,
 } from './campaign.dto';
 import { CampaignsService } from './campaigns.service';
 
@@ -136,6 +137,31 @@ export class CampaignsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.campaigns.audience(user.orgId, id);
+  }
+
+  // Self-optimising A/B: which subject version is winning (on replies)?
+  @Get(':id/winner')
+  winner(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.campaigns.winner(user.orgId, id);
+  }
+
+  @Roles('admin', 'manager')
+  @Post(':id/apply-winner')
+  @HttpCode(200)
+  applyWinner(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ApplyWinnerDto,
+  ) {
+    return this.campaigns.applyWinner(
+      user.orgId,
+      id,
+      dto.stepId,
+      dto.variantIndex,
+    );
   }
 
   @Get(':id/stats')

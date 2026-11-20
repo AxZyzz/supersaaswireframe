@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
@@ -81,4 +82,9 @@ export class UpdateStepDto {
   @IsString({ each: true })
   @MaxLength(300, { each: true })
   subjectVariants?: string[];
+}
+
+export class ApplyWinnerDto {
+  @IsUUID() stepId!: string;
+  @Type(() => Number) @IsInt() @Min(0) @Max(9) variantIndex!: number;
 }

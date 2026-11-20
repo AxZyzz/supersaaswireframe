@@ -15,6 +15,7 @@ import type {
   UpdateStepDto,
 } from './campaign.dto';
 import { RealtimeService } from '../realtime/realtime.service';
+import { adviseWinner, type VariantStats } from './ab-winner';
 
 const CAMPAIGN_COLS = `id, name, status, segment_id, sender_ids, scheduled_at,
   started_at, archived_at, created_at, updated_at`;
@@ -534,6 +535,95 @@ export class CampaignsService {
         [id],
       );
       return { enrolled: ins.rowCount ?? 0 };
+    });
+  }
+
+  /**
+   * Winner suggestion per A/B step (judged on replies). Suggest-only: the
+   * user applies it with applyWinner.
+   */
+  async winner(orgId: string, campaignId: string) {
+    return this.run(orgId, async (c) => {
+      const camp = await c.query(`SELECT 1 FROM campaigns WHERE id = $1`, [
+        campaignId,
+      ]);
+      if (!camp.rowCount) throw new NotFoundException('Campaign not found');
+      const steps = await c.query<{
+        id: string;
+        step_order: number;
+        subject_variants: string[];
+      }>(
+        `SELECT id, step_order, subject_variants FROM campaign_steps
+         WHERE campaign_id = $1 AND jsonb_array_length(subject_variants) >= 2
+         ORDER BY step_order`,
+        [campaignId],
+      );
+      const out: (ReturnType<typeof adviseWinner> & {
+        stepId: string;
+        stepOrder: number;
+      })[] = [];
+      for (const s of steps.rows) {
+        const r = await c.query<{
+          variant_index: number;
+          sent: number;
+          replies: number;
+          opens: number;
+        }>(
+          `SELECT se.variant_index,
+             count(DISTINCT se.id)::int AS sent,
+             count(DISTINCT se.id) FILTER (WHERE e.type = 'reply')::int AS replies,
+             count(DISTINCT se.id) FILTER (WHERE e.type = 'open')::int AS opens
+           FROM sent_emails se
+           LEFT JOIN email_events e ON e.sent_email_id = se.id
+           WHERE se.step_id = $1 AND se.status = 'sent'
+           GROUP BY se.variant_index`,
+          [s.id],
+        );
+        const variants: VariantStats[] = s.subject_variants.map(
+          (subject, index) => {
+            const row = r.rows.find((x) => x.variant_index === index);
+            return {
+              index,
+              subject,
+              sent: row?.sent ?? 0,
+              replies: row?.replies ?? 0,
+              opens: row?.opens ?? 0,
+            };
+          },
+        );
+        out.push({
+          stepId: s.id,
+          stepOrder: s.step_order,
+          ...adviseWinner(variants),
+        });
+      }
+      return out;
+    });
+  }
+
+  /** Approved winner: remaining leads on this step get only that subject. */
+  async applyWinner(
+    orgId: string,
+    campaignId: string,
+    stepId: string,
+    variantIndex: number,
+  ) {
+    return this.run(orgId, async (c) => {
+      const s = await c.query<{ subject_variants: string[] }>(
+        `SELECT subject_variants FROM campaign_steps WHERE id = $1 AND campaign_id = $2`,
+        [stepId, campaignId],
+      );
+      const variants = s.rows[0]?.subject_variants;
+      if (!variants) throw new NotFoundException('Step not found');
+      const subject = variants[variantIndex];
+      if (typeof subject !== 'string') {
+        throw new BadRequestException('No such version');
+      }
+      await c.query(
+        `UPDATE campaign_steps SET subject_variants = $2::jsonb WHERE id = $1`,
+        [stepId, JSON.stringify([subject])],
+      );
+      return { stepId, subject };
     });
   }
 }
