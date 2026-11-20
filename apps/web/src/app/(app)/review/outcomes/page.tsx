@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { errorMessage } from "@/lib/api";
 import { toast } from "@/components/feedback";
 import { timeAgo } from "@/lib/analytics";
+import { ReviewNav } from "@/components/review-nav";
 import {
   listOutcomes,
   listUnattributed,
@@ -49,11 +50,12 @@ export default function OutcomesQueuePage() {
   return (
     <div className="mx-auto max-w-4xl space-y-8 p-6">
       <header>
-        <h1 className="text-xl font-semibold text-ink2">Review queue</h1>
+        <h1 className="text-xl font-semibold text-ink2">Review</h1>
         <p className="mt-1 text-sm text-muted">
           Clear these so test results count. The AI only proposes; a person decides.
         </p>
       </header>
+      <ReviewNav />
 
       <section>
         <h2 className="mb-2 text-section font-semibold text-ink2">

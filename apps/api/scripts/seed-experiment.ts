@@ -45,7 +45,23 @@ async function main() {
     EMAIL,
   ]);
   if ((existing.rowCount ?? 0) > 0) {
-    console.log(`Seed: ${EMAIL} already exists, nothing to do.`);
+    // the Review demo exists; make sure the Insights demo (T06) does too
+    const u = await pool.query<{ id: string }>(
+      `SELECT id FROM users WHERE email = $1`,
+      [EMAIL],
+    );
+    const m = await pool.query<{ org_id: string }>(
+      `SELECT org_id FROM user_memberships($1)`,
+      [u.rows[0].id],
+    );
+    const added = m.rows[0]
+      ? await seedInsights(pool, m.rows[0].org_id)
+      : false;
+    console.log(
+      added
+        ? `Seed: ${EMAIL} already existed; added the Insights demo campaign.`
+        : `Seed: ${EMAIL} already exists, nothing to do.`,
+    );
     await pool.end();
     return;
   }
@@ -253,6 +269,7 @@ async function main() {
     }
   });
 
+  await seedInsights(pool, orgId);
   console.log(
     `Seed: created ${EMAIL} / ${PASSWORD} with a running experiment ("Review demo: clinic follow-up").`,
   );
@@ -263,3 +280,177 @@ main().catch((err) => {
   console.error(err);
   process.exit(1);
 });
+
+/**
+ * Insights demo (Learning Loop T06): a second campaign with ~400 companies
+ * across 4 cities and 3 industries, sent on varied days and hours, with effects
+ * built in so the Insights page has something true to find:
+ *  - Pune replies far more, but mostly because most Pune companies are hiring
+ *    (a confounded city effect: the page should say so);
+ *  - Tue-Thu mornings reply more;
+ *  - founders reply about twice as often as managers;
+ *  - the fit score (stars) is random, so the "fit score isn't predicting
+ *    replies" warning shows.
+ * Deterministic (fixed seed). Returns false if it already exists.
+ */
+async function seedInsights(pool: Pool, orgId: string): Promise<boolean> {
+  let seed = 20261121;
+  const rnd = () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let x = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+  const pick = <T>(xs: T[]) => xs[Math.floor(rnd() * xs.length)];
+
+  return withOrgContext(pool, orgId, async (c) => {
+    const have = await c.query(
+      `SELECT 1 FROM campaigns WHERE name = 'Insights demo: clinic outreach'`,
+    );
+    if ((have.rowCount ?? 0) > 0) return false;
+
+    const offer = await c.query<{ id: string }>(
+      `SELECT id FROM offers ORDER BY created_at LIMIT 1`,
+    );
+    const camp = await c.query<{ id: string }>(
+      `INSERT INTO campaigns (org_id, name, status, offer_id, started_at)
+       VALUES ($1, 'Insights demo: clinic outreach', 'completed', $2, now() - interval '30 days')
+       RETURNING id`,
+      [orgId, offer.rows[0]?.id ?? null],
+    );
+    const step = await c.query<{ id: string }>(
+      `INSERT INTO campaign_steps (org_id, campaign_id, step_order, delay_hours)
+       VALUES ($1, $2, 1, 0) RETURNING id`,
+      [orgId, camp.rows[0].id],
+    );
+
+    const cities = ['Pune', 'Mumbai', 'Bengaluru', 'Delhi'];
+    const industries = ['saas', 'agency_marketing', 'healthcare_clinic'];
+    const titles = ['Founder', 'Manager', 'Director', 'Manager'];
+    const roleOf: Record<string, string> = {
+      Founder: 'founder_owner',
+      Manager: 'manager',
+      Director: 'vp_head_director',
+    };
+    const base = Date.UTC(2026, 10, 2); // Monday 2 Nov 2026, 00:00 UTC
+
+    for (let n = 0; n < 400; n++) {
+      const city = pick(cities);
+      const industry = pick(industries);
+      // most Pune companies are hiring; other cities mostly are not
+      const trigger =
+        rnd() < (city === 'Pune' ? 0.8 : 0.25)
+          ? 'hiring'
+          : pick(['expansion', 'funding', 'unknown']);
+      const title = pick(titles);
+      const stars = 1 + Math.floor(rnd() * 5); // random: no relation to replies
+      const tz = rnd() < 0.85 ? 'Asia/Kolkata' : null; // some recipient zones unknown
+      const dayOffset = Math.floor(rnd() * 21);
+      const localHour = 8 + Math.floor(rnd() * 11); // 08:00-18:59 local
+      const sentAt = new Date(
+        base +
+          dayOffset * 86_400_000 +
+          (localHour * 60 - 330 + Math.floor(rnd() * 60)) * 60_000,
+      );
+      const weekday =
+        (new Date(sentAt.getTime() + 330 * 60_000).getUTCDay() + 6) % 7; // 0 = Mon
+
+      let p = 0.05;
+      if (city === 'Pune' && trigger === 'hiring') p = 0.16;
+      else if (trigger === 'hiring') p = 0.13; // hiring replies more everywhere
+      if (weekday >= 1 && weekday <= 3 && localHour >= 9 && localHour < 12)
+        p *= 1.5;
+      if (title === 'Founder') p *= 2;
+      const replied = rnd() < Math.min(p, 0.6);
+      const bounced = rnd() < 0.03;
+      const domain = `insights-${String(n + 1).padStart(3, '0')}.example`;
+
+      const lead = await c.query<{ id: string }>(
+        `INSERT INTO leads (org_id, email, first_name, company, title, source, company_key, city, country)
+         VALUES ($1,$2,'Contact',$3,$4,'expelly',$5,$6,'IN') RETURNING id`,
+        [orgId, `contact@${domain}`, `Company ${n + 1}`, title, domain, city],
+      );
+      const snapshot = {
+        company_key: domain,
+        city,
+        country: 'IN',
+        timezone: tz,
+        industry,
+        size_band: pick(['1-10', '11-50', '51-200']),
+        primary_trigger: trigger,
+        mail_provider: pick(['google', 'google', 'microsoft', 'other']),
+        role_bucket: roleOf[title],
+        stars,
+        source: 'expelly',
+        snapshot_version: 1,
+      };
+      const cl = await c.query<{ id: string }>(
+        `INSERT INTO campaign_leads (org_id, campaign_id, lead_id, current_step, status, snapshot)
+         VALUES ($1,$2,$3,1,'completed',$4::jsonb) RETURNING id`,
+        [orgId, camp.rows[0].id, lead.rows[0].id, JSON.stringify(snapshot)],
+      );
+      const se = await c.query<{ id: string }>(
+        `INSERT INTO sent_emails
+           (org_id, campaign_id, campaign_lead_id, lead_id, step_id, to_email, subject,
+            status, sent_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'sent',$8) RETURNING id`,
+        [
+          orgId,
+          camp.rows[0].id,
+          cl.rows[0].id,
+          lead.rows[0].id,
+          step.rows[0].id,
+          `contact@${domain}`,
+          n % 2
+            ? 'Quick question about missed calls'
+            : 'Missed calls at {company}',
+          sentAt,
+        ],
+      );
+      const out = (type: string, verification: string, hours: number) =>
+        c.query(
+          `INSERT INTO outcome_events
+             (org_id, campaign_lead_id, lead_id, company_key, sent_email_id, type, source,
+              verification, occurred_at, idempotency_key)
+           VALUES ($1,$2,$3,$4,$5,$6,'manual',$7,$8,$9)`,
+          [
+            orgId,
+            cl.rows[0].id,
+            lead.rows[0].id,
+            domain,
+            se.rows[0].id,
+            type,
+            verification,
+            new Date(sentAt.getTime() + hours * 3_600_000),
+            `seed-ins:${type}:${n}`,
+          ],
+        );
+      if (rnd() < 0.35) {
+        await c.query(
+          `INSERT INTO email_events (org_id, sent_email_id, campaign_id, lead_id, type)
+           VALUES ($1,$2,$3,$4,'open')`,
+          [orgId, se.rows[0].id, camp.rows[0].id, lead.rows[0].id],
+        );
+      }
+      if (bounced) {
+        await out('bounce', 'verified', 0);
+        continue;
+      }
+      if (replied) {
+        const hours = 2 + Math.floor(rnd() * 70);
+        await out('reply', 'verified', hours);
+        if (rnd() < 0.6) {
+          const verified = rnd() < 0.8;
+          await out(
+            'qualified_reply',
+            verified ? 'verified' : 'provisional',
+            hours,
+          );
+          if (verified && rnd() < 0.25)
+            await out('booked_call', 'verified', hours + 24);
+        }
+      }
+    }
+    return true;
+  });
+}
