@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   BarChart3,
   CircleHelp,
+  ClipboardCheck,
   Gauge,
   FileText,
   Filter,
@@ -29,6 +30,7 @@ const NAV = [
   { href: "/segments", label: "Segments", icon: Filter },
   { href: "/campaigns", label: "Campaigns", icon: Send },
   { href: "/inbox", label: "Inbox", icon: Inbox },
+  { href: "/review/outcomes", label: "Review", icon: ClipboardCheck },
   { href: "/templates", label: "Templates", icon: FileText },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];

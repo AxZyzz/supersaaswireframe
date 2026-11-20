@@ -13,6 +13,39 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ## Sessions
 
+### 2026-11-21 — Learning Loop T03: Outcome events, attribution and human verification
+
+Aman had T01 and T02 built in another tool (commits `766eec8`, `e0b2d16` on `ll/T02`); they were re-checked here
+(migrate, lint, API tests, API build all fine) and T03 was built on `ll/T03` from `ll/T02`.
+
+- **Migration `0054_outcome_events.sql`:** `outcome_events` (type, source, verification, company_key,
+  experiment/variant, conversation, sent_email, `supersedes_id`, `UNIQUE (org_id, idempotency_key)`, RLS +
+  `owner_bypass`), the SQL view `v_outcomes_current` (`security_invoker`, so tenant RLS applies), and
+  `org_knowledge.qualification_rubric`. Corrections never update in place: they insert a superseding row.
+- **Producers (`apps/api/src/outcomes/`, hooked into existing code):** every reply (`reply`, verified, key = message id,
+  source `gmail_sync` or `system`); AI `interested` also a **provisional** `qualified_reply` (key per conversation);
+  Gmail bounce and the unsubscribe link -> verified events; the inbox "converted" toggle -> `booked_call` (verified when
+  a manager/admin does it, provisional for an agent; un-converting inserts a superseding rejected row).
+  Recording is best-effort inside a savepoint, so it can never break the reply/bounce/unsubscribe itself.
+- **Attribution:** enrollment from the thread (conversation / sent email), company key from the frozen snapshot (fallback
+  lead), experiment + variant from the email's own ids or the company's assignment. No match, or a lead in several
+  campaigns with no In-Reply-To, stays **unattributed** (flagged in `reason`), never guessed.
+- **API:** `GET /outcomes`, `GET /outcomes/unattributed`, `GET /outcomes/history/:conversationId`, `POST /outcomes`
+  (manual, client idempotency key), `POST /outcomes/:id/verify` (all roles; changing an earlier decision needs a reason),
+  `GET /experiments/:id/outcome-coverage`, `GET|PUT /review/rubric` (PUT admin/manager). In `docs/AUTHZ-MATRIX.md`.
+- **Web:** Inbox shows "AI: qualified reply (unconfirmed)" with **Confirm qualified / Not qualified**, who confirmed and
+  when, change-with-reason, the workspace rubric next to the buttons, and the old Convert button is now **Booked a call**;
+  new `/review/outcomes` queue (waiting for a decision + not tied to a campaign) in the sidebar as **Review**; Settings
+  has the rubric editor.
+- **Notes:** no code path produces `complaint` events yet (no SES webhook exists); the type, key and view support it.
+  `outcomeCoverage` = replying companies with no AI "qualified" label still waiting for a person / replying companies
+  (inside each company's response window); 1 when nobody replied. Unsubscribe events key on the enrollment (the link
+  carries no sent-email id), pointing at that enrollment's latest email.
+- **Tests:** `outcomes.integration.spec.ts` (provisional + attribution, question != qualified, same-company variant,
+  duplicate delivery -> one event, late reply stored, unattributed list, correction chain with history, agent can verify,
+  cross-org 404 + empty, converted/un-converted, unsubscribe once, bounce, manual idempotency, coverage, rubric roles)
+  and `outcome-logic.spec.ts`.
+
 ### 2026-11-20 — Learning Loop T01 + T02: Company key, Discover attributes, Offers, enrollment snapshot, experiments and stable company-level assignment
 
 - **T01 (finished & rebased onto `google-stack` `65ad84a`):**

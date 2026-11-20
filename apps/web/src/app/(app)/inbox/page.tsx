@@ -38,6 +38,7 @@ import { timeAgo } from "@/lib/analytics";
 import { Campaign, listCampaigns } from "@/lib/campaigns";
 import { draftReply } from "@/lib/ai";
 import { useLive } from "@/lib/realtime";
+import { OutcomePanel } from "@/components/outcome-panel";
 
 const FILTERS: { key: string; label: string }[] = [
   { key: "all", label: "All" },
@@ -402,15 +403,15 @@ function Inbox() {
                   title="Undo converted"
                   className="flex items-center gap-1 rounded bg-success-bg px-2 py-1 text-tiny font-medium text-success-text"
                 >
-                  <BadgeCheck size={13} /> Converted
+                  <BadgeCheck size={13} /> Call booked
                 </button>
               ) : (
                 <button
                   onClick={() => void patch({ converted: true })}
-                  title="Mark converted — stops the sequence and sets the lead to converted"
+                  title="Booked a call — stops the sequence and sets the lead to converted"
                   className="flex items-center gap-1 rounded border border-line-mid px-2 py-1 text-tiny text-ink hover:bg-hover"
                 >
-                  <BadgeCheck size={13} /> Convert
+                  <BadgeCheck size={13} /> Booked a call
                 </button>
               )}
               <select
@@ -442,6 +443,10 @@ function Inbox() {
                 {selected.status === "open" ? <Archive size={14} /> : <ArchiveRestore size={14} />}
               </button>
             </div>
+            <OutcomePanel
+              conversationId={selected.id}
+              refreshKey={`${selected.converted_at ?? ""}${selected.classification ?? ""}`}
+            />
             <div className="flex-1 space-y-3 overflow-y-auto bg-panel p-4">
               {selected.thread.map((m, i) => (
                 <div

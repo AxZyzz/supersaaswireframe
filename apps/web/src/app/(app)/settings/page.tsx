@@ -14,6 +14,7 @@ import { api } from "@/lib/api";
 import { toast } from "@/components/feedback";
 import { SendersSection } from "@/components/senders-section";
 import { KnowledgeSection } from "@/components/knowledge-section";
+import { ReviewRubricSection } from "@/components/review-rubric-section";
 import { WorkspaceSection } from "@/components/workspace-section";
 import { TeamSection } from "@/components/team-section";
 import { UsageSection } from "@/components/usage-section";
@@ -110,6 +111,8 @@ export default function SettingsPage() {
       <IntegrationsSection canManage={canManage} />
 
       <KnowledgeSection readOnly={role === "agent"} />
+
+      <ReviewRubricSection readOnly={!canManage} />
 
       <LeadStatusesSection canEdit={canManage} />
 

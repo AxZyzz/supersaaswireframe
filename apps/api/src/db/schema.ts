@@ -1206,10 +1206,9 @@ export const outcomeEvents = pgTable(
     variantId: uuid('variant_id').references(() => experimentVariants.id, {
       onDelete: 'set null',
     }),
-    conversationId: uuid('conversation_id').references(
-      () => conversations.id,
-      { onDelete: 'set null' },
-    ),
+    conversationId: uuid('conversation_id').references(() => conversations.id, {
+      onDelete: 'set null',
+    }),
     sentEmailId: uuid('sent_email_id').references(() => sentEmails.id, {
       onDelete: 'set null',
     }),

@@ -7,6 +7,7 @@ export const TITLES: [string, string][] = [
   ["/campaigns", "Campaigns"],
   ["/segments", "Segments"],
   ["/inbox", "Inbox"],
+  ["/review", "Review"],
   ["/templates", "Templates"],
   ["/analytics", "Analytics"],
   ["/settings", "Settings"],
