@@ -344,6 +344,13 @@
       "when": 1785603840000,
       "tag": "0048_email_verification",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1785603900000,
+      "tag": "0049_supabase_lockdown",
+      "breakpoints": true
     }
   ]
 }
