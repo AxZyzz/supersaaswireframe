@@ -12,9 +12,11 @@
  *
  * Uses the same journal + __drizzle_migrations table as `drizzle-kit migrate`,
  * so both can be used on one database. After migrating it re-applies the
- * owner_bypass policy (migration 0046) to any RLS table that lacks it.
+ * owner_bypass policy (migration 0046) to any RLS table that lacks it, and the
+ * Supabase Data API lockdown (migration 0049; no-op off Supabase).
  */
 import 'dotenv/config';
+import * as fs from 'fs';
 import * as path from 'path';
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
@@ -53,6 +55,12 @@ async function main() {
   try {
     await migrate(drizzle(pool), { migrationsFolder });
     await pool.query(OWNER_BYPASS_SQL);
+    await pool.query(
+      fs.readFileSync(
+        path.join(migrationsFolder, '0049_supabase_lockdown.sql'),
+        'utf8',
+      ),
+    );
 
     const appPassword = process.env.APP_DB_PASSWORD;
     if (appPassword) {
