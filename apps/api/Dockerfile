@@ -29,6 +29,10 @@ COPY --from=prod-deps /repo/node_modules node_modules
 COPY --from=build /repo/apps/api/package.json apps/api/package.json
 COPY --from=build /repo/apps/api/dist apps/api/dist
 COPY --from=build /repo/apps/api/drizzle apps/api/drizzle
+# Supabase's public root CA. DATABASE_URL / MIGRATE_DATABASE_URL point at it with
+# sslmode=verify-full&sslrootcert=/repo/apps/api/supabase-ca.crt so the pooler's
+# certificate and hostname are verified (Supabase's chain isn't in the system CAs).
+COPY deploy/supabase-ca.crt apps/api/supabase-ca.crt
 WORKDIR /repo/apps/api
 USER node
 EXPOSE 8080
