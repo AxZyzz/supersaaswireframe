@@ -52,7 +52,8 @@ def test_cost_estimate_states_the_order_of_magnitude(deploy):
 
 def test_both_agents_expose_an_executor_builder():
     from expelly_agents.copywriter.agent import build_executor as c
+    from expelly_agents.discover.agent import build_executor as d
     from expelly_agents.review_analyst.agent import build_executor as r
 
-    assert callable(c) and callable(r)
+    assert callable(c) and callable(r) and callable(d)
     assert r() is not None  # builds ADK's A2A executor without any network call

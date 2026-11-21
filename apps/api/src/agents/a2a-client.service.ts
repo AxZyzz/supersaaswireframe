@@ -10,7 +10,7 @@ import {
   type CircuitStore,
 } from '../ai/router/circuit-breaker';
 
-export type AgentName = 'review-analyst' | 'copywriter';
+export type AgentName = 'review-analyst' | 'copywriter' | 'discover';
 
 export interface A2aResult {
   /** The agent's answer, parsed from JSON. The caller still validates it. */
@@ -47,6 +47,7 @@ const CLIENT_TTL_MS = 5 * 60_000;
 const ENV_URL: Record<AgentName, string> = {
   'review-analyst': 'REVIEW_ANALYST_URL',
   copywriter: 'COPYWRITER_URL',
+  discover: 'DISCOVER_AGENT_URL',
 };
 
 const isLocal = (url: string) =>
@@ -100,6 +101,8 @@ export class A2aClientService implements OnModuleDestroy {
   /** Tests set these small/zero. */
   timeoutMs = TIMEOUT_MS;
   retryDelayMs = 400;
+  /** Per agent URL: Discover is a whole search, so it gets minutes, not seconds (T10). */
+  private readonly timeouts = new Map<string, number>();
 
   constructor(private readonly config: ConfigService) {}
 
@@ -147,7 +150,9 @@ export class A2aClientService implements OnModuleDestroy {
       return fetch(input, {
         ...init,
         headers,
-        signal: init?.signal ?? AbortSignal.timeout(this.timeoutMs),
+        signal:
+          init?.signal ??
+          AbortSignal.timeout(this.timeouts.get(url) ?? this.timeoutMs),
       });
     };
   }
@@ -233,6 +238,10 @@ export class A2aClientService implements OnModuleDestroy {
     if (!url) {
       throw new A2aUnavailableError(`${ENV_URL[agent]} is not set`);
     }
+    if (agent === 'discover') {
+      const n = Number(this.config.get<string>('DISCOVER_AGENT_TIMEOUT_MS'));
+      this.timeouts.set(url, Number.isFinite(n) && n >= 1000 ? n : 300_000);
+    }
     const key = `a2a:${agent}`;
     // with tracing on this is the live trace (API -> agent -> model in one
     // Cloud Trace); with it off, a fresh random id as before
@@ -242,7 +251,9 @@ export class A2aClientService implements OnModuleDestroy {
     }
     const started = Date.now();
     let lastErr: unknown;
-    for (let attempt = 0; attempt < 2; attempt++) {
+    // a whole Discover search is not retried: the caller falls back to the native pipeline
+    const attempts = agent === 'discover' ? 1 : 2;
+    for (let attempt = 0; attempt < attempts; attempt++) {
       try {
         const output = await this.once(url, payload, header);
         const latencyMs = Date.now() - started;

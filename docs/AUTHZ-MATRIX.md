@@ -83,6 +83,7 @@
 | `DELETE /integrations/google-sheets` | login | ✅ | ✅ | ⛔ |
 | `POST /integrations/google-sheets/connect` | login | ✅ | ✅ | ⛔ |
 | `POST /integrations/google-sheets/preview` | login | ✅ | ✅ | ⛔ |
+| `POST /internal/agent-tools/fetch-pages` | public | — | — | — |
 | `POST /internal/cron/expire-preferences` | public | — | — | — |
 | `POST /internal/cron/loop-health` | public | — | — | — |
 | `POST /internal/cron/weekly-review` | public | — | — | — |

@@ -59,6 +59,8 @@ const PUBLIC_ALLOWLIST = [
   'POST /internal/cron/weekly-review',
   'POST /internal/cron/expire-preferences',
   'POST /internal/cron/loop-health',
+  // the Discover agent's page-reading tool: AgentToolAuthGuard verifies its signed ID token (T10)
+  'POST /internal/agent-tools/fetch-pages',
 ];
 
 interface RouteInfo {

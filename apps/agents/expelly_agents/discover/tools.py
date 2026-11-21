@@ -42,7 +42,12 @@ async def fetch_pages_via_api(org_id: str, run_id: str, domain: str) -> FetchRes
     try:
         base = _base_url()
         headers = {"Content-Type": "application/json"}
-        if os.environ.get("DISCOVER_TOOLS_AUTH", "").strip().lower() != "none":
+        if os.environ.get("DISCOVER_TOOLS_AUTH", "").strip().lower() == "none":
+            # local development only: the API accepts this when NODE_ENV=development
+            dev = os.environ.get("DISCOVER_TOOLS_DEV_SECRET", "").strip()
+            if dev:
+                headers["X-Agent-Secret"] = dev
+        else:
             audience = os.environ.get("DISCOVER_TOOLS_AUDIENCE", "").strip() or base
             headers["Authorization"] = (
                 f"Bearer {await asyncio.to_thread(_id_token, audience)}"

@@ -34,6 +34,12 @@ AGENTS = {
         "description": "Drafts three challenger email subject lines (drafts only).",
         "model_env": "GEMINI_MODEL_POWERFUL",
     },
+    "discover": {
+        "module": "expelly_agents.discover.agent",
+        "display_name": "expelly-discover",
+        "description": "Finds and checks companies for a Discover search; reads the web only through the Expelly API.",
+        "model_env": "GEMINI_MODEL_BALANCED",
+    },
 }
 
 # Pinned like pyproject.toml: Agent Engine installs exactly these in the agent's container.

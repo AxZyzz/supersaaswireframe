@@ -2,6 +2,8 @@ import { InjectQueue } from '@nestjs/bullmq';
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Inject,
   Injectable,
   Logger,
@@ -9,7 +11,9 @@ import {
   Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
+import type { DiscoverCandidate } from '../agents/contracts';
 import { Pool, PoolClient } from 'pg';
 import { AiService } from '../ai/ai.service';
 import {
@@ -36,12 +40,19 @@ import {
   reservedSlots,
 } from '../search-preferences/preference-logic';
 import {
-  ATTR_PROMPT_VERSION,
-  type Offer,
-  icpAndCandidatesPrompt,
-  researchPrompt,
-  targetedCandidatesPrompt,
-} from './prompts';
+  AGENT_ATTR_VERSION,
+  AgentDiscoverDriver,
+  claimToAnalysis,
+  type DiscoverDriverName,
+  NativeDiscoverDriver,
+  type PlanInput,
+  type PlanResult,
+} from './discover-driver';
+import {
+  DiscoverRunCache,
+  MAX_AGENT_FETCHES_PER_RUN,
+} from './discover-run-cache';
+import { ATTR_PROMPT_VERSION, type Offer, researchPrompt } from './prompts';
 import {
   cleanIndustry,
   cleanSizeBand,
@@ -135,6 +146,24 @@ interface ProspectRow {
   mail_provider: string | null;
 }
 
+/** What reading one company's site gave: pages to verify against, or the reason it stopped. */
+export type Gathered =
+  | {
+      kind: 'ok';
+      homeUrl: string;
+      fetchedUrls: string[];
+      pages: { url: string; text: string }[];
+      emails: ProspectEmail[];
+      skippedNote: string | null;
+      skippedPages: number;
+    }
+  | {
+      kind: 'stop';
+      reason: 'robots_disallowed' | 'unreachable' | 'safety_blocked';
+      /** The columns to save on the prospect. */
+      fields: Record<string, unknown>;
+    };
+
 @Injectable()
 export class ProspectsService {
   private readonly logger = new Logger(ProspectsService.name);
@@ -154,6 +183,10 @@ export class ProspectsService {
     private readonly usage: UsageService,
     private readonly mailProviders: MailProviderService,
     private readonly offers: OffersService,
+    private readonly native: NativeDiscoverDriver,
+    private readonly agent: AgentDiscoverDriver,
+    private readonly cache: DiscoverRunCache,
+    private readonly config: ConfigService,
     @Optional()
     @Inject(SAFETY_SCREEN)
     private readonly safety?: SafetyScreen,
@@ -310,6 +343,9 @@ export class ProspectsService {
       return {
         ...r.rows[0],
         allocation_line: al ? allocationLine(al) : null,
+        // T10: what the Discover agent is doing (only when that driver is switched on)
+        agent_steps:
+          this.driverName() === 'agent' ? await this.cache.steps(runId) : [],
         prospects: p.rows,
       };
     });
@@ -483,33 +519,14 @@ export class ProspectsService {
         await this.finishRun(orgId, runId);
         return;
       }
-      const res = await this.ai.generate(orgId, 'prospect-icp', {
-        ...icpAndCandidatesPrompt(
-          run.goal,
-          offer,
-          Math.ceil(run.requested * 1.5),
-        ),
-        task: 'discover_plan',
+      const planned = await this.planSearch(orgId, run, offer, {
+        mode: 'baseline',
+        count: run.requested,
+        askFor: Math.ceil(run.requested * 1.5),
+        limit: run.requested,
       });
-      const parsed = JSON.parse(res.text) as {
-        icp?: Record<string, unknown>;
-        candidates?: { name?: unknown; domain?: unknown; reason?: unknown }[];
-      };
-      const seen = new Set<string>();
-      const candidates: { name: string; domain: string; reason: string }[] = [];
-      for (const c of parsed.candidates ?? []) {
-        const domain =
-          typeof c.domain === 'string' ? normalizeDomain(c.domain) : null;
-        if (!domain || seen.has(domain) || typeof c.name !== 'string') continue;
-        seen.add(domain);
-        candidates.push({
-          name: c.name.trim().slice(0, 200),
-          domain,
-          reason: typeof c.reason === 'string' ? c.reason.slice(0, 400) : '',
-        });
-        if (candidates.length >= run.requested) break;
-      }
-      const icp = parsed.icp ?? null;
+      const candidates = planned.candidates;
+      const icp = planned.icp;
       const prospects = await this.run(orgId, async (c) => {
         await c.query(
           `UPDATE prospect_runs SET icp = $2::jsonb, total = $3 WHERE id = $1`,
@@ -564,7 +581,16 @@ export class ProspectsService {
         let timer: NodeJS.Timeout | undefined;
         try {
           await Promise.race([
-            this.researchOne(orgId, run, icpSummary, offer, p),
+            this.researchOne(
+              orgId,
+              run,
+              icpSummary,
+              offer,
+              p,
+              this.driverName() === 'agent'
+                ? await this.cache.getClaim(run.id, p.domain)
+                : null,
+            ),
             new Promise<never>((_, reject) => {
               timer = setTimeout(
                 () => reject(new Error('Checking this website took too long')),
@@ -649,6 +675,82 @@ export class ProspectsService {
 
   // ── T12: a run with a search preference ─────────────────────────────────
 
+  /** `DISCOVER_DRIVER`: native (default, today's pipeline) or agent (the ADK Discover agent, T10). */
+  private driverName(): DiscoverDriverName {
+    return this.config.get<string>('DISCOVER_DRIVER')?.trim().toLowerCase() ===
+      'agent'
+      ? 'agent'
+      : 'native';
+  }
+
+  /**
+   * Plans one search (the ICP and candidate companies). In agent mode a single A2A call does the
+   * planning, finding and first check; if the agent cannot answer the API falls back to the native
+   * pipeline for that call, so a run never depends on the agent being up.
+   */
+  private async planSearch(
+    orgId: string,
+    run: RunRow,
+    offer: Offer,
+    p: {
+      mode: 'baseline' | 'targeted';
+      count: number;
+      askFor: number;
+      limit: number;
+      preference?: PlanInput['preference'];
+    },
+  ): Promise<PlanResult> {
+    const base: PlanInput = {
+      orgId,
+      runId: run.id,
+      goal: run.goal,
+      offer,
+      offerRef: { id: run.offer_id ?? 'none', name: 'Offer' },
+      mode: p.mode,
+      count: p.count,
+      askFor: p.askFor,
+      limit: p.limit,
+      preference: p.preference,
+      excludeCompanyKeys: [],
+    };
+    if (this.driverName() === 'agent') {
+      try {
+        const ref = await this.run(
+          orgId,
+          async (c) =>
+            (
+              await c.query<{
+                id: string;
+                name: string;
+                description: string | null;
+              }>(`SELECT id, name, description FROM offers WHERE id = $1`, [
+                run.offer_id,
+              ])
+            ).rows[0],
+        );
+        if (ref) {
+          base.offerRef = {
+            id: ref.id,
+            name: ref.name,
+            ...(ref.description ? { description: ref.description } : {}),
+          };
+        }
+        base.excludeCompanyKeys = [...(await this.knownCompanies(orgId, run))];
+        const r = await this.agent.plan(base);
+        return { icp: r.icp, candidates: r.candidates };
+      } catch (e) {
+        this.logger.warn(
+          `Discover agent unavailable for run ${run.id}, using the standard search: ${e instanceof Error ? e.message : String(e)}`,
+        );
+        await this.cache.pushStep(
+          run.id,
+          'The agent could not answer, so the standard search is used instead.',
+        );
+      }
+    }
+    return this.native.plan(base);
+  }
+
   /** Companies this workspace already knows: earlier searches of the offer, and leads. */
   private async knownCompanies(
     orgId: string,
@@ -669,30 +771,6 @@ export class ProspectsService {
         ).rows,
     );
     return new Set(rows.map((r) => r.k));
-  }
-
-  private parseCandidates(
-    text: string,
-    limit: number,
-  ): { name: string; domain: string; reason: string }[] {
-    const parsed = JSON.parse(text) as {
-      candidates?: { name?: unknown; domain?: unknown; reason?: unknown }[];
-    };
-    const seen = new Set<string>();
-    const out: { name: string; domain: string; reason: string }[] = [];
-    for (const c of parsed.candidates ?? []) {
-      const domain =
-        typeof c.domain === 'string' ? normalizeDomain(c.domain) : null;
-      if (!domain || seen.has(domain) || typeof c.name !== 'string') continue;
-      seen.add(domain);
-      out.push({
-        name: c.name.trim().slice(0, 200),
-        domain,
-        reason: typeof c.reason === 'string' ? c.reason.slice(0, 400) : '',
-      });
-      if (out.length >= limit) break;
-    }
-    return out;
   }
 
   /**
@@ -757,36 +835,33 @@ export class ProspectsService {
     }
 
     // 1. the normal search, with room to spare for filling
-    const plan = await this.ai.generate(orgId, 'prospect-icp', {
-      ...icpAndCandidatesPrompt(
-        run.goal,
-        offer,
-        Math.ceil(run.requested * 1.5),
-      ),
-      task: 'discover_plan',
+    const basePlan = await this.planSearch(orgId, run, offer, {
+      mode: 'baseline',
+      count: Math.min(50, run.requested + cap),
+      askFor: Math.ceil(run.requested * 1.5),
+      limit: Math.ceil(run.requested * 1.5),
     });
-    const parsedPlan = JSON.parse(plan.text) as {
-      icp?: Record<string, unknown>;
-    };
-    const baselineAll = this.parseCandidates(
-      plan.text,
-      Math.ceil(run.requested * 1.5),
-    );
-    const icp = parsedPlan.icp ?? null;
+    const baselineAll = basePlan.candidates;
+    const icp = basePlan.icp;
 
     // 2. the constrained search; if it fails the batch is filled normally
     let targetedAll: { name: string; domain: string; reason: string }[] = [];
     try {
-      const t = await this.ai.generate(orgId, 'prospect-targeted', {
-        ...targetedCandidatesPrompt(
-          run.goal,
-          offer,
-          describeFilter(pref.factor, pref.value),
-          Math.min(cap * 2, 8),
-        ),
-        task: 'discover_plan',
-      });
-      targetedAll = this.parseCandidates(t.text, Math.min(cap * 2, 8));
+      targetedAll = (
+        await this.planSearch(orgId, run, offer, {
+          mode: 'targeted',
+          count: Math.min(cap * 2, 8),
+          askFor: Math.min(cap * 2, 8),
+          limit: Math.min(cap * 2, 8),
+          preference: {
+            id: run.preference_id ?? '',
+            revision: run.preference_revision ?? 1,
+            factor: pref.factor,
+            value: pref.value,
+            condition: describeFilter(pref.factor, pref.value),
+          },
+        })
+      ).candidates;
     } catch (e) {
       this.logger.warn(
         `targeted search failed for run ${run.id}, filling from the normal search: ${e instanceof Error ? e.message : String(e)}`,
@@ -977,37 +1052,33 @@ export class ProspectsService {
     );
   }
 
-  /** Read the company's own site, then let Gemini qualify it from those pages. */
-  async researchOne(
-    orgId: string,
-    run: Pick<RunRow, 'goal'>,
-    icpSummary: string,
-    offer: Offer,
-    p: { id: string; domain: string },
-  ) {
-    // the company key is known from the domain alone, whatever happens next
-    await this.save(orgId, p.id, {
-      status: 'researching',
-      company_key: companyKey(null, p.domain),
-    });
-
+  /**
+   * Read ONE company's own website, safely: robots.txt, the SSRF-guarded fetch, page limits, Model
+   * Armor, and the emails that literally appear on the pages. Shared by the native research and by
+   * the Discover agent's tool endpoint (T10): there is exactly one way the API reads the web.
+   */
+  async gatherCompany(domain: string): Promise<Gathered> {
     // robots.txt first (unreachable robots = no rules)
     let rules: string[] = [];
     try {
-      const r = await this.io.fetchPage(`https://${p.domain}/robots.txt`);
+      const r = await this.io.fetchPage(`https://${domain}/robots.txt`);
       if (r.status === 200) rules = parseRobots(r.html);
     } catch {
       /* no robots */
     }
     if (!robotsAllows(rules, '/')) {
-      return this.save(orgId, p.id, {
-        status: 'unreachable',
-        error: "The site's robots.txt asks bots not to read it",
-      });
+      return {
+        kind: 'stop',
+        reason: 'robots_disallowed',
+        fields: {
+          status: 'unreachable',
+          error: "The site's robots.txt asks bots not to read it",
+        },
+      };
     }
 
     let home: FetchedPage | null = null;
-    for (const url of [`https://${p.domain}/`, `https://www.${p.domain}/`]) {
+    for (const url of [`https://${domain}/`, `https://www.${domain}/`]) {
       try {
         const r = await this.io.fetchPage(url);
         if (r.status >= 200 && r.status < 300 && r.html.length > 200) {
@@ -1019,11 +1090,15 @@ export class ProspectsService {
       }
     }
     if (!home) {
-      return this.save(orgId, p.id, {
-        status: 'unreachable',
-        error:
-          "Couldn't open the website (offline, blocked, or not a real site)",
-      });
+      return {
+        kind: 'stop',
+        reason: 'unreachable',
+        fields: {
+          status: 'unreachable',
+          error:
+            "Couldn't open the website (offline, blocked, or not a real site)",
+        },
+      };
     }
 
     const fetched: FetchedPage[] = [home];
@@ -1065,16 +1140,20 @@ export class ProspectsService {
         ? `${skippedPages} page${skippedPages === 1 ? '' : 's'} skipped by safety check`
         : null;
     if (skippedPages > 0 && pages.length === 0) {
-      return this.save(orgId, p.id, {
-        status: 'unverified',
-        website_url: home.url,
-        pages: fetched.map((f) => f.url),
-        error: skippedNote,
-      });
+      return {
+        kind: 'stop',
+        reason: 'safety_blocked',
+        fields: {
+          status: 'unverified',
+          website_url: home.url,
+          pages: fetched.map((f) => f.url),
+          error: skippedNote,
+        },
+      };
     }
 
     // Real emails only: exactly as they appear on the company's pages.
-    const host = p.domain;
+    const host = domain;
     // acme.com may redirect to acme-group.com: its addresses are own too
     const finalHost = new URL(home.url).hostname
       .toLowerCase()
@@ -1104,31 +1183,159 @@ export class ProspectsService {
       if (emails.length >= 8) break;
     }
 
-    let analysis: Record<string, unknown>;
-    let model = '';
-    try {
-      const res = await this.ai.generate(orgId, 'prospect-research', {
-        ...researchPrompt({
-          goal: run.goal,
-          icpSummary,
-          offer,
-          domain: p.domain,
-          pages,
-        }),
-        task: 'discover_verify_extract',
-      });
-      analysis = JSON.parse(res.text) as Record<string, unknown>;
-      model = res.model;
-    } catch (e) {
-      return this.save(orgId, p.id, {
-        status: 'unverified',
-        website_url: home.url,
-        emails,
-        pages: fetched.map((f) => f.url),
-        error: `AI couldn't analyse it: ${e instanceof Error ? e.message.slice(0, 120) : 'error'}`,
+    return {
+      kind: 'ok',
+      homeUrl: home.url,
+      fetchedUrls: fetched.map((f) => f.url),
+      pages,
+      emails,
+      skippedNote,
+      skippedPages,
+    };
+  }
+
+  /**
+   * The pages an agent-driven run already read (the tool endpoint cached them), so the quotes the
+   * agent sends back are checked against the SAME text. A cache miss simply reads the site again.
+   */
+  private async cachedGather(
+    runId: string,
+    domain: string,
+  ): Promise<Gathered | null> {
+    const c = await this.cache.getPages(runId, domain);
+    if (!c) return null;
+    return {
+      kind: 'ok',
+      homeUrl: c.homeUrl,
+      fetchedUrls: c.fetchedUrls,
+      pages: c.pages,
+      emails: c.emails,
+      skippedNote: c.skippedNote,
+      skippedPages: c.skippedNote ? 1 : 0,
+    };
+  }
+
+  /** What the Discover agent's `fetch_company_pages` tool gets (T10). */
+  async fetchPagesForAgent(orgId: string, runId: string, domain: string) {
+    const run = await this.run(
+      orgId,
+      async (c) =>
+        (
+          await c.query<{ status: string }>(
+            `SELECT status FROM prospect_runs WHERE id = $1`,
+            [runId],
+          )
+        ).rows[0],
+    );
+    if (!run) throw new NotFoundException('Search not found');
+    if (run.status !== 'queued' && run.status !== 'running') {
+      throw new ConflictException({
+        statusCode: 409,
+        error: 'run_not_active',
+        message: 'This search is not running.',
       });
     }
+    const d = normalizeDomain(domain);
+    if (!d) throw new BadRequestException('That is not a website domain');
+    if ((await this.cache.countFetch(runId)) > MAX_AGENT_FETCHES_PER_RUN) {
+      throw new HttpException(
+        {
+          statusCode: 429,
+          error: 'run_limit',
+          message: `A search may read at most ${MAX_AGENT_FETCHES_PER_RUN} companies.`,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    await this.cache.pushStep(runId, `Agent: reading ${d}`);
+    const g = await this.gatherCompany(d);
+    if (g.kind === 'stop') {
+      return { ok: false, domain: d, reason: g.reason, pages: [] };
+    }
+    await this.cache.setPages(runId, d, {
+      homeUrl: g.homeUrl,
+      fetchedUrls: g.fetchedUrls,
+      pages: g.pages,
+      emails: g.emails,
+      skippedNote: g.skippedNote,
+    });
+    return {
+      ok: true,
+      domain: d,
+      finalUrl: g.homeUrl,
+      pages: g.pages,
+      skippedForSafety: g.skippedPages,
+    };
+  }
 
+  /**
+   * Read the company's own site, then qualify it from those pages: with the API's own AI (native)
+   * or from the Discover agent's claim (T10). Either way every quote, location and trigger is
+   * verified against the pages here, and the emails come from the pages, never from the model.
+   */
+  async researchOne(
+    orgId: string,
+    run: { id?: string; goal: string },
+    icpSummary: string,
+    offer: Offer,
+    p: { id: string; domain: string },
+    claim: DiscoverCandidate | null = null,
+  ) {
+    // the company key is known from the domain alone, whatever happens next
+    await this.save(orgId, p.id, {
+      status: 'researching',
+      company_key: companyKey(null, p.domain),
+    });
+
+    let g: Gathered | null =
+      claim && run.id ? await this.cachedGather(run.id, p.domain) : null;
+    g ??= await this.gatherCompany(p.domain);
+    if (g.kind === 'stop') return this.save(orgId, p.id, g.fields);
+
+    let analysis: Record<string, unknown>;
+    let model = '';
+    let promptVersion = ATTR_PROMPT_VERSION;
+    if (claim) {
+      analysis = claimToAnalysis(claim);
+      model = 'adk-discover';
+      promptVersion = AGENT_ATTR_VERSION;
+    } else {
+      try {
+        const res = await this.ai.generate(orgId, 'prospect-research', {
+          ...researchPrompt({
+            goal: run.goal,
+            icpSummary,
+            offer,
+            domain: p.domain,
+            pages: g.pages,
+          }),
+          task: 'discover_verify_extract',
+        });
+        analysis = JSON.parse(res.text) as Record<string, unknown>;
+        model = res.model;
+      } catch (e) {
+        return this.save(orgId, p.id, {
+          status: 'unverified',
+          website_url: g.homeUrl,
+          emails: g.emails,
+          pages: g.fetchedUrls,
+          error: `AI couldn't analyse it: ${e instanceof Error ? e.message.slice(0, 120) : 'error'}`,
+        });
+      }
+    }
+    return this.finishCompany(orgId, p, g, analysis, model, promptVersion);
+  }
+
+  /** Verify an analysis against the pages and store the company. The same for every driver. */
+  private async finishCompany(
+    orgId: string,
+    p: { id: string; domain: string },
+    g: Extract<Gathered, { kind: 'ok' }>,
+    analysis: Record<string, unknown>,
+    model: string,
+    promptVersion: string,
+  ) {
+    const { pages, emails, skippedNote } = g;
     const evidence = verifyEvidence(analysis.facts, pages);
     // Attributes are verified like evidence: what the pages don't back up is
     // dropped and stays explicit (null / unknown). Timezone is code-derived.
@@ -1143,7 +1350,7 @@ export class ProspectsService {
       typeof analysis[k] === 'string' ? analysis[k].trim().slice(0, max) : null;
     await this.save(orgId, p.id, {
       status: real ? 'verified' : 'rejected',
-      website_url: home.url,
+      website_url: g.homeUrl,
       company_name: str('companyName', 200) || (await this.nameOf(orgId, p.id)),
       summary: str('summary', 600),
       industry: cleanIndustry(analysis.industry),
@@ -1156,7 +1363,7 @@ export class ProspectsService {
       triggers,
       mail_provider: mailProvider,
       attr_model: model,
-      attr_prompt_version: ATTR_PROMPT_VERSION,
+      attr_prompt_version: promptVersion,
       evidence,
       opportunity: cleanOpportunity(analysis.opportunity),
       unknowns: [
@@ -1164,7 +1371,7 @@ export class ProspectsService {
         ...(skippedNote ? [skippedNote] : []),
       ],
       emails,
-      pages: fetched.map((f) => f.url),
+      pages: g.fetchedUrls,
       fit_score: real ? score.total : null,
       stars: real ? score.stars : null,
       score_parts: real ? score.parts : null,

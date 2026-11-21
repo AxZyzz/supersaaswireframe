@@ -51,13 +51,21 @@ want Mumbai, check Google's "Agent locations" page first: not every region has A
    python deploy/deploy_agent_engine.py --agent review_analyst --project <PROJECT_ID> --staging-bucket gs://<PROJECT_ID>-agent-staging --min-instances 0           # dry run
    python deploy/deploy_agent_engine.py --agent review_analyst --project <PROJECT_ID> --staging-bucket gs://<PROJECT_ID>-agent-staging --min-instances 0 --apply
    python deploy/deploy_agent_engine.py --agent copywriter     --project <PROJECT_ID> --staging-bucket gs://<PROJECT_ID>-agent-staging --min-instances 0 --apply
+   python deploy/deploy_agent_engine.py --agent discover       --project <PROJECT_ID> --staging-bucket gs://<PROJECT_ID>-agent-staging --min-instances 0 --apply
    ```
+   **Discover (T10) also needs two settings on the agent** so it can call the API's page-reading tool:
+   `DISCOVER_TOOLS_URL` (the API's address) and, if the audience differs from that address,
+   `DISCOVER_TOOLS_AUDIENCE`. The agent proves who it is with a Google ID token for the API (its service
+   account, no key). On the API service set `AGENT_TOOLS_AUDIENCE` (the API's address) and
+   `AGENT_TOOLS_SA_EMAIL` (the agent's service account): the API accepts only that account.
 5. **Register both in Agent Registry** (so other agents and people can discover them): follow Google's
    `agent-platform-agent-registry` skill / docs page for the current command, using each agent's
    Agent Card. Take a screenshot of the listing for the T09 report.
 6. **Let the API call them.** Give the API's Cloud Run service account permission to call the agents
    (`roles/aiplatform.user`), then set on the API service: `REVIEW_EXPLAINER=agent`,
    `COPYWRITER_DRIVER=agent`, `REVIEW_ANALYST_URL=<agent A2A URL>`, `COPYWRITER_URL=<agent A2A URL>`.
+   For Discover: `DISCOVER_DRIVER=agent`, `DISCOVER_AGENT_URL=<agent A2A URL>` (and optionally
+   `DISCOVER_AGENT_TIMEOUT_MS`, default 300000). Switch it back with `DISCOVER_DRIVER=native`.
    (If the card is not at `/.well-known/agent-card.json`, also set `A2A_CARD_PATH`.)
 7. **Check one Cloud Trace**: open a Review, then Cloud Trace: one trace should show API -> agent ->
    Gemini (the API sends a W3C `traceparent` header; its log line `a2a_call` carries the same
@@ -65,7 +73,7 @@ want Mumbai, check Google's "Agent locations" page first: not every region has A
 
 ## Rolling back
 
-Set `REVIEW_EXPLAINER=template` and `COPYWRITER_DRIVER=gemini` and restart the API: back to the
+Set `REVIEW_EXPLAINER=template`, `COPYWRITER_DRIVER=gemini` and `DISCOVER_DRIVER=native` and restart the API: back to the
 built-in text and the direct Gemini drafter, with the agents untouched. Delete an agent in the
 Agent Platform console, or `gcloud` equivalent, to stop its billing.
 

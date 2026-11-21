@@ -562,6 +562,17 @@ export default function DiscoverPage() {
               {run.status === "failed" && `Failed: ${run.error ?? "try again"}`}
             </div>
           </div>
+          {run.agent_steps && run.agent_steps.length > 0 && (
+            <ul
+              aria-label="Agent steps"
+              className="mt-2 space-y-0.5 text-tiny text-muted"
+              data-testid="agent-steps"
+            >
+              {run.agent_steps.slice(-4).map((s) => (
+                <li key={`${s.at}-${s.text}`}>{s.text}</li>
+              ))}
+            </ul>
+          )}
           {run.allocation_line && (
             <p className="mt-2 text-sm text-ink" data-testid="allocation-line">
               {run.allocation_line}

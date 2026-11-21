@@ -26,6 +26,8 @@ export interface ProspectRun {
   /** T12: the search preference this run pinned, and the sentence about how it was used. */
   preference_id?: string | null;
   allocation_line?: string | null;
+  /** T10: what the Discover agent did (only when DISCOVER_DRIVER=agent). */
+  agent_steps?: { at: string; text: string }[];
 }
 
 export interface ProspectTrigger {

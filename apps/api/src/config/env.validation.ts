@@ -38,6 +38,21 @@ export function validateEnv(
     }
   }
 
+  // Discover driver (T10): the agent needs an address and the identity it may call back with.
+  const dd = str('DISCOVER_DRIVER').toLowerCase();
+  if (dd && !['native', 'agent'].includes(dd)) {
+    errors.push('DISCOVER_DRIVER must be "native" or "agent"');
+  }
+  if (dd === 'agent') {
+    for (const k of [
+      'DISCOVER_AGENT_URL',
+      'AGENT_TOOLS_AUDIENCE',
+      'AGENT_TOOLS_SA_EMAIL',
+    ]) {
+      if (!str(k)) errors.push(`DISCOVER_DRIVER=agent needs ${k}`);
+    }
+  }
+
   // Scheduled jobs (T13): CRON_MODE=scheduler hands the loop jobs to Cloud
   // Scheduler, which can only call in with a verifiable identity.
   const cm = str('CRON_MODE').toLowerCase();
