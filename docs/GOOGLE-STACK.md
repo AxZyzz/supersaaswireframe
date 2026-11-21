@@ -347,6 +347,20 @@ caps (20–100/day per mailbox) cold email should use anyway. Platform emails
 
 ---
 
+## Discover as an ADK agent (T10; code done, not deployed)
+
+`DISCOVER_DRIVER=agent` sends each Discover search to the Python Discover agent (`apps/agents/expelly_agents/discover/`)
+over A2A with a typed request (`packages/shared/src/agents/discover.*.schema.json`: goal, offer, mode `baseline|targeted`,
+an optional search preference, companies to skip). The agent plans, proposes companies and, per company (4 at a time),
+reads the site through ONE tool: `POST /internal/agent-tools/fetch-pages` on the API, which does the SSRF guard, robots.txt,
+page limits and Model Armor, and answers only to the agent's service account (`AGENT_TOOLS_SA_EMAIL`, ID token for
+`AGENT_TOOLS_AUDIENCE`, at most 60 companies per run). Its answer is a claim: the API checks every quote against the same
+pages (Redis cache), reads emails from the pages, scores, dedupes, caps and stores, and decides `matchedPreference` itself.
+`native` (default) is today's pipeline, unchanged, and also the fallback when the agent cannot answer.
+Deploy steps (Agent Engine, the two settings): `apps/agents/deploy/README.md`. Not run.
+
+---
+
 ## Scheduled jobs, monitoring and tracing (T13; code done, Google Cloud setup not run)
 
 The loop's time-based jobs (weekly review, preference expiry, loop-health log line) can run from **Cloud Scheduler**

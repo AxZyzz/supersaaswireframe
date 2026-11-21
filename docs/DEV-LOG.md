@@ -13,6 +13,39 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ## Sessions
 
+### 2026-11-21 — Learning Loop T10: Discover as an ADK agent with a typed contract
+
+Built on `ll/T10` from `ll/T13` `f27ed09` (T12 and T13 are pushed, not merged). **No Google Cloud command was run and nothing is
+deployed.** `DISCOVER_DRIVER=native` stays the default, so nothing changes until the setting is flipped after the deploy.
+
+- **Typed contract (`packages/shared/src/agents/discover.input|output.schema.json` + fixtures):** request = goal, offer, mode
+  `baseline|targeted`, optional search preference, companies to skip, cap. Answer = a list of company *claims* (name, domain, summary,
+  facts with quote + url, triggers, location, emails, scores, `matchedPreference` echo). Python (pydantic) and the API validate the
+  same files; a contract-breaking answer is a failure, not a guess.
+- **Agent (`apps/agents/expelly_agents/discover/`):** `DiscoverCoordinator` (ADK `BaseAgent`): planner, finder, then per company
+  (4 at a time) a verifier that has ONE tool, `fetch_company_pages(domain)`, bound to the run so the model never passes an id. The
+  agent re-checks every quote against the pages it was served and drops what is not on them. Served over A2A; deployable through
+  `deploy_agent_engine.py --agent discover`.
+- **One safe web reader (`POST /internal/agent-tools/fetch-pages`):** the same SSRF guard, robots.txt, page limits and Model Armor as
+  the native pipeline; answers only to the agent's service account (Google ID token, audience `AGENT_TOOLS_AUDIENCE`, email
+  `AGENT_TOOLS_SA_EMAIL`); `X-Agent-Secret` works only when `NODE_ENV=development`; at most 60 companies per run; pages cached in
+  Redis per run so the API can verify afterwards without fetching again.
+- **The agent's answer is a claim:** `AgentDiscoverDriver` re-checks quotes and emails against the cached pages, scores, dedupes,
+  excludes, caps and stores through the same code as native, and decides `matchedPreference` itself (the T12 `matchesFactor`).
+  `AGENT_ATTR_VERSION=agent-discover@1`.
+- **Fallback:** agent down, timeout (one try, `DISCOVER_AGENT_TIMEOUT_MS`, default 5 min) or a contract-breaking answer: the same
+  search runs on the native pipeline and the run shows a step line saying so.
+- **UI:** the Discover run header lists the agent's steps (`data-testid="agent-steps"`).
+- **Checks:** Python 37 pass. API: lint and tsc clean; full suite 767 pass, 3 fail: the gemini spec (fails the same on the base tree) and 2 tracking specs that pass alone (10/10), flaky under the full run; web lint 0 errors, web build OK. New tests: `discover-agent.integration.spec.ts` (7: verified by the API
+  with a bad trigger and an invented email dropped; preference echo with code-decided match; fallback on crash with no retry;
+  fallback on a contract-breaking answer; tool auth 401s; endpoint 404/400/409; SSRF private IP, Model Armor, 60 limit),
+  `agent-tools.guard.spec.ts` (3), contract spec extras.
+- **Local end-to-end:** the real coordinator with a scripted model (`apps/agents/scripts/serve_discover_demo.py`, no Gemini) on :8103,
+  API with `DISCOVER_DRIVER=agent`, web: Discover showed the agent steps and "2 of 2 verified on their own websites" with quotes
+  (`docs/discover-agent-screenshots/discover-agent-path.jpg`).
+- **NOT verified (needs the deploy):** acceptance 1, a real Agent Engine run with Gemini and one Cloud Trace across the API and the
+  agent. Deploy steps: `apps/agents/deploy/README.md`, `docs/GOOGLE-STACK.md`.
+
 ### 2026-11-21 — Learning Loop T13: weekly auto-review, scheduled jobs, loop health, tracing
 
 Built on `ll/T13` from `ll/T12` `160d534` (T12 is pushed but not merged, so this sits on T08, T09, T11 and T12). Migration `0059`,

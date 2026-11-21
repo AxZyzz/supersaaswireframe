@@ -8,6 +8,7 @@ another program's AI to do a job).
 |---|---|---|
 | **Review analyst** | Takes the numbers from a campaign Review and explains them in plain English. Every sentence names the finding ids (F1, F2...) it relies on. | Decide anything. The decision ("keep testing", "promote") is made by code in the API before the agent sees it. |
 | **Copywriter** | Drafts 3 challenger email subject lines for the next A/B test. | Send, schedule or apply anything. The API saves a chosen subject as a *draft* and a person approves it. |
+| **Discover** (T10) | Plans a prospect search, proposes real companies, and reads each one's own website to pull out evidence quotes, location, buying triggers and emails. | Read the web by itself (its only tool calls the Expelly API, which does the safe fetching), score, store or decide anything. Its answer is a *claim*: the API re-checks every quote and email against the pages it served and decides `matchedPreference` itself. |
 
 **Rule: code decides, AI drafts, people approve.** The API does not trust either agent. It checks
 the Review analyst's every finding id, number and word before showing it (`apps/api/src/agents/explanation-validator.ts`),
@@ -38,6 +39,8 @@ without a test failing. After changing a schema run `npm run contracts:sync -w a
 | `COPYWRITER_DRIVER` | `gemini` (default), `agent`, `mock` | `agent` = the Copywriter over A2A; `gemini` = the direct Gemini drafter from T11; `mock` = fixed template subjects, no AI. |
 | `REVIEW_ANALYST_URL`, `COPYWRITER_URL` | e.g. `http://localhost:8101` | Where the agents live. For Agent Engine use the agent's A2A endpoint. |
 | `A2A_AUTH` | `none` | Skip the Google login token (non-local URLs get one from your Google credentials automatically). |
+| `DISCOVER_DRIVER` | `native` (default), `agent` | `agent` = the Discover agent over A2A (needs `DISCOVER_AGENT_URL`, `AGENT_TOOLS_AUDIENCE`, `AGENT_TOOLS_SA_EMAIL`); if it cannot answer, the same search runs on the API's own pipeline. |
+| `DISCOVER_AGENT_TIMEOUT_MS` | e.g. `300000` | How long to wait for a whole search (default 5 minutes; one try, no retry). |
 
 If an agent is down or slow (30 s limit, one retry, circuit breaker shared with the model router),
 the API quietly uses the fallback. Tests never call a real agent or Gemini.
