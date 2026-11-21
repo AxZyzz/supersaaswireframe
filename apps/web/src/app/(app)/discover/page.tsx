@@ -26,6 +26,7 @@ import {
   startProspectRun,
 } from "@/lib/prospects";
 import { OfferSelect } from "@/components/offer-select";
+import { SearchProfilePanel } from "@/components/search-profile-panel";
 import {
   emptyStateText,
   isRunStalled,
@@ -118,6 +119,14 @@ function ProspectCard({
             {p.lead_id && (
               <span className="rounded-full bg-success-bg px-2 py-0.5 text-tiny text-success-text">
                 In leads
+              </span>
+            )}
+            {p.via_preference && (
+              <span
+                className="rounded-full bg-info-bg px-2 py-0.5 text-tiny text-info-text"
+                title="Found through your search preference: its own website confirms it"
+              >
+                From preference
               </span>
             )}
           </div>
@@ -531,6 +540,8 @@ export default function DiscoverPage() {
 
       {!manage && runPicker && <div className="flex">{runPicker}</div>}
 
+      <SearchProfilePanel canManage={manage} refreshKey={run?.status === "done" ? 1 : 0} />
+
       {run && (
         <div className="rounded-lg border border-line bg-surface p-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -551,6 +562,11 @@ export default function DiscoverPage() {
               {run.status === "failed" && `Failed: ${run.error ?? "try again"}`}
             </div>
           </div>
+          {run.allocation_line && (
+            <p className="mt-2 text-sm text-ink" data-testid="allocation-line">
+              {run.allocation_line}
+            </p>
+          )}
           {working && (
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-panel">
               <div

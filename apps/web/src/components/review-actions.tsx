@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Sparkles, Undo2, X } from "lucide-react";
 import { errorMessage } from "@/lib/api";
@@ -479,13 +480,14 @@ export function ReviewActions({
           </button>
         )}
         {showButtons && (
-          <button
-            disabled
-            title="Arrives with the next update"
-            className="cursor-not-allowed rounded border border-line-mid px-3 py-1.5 text-sm text-faint opacity-60"
+          // the "who to find more of" loop starts from Insights (T12)
+          <Link
+            href="/review/insights"
+            title="See which groups reply most, then approve a bounded test for the next search"
+            className={btn}
           >
             Apply to next search
-          </button>
+          </Link>
         )}
       </div>
 

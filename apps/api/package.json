@@ -24,6 +24,7 @@
     "db:seed": "ts-node src/db/seed.ts",
     "seed:experiment": "ts-node scripts/seed-experiment.ts",
     "seed:review-actions": "ts-node scripts/seed-review-actions.ts",
+    "seed:preference-demo": "ts-node scripts/seed-search-preference-demo.ts",
     "operator": "ts-node scripts/operator.ts",
     "contracts:sync": "node scripts/sync-agent-contracts.js",
     "try:agents": "ts-node scripts/try-agents.ts",

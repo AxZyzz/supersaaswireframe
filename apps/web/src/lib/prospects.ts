@@ -23,6 +23,9 @@ export interface ProspectRun {
   error: string | null;
   created_at: string;
   finished_at: string | null;
+  /** T12: the search preference this run pinned, and the sentence about how it was used. */
+  preference_id?: string | null;
+  allocation_line?: string | null;
 }
 
 export interface ProspectTrigger {
@@ -57,6 +60,8 @@ export interface Prospect {
   location: string | null;
   fit_score: number | null;
   stars: number | null;
+  /** T12: found through the search preference (its own website confirmed the factor). */
+  via_preference?: boolean;
   score_parts: Record<"icp" | "opportunity" | "timing" | "commercial" | "contact", number> | null;
   evidence: Evidence[];
   opportunity: { hypothesis: string; service: string; discoveryQuestion: string } | null;

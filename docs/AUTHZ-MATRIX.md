@@ -158,6 +158,13 @@
 | `GET /reviews/:id/challenger-drafts` | login | ✅ | ✅ | ✅ |
 | `POST /reviews/:id/challenger-drafts` | login | ✅ | ✅ | ⛔ |
 | `POST /reviews/:reviewId/actions/:actionId/approve` | login | ✅ | ✅ | ⛔ |
+| `GET /search-preferences` | login | ✅ | ✅ | ✅ |
+| `POST /search-preferences` | login | ✅ | ✅ | ⛔ |
+| `GET /search-preferences/:id` | login | ✅ | ✅ | ✅ |
+| `GET /search-preferences/:id/results` | login | ✅ | ✅ | ✅ |
+| `POST /search-preferences/:id/revert` | login | ✅ | ✅ | ⛔ |
+| `POST /search-preferences/:id/withdraw` | login | ✅ | ✅ | ⛔ |
+| `POST /search-preferences/propose` | login | ✅ | ✅ | ⛔ |
 | `GET /segments` | login | ✅ | ✅ | ✅ |
 | `POST /segments` | login | ✅ | ✅ | ⛔ |
 | `DELETE /segments/:id` | login | ✅ | ✅ | ⛔ |

@@ -39,7 +39,10 @@ test('Review tab: real results, then a labelled simulation', async ({ page }) =>
   // the checks list and the exploratory slices are there, and the buttons wait for T11/T12
   await expect(page.getByRole('heading', { name: 'Checks' })).toBeVisible();
   await expect(page.getByText('Exploratory: not a decision')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Apply to next search' })).toBeDisabled();
+  await expect(page.getByRole('link', { name: 'Apply to next search' })).toHaveAttribute(
+    'href',
+    '/review/insights',
+  );
   await expect(page.getByText('SIMULATED DATA, not your results')).toHaveCount(0);
   await page.screenshot({ path: 'test-results/review-real.png', fullPage: true });
 

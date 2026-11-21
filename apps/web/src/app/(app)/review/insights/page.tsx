@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronRight, TriangleAlert } from "lucide-react";
 import { ReviewNav } from "@/components/review-nav";
+import { SearchPreferenceDialog } from "@/components/search-preference-dialog";
+import { canManage, useRole } from "@/lib/me";
 import { errorMessage } from "@/lib/api";
 import { toast } from "@/components/feedback";
 import { Campaign, listCampaigns } from "@/lib/campaigns";
@@ -37,6 +40,18 @@ const RANGES = [
 const MIN_CELL = 10;
 
 export default function InsightsPage() {
+  const router = useRouter();
+  const manage = canManage(useRole());
+  // the headline a manager wants to turn into a search preference
+  const [testing, setTesting] = useState<{ insight: Insight; from?: string } | null>(null);
+  /** The date filter is read when the button is clicked, not while rendering. */
+  const startTest = (insight: Insight) => {
+    const days = RANGES.find((r) => r.key === range)?.days;
+    setTesting({
+      insight,
+      from: days ? new Date(Date.now() - days * 86_400_000).toISOString() : undefined,
+    });
+  };
   const [offers, setOffers] = useState<Offer[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [offerId, setOfferId] = useState("");
@@ -153,7 +168,13 @@ export default function InsightsPage() {
       {data && (
         <>
           <Summary data={data} />
-          <Headlines data={data} metric={metric} />
+          <Headlines
+            data={data}
+            metric={metric}
+            canTest={manage}
+            hasOffer={!!offerId}
+            onTest={startTest}
+          />
           {data.stars.warn && (
             <div
               role="alert"
@@ -188,6 +209,21 @@ export default function InsightsPage() {
           <p className="text-tiny text-faint">{data.note}</p>
         </>
       )}
+      {testing && (
+        <SearchPreferenceDialog
+          insightRef={{
+            offerId: offerId || undefined,
+            insightId: testing.insight.id,
+            campaignIds: campaignId ? [campaignId] : undefined,
+            from: testing.from,
+          }}
+          onClose={() => setTesting(null)}
+          onCreated={() => {
+            setTesting(null);
+            router.push("/discover");
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -207,7 +243,20 @@ function Summary({ data }: { data: InsightsResponse }) {
   );
 }
 
-function Headlines({ data, metric }: { data: InsightsResponse; metric: Metric }) {
+function Headlines({
+  data,
+  metric,
+  canTest,
+  hasOffer,
+  onTest,
+}: {
+  data: InsightsResponse;
+  metric: Metric;
+  canTest: boolean;
+  /** A preference belongs to one offer, so an offer must be chosen first. */
+  hasOffer: boolean;
+  onTest: (i: Insight) => void;
+}) {
   // opens are always a diagnostic: kept apart unless that is the metric chosen
   const all: Insight[] =
     metric === "open"
@@ -239,11 +288,16 @@ function Headlines({ data, metric }: { data: InsightsResponse; metric: Metric })
               <p className="mt-1 text-sm text-warning-text">{i.confounding}</p>
             )}
             <p className="mt-2 text-tiny text-faint">{i.exploratory}</p>
-            {i.searchable && (
+            {i.searchable && !i.diagnostic && canTest && (
               <button
-                disabled
-                title="Arrives in the next update"
-                className="mt-2 cursor-not-allowed rounded border border-line-mid px-2.5 py-1 text-tiny text-faint opacity-60"
+                onClick={() => onTest(i)}
+                disabled={!hasOffer}
+                title={
+                  hasOffer
+                    ? undefined
+                    : "Choose an offer above first: a search preference belongs to one offer"
+                }
+                className="mt-2 rounded border border-line-mid px-2.5 py-1 text-tiny text-ink hover:bg-hover disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Test next batch
               </button>

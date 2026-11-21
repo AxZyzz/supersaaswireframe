@@ -181,6 +181,7 @@ describe('TickSchedulerService', () => {
       'notification-emails': 60,
       'gmail-reply-sync': 120,
       'sheet-sync': 900,
+      'search-preferences': 900,
       'weekly-summary': 900,
     });
   });

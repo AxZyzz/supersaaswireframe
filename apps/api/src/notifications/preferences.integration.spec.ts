@@ -88,6 +88,7 @@ describe('Notification preferences', () => {
       'reply',
       'assigned',
       'member_joined',
+      'search_preference',
     ]);
     expect(r.body.every((p: { enabled: boolean }) => p.enabled)).toBe(true);
   });

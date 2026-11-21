@@ -13,6 +13,58 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ## Sessions
 
+### 2026-11-21 — Learning Loop T12: search preferences (who to find more of)
+
+Built on `ll/T12` from `google-stack` `fd43ebc` (so it sits on top of T08 and T09, which are merged but not deployed). Migration
+`0058`, applied locally only. No cloud commands. Tests and the browser check use the mock AI; real Gemini was never called.
+
+- **Schema (`0058_search_preferences.sql`):** `search_preferences` (factor city/region/country/industry/size_band/trigger, `quota` mode,
+  `cap_share` CHECK 0 < x <= 0.2, evidence + evidence hash, status active/expired/withdrawn/reverted/deactivated, one `active` per
+  offer via a partial unique index, idempotency key), `search_preference_revisions` (audit with actor/reason/before/after),
+  `prospect_runs.preference_id/preference_revision/allocation`, `prospects.via_preference`. Two SECURITY DEFINER functions are the
+  only cross-workspace doors: `expire_search_preferences()` (atomic flip + audit row) and `active_search_preferences()`.
+- **Approval:** `POST /search-preferences/propose` takes an Insights headline id and **recomputes it on the server** (the browser
+  never supplies numbers), returns the exact filter, 20% cap, 14-day expiry, evidence and "what stays the same", and warns about an
+  existing active preference, the same evidence, or a weak match (industry / size are the model's reading, no quote).
+  `POST /search-preferences` re-checks the proposal hash (`409 proposal_changed`), cap <= 0.2, expiry <= 30 days, one active per
+  offer (`409 active_preference_exists` + link), same evidence blocked even after the first ended (`409 same_evidence`), idempotency
+  key (replay, or `409 idempotency_key_reused`), an advisory lock per workspace+offer, and flips an overdue-but-unflipped preference
+  first so it never blocks a new one. Admin/manager only (role re-checked in the service).
+- **Discover run (`prospects.service.ts`):** `startRun` pins the offer's active, unexpired preference + revision (a later withdraw or
+  expiry never touches a started run). With a pin and a batch of >= 5, `processWithPreference` makes the normal plan plus a second,
+  constrained plan (`prospect-targeted@1`, up to 2 x cap candidates; if that call fails the whole cap is filled normally), dedupes
+  against known leads/prospects of the offer and across the two lists (a company in both counts once, as targeted), checks every
+  company on its own site as before, then `finalizeAllocation`: a targeted company counts only if its site confirmed the factor
+  (`matchesFactor`: verified city/region/country, verified trigger quote, or inferred industry/size), the best-fitting up to `cap`
+  get `via_preference`, any shortfall is filled from the reserve of normal candidates (researched only if needed, to save AI cost),
+  and the allocation (batch, cap, requested, found, kept, shortfall, filled, overlap) is stored. A restarted run finalizes the same
+  way. A batch of 3-4 gives cap 0: normal run, allocation says why.
+- **Enrollment snapshot:** a lead that came in through the preference carries `preference_id` + revision into `campaign_leads.snapshot`;
+  the other leads of the same runs carry only `discovery_run_id`, which is how results find the baseline group.
+- **Lifecycle:** new 15-minute tick `search-preferences` (Redis lock like the others) runs `expireDue` + `checkGuardrails`.
+  Withdraw/revert are instant and audited (revert records that restoring the prior profile was a no-op in quota mode). Auto-deactivate
+  fires when targeted leads bounce > 5% (after 20 sends) or, after 7 days, < 90% of interested targeted replies are confirmed; both
+  write a reason and a `search_preference` notification (new mutable notification type).
+- **Results (`GET /search-preferences/:id/results`):** targeted vs baseline leads of the same runs, as companies: discovered,
+  contactable, reached, confirmed qualified inside 14 days, per reached company and per run; T04 `newcombeDiff`; gates (window open,
+  >= 30 reached per group, 90% confirmation coverage); four states Keep collecting / Test next batch / Extend the test / Revert.
+  The spec's worked example (12 of 200 vs 5 of 200) gives +3.5 points with a cautious end under +2, so "Test next batch".
+- **UI:** Insights "Test next batch" is live for managers once an offer is chosen (preview dialog, key made on open, button disabled
+  while it runs); Discover has a Search profile panel (preference, expiry countdown, Withdraw, results card, history), the run header
+  shows the allocation line, leads from the preference get a "From preference" chip; Review's "Apply to next search" is now a link
+  to Insights.
+- **Tests:** `preference-logic.spec.ts` (12), `search-preferences.integration.spec.ts` (20: propose, approve, replay, parallel
+  approvals, one active per offer / other offer allowed, cap + expiry limits, same evidence, changed proposal, agent 403, cross-org 404,
+  withdraw/revert/history, parallel expiry, overdue not blocking, auto-deactivate, 20% allocation with shortfall + overlap, failed
+  targeted search, tiny batch, pin before/after withdraw, snapshot, results worked example, results window). Playwright
+  `search-preferences.spec.ts` (Insights -> approve -> Discover -> withdraw; helper `npm run seed:preference-demo`, which seeds one
+  clearly labelled demo run because the mock AI proposes no companies). Full API suite: 728 pass, 1 skipped, 3 failed on the full run:
+  `gemini.provider.spec` (fails the same on the unmodified tree: real network call), `warmup.integration.spec` (passes alone, flaky
+  under the full run), and `tick-scheduler.spec` cadence + two notification-type lists, which I fixed for the new tick and type.
+- **Not done:** a Review-slice "Test next batch" entry (Insights is the only entry), an extend endpoint (the card advises; approving a
+  new preference after fresh results covers it), BigQuery source for results (T07), the T10 agent driver for the targeted search.
+- **Deploy note:** migration `0058` must run together with T08's `0057` and the T09 agents setup; nothing of T12 is on Cloud Run.
+
 ### 2026-11-21 — Learning Loop T09: ADK agents (Review analyst + Copywriter) over A2A
 
 Built on `ll/T09` from `google-stack` `589a9bc` (T08 was merged, nothing stacked). **No migration, no new endpoints, no `gcloud`

@@ -30,7 +30,10 @@ test('Review actions: pause, resume, then approve a challenger as a new test', a
   await page.getByText(seeded.campaign).first().click();
   await page.getByRole('tab', { name: 'Review' }).click();
   await expect(page.getByText('Winner found')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Apply to next search' })).toBeDisabled();
+  await expect(page.getByRole('link', { name: 'Apply to next search' })).toHaveAttribute(
+    'href',
+    '/review/insights',
+  );
 
   // pause the weaker version: the dialog says exactly what changes
   await page.getByRole('button', { name: 'Pause A', exact: true }).click();
