@@ -16,6 +16,7 @@ describe('TickSchedulerService', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
     );
     (svc as unknown as { redis: Redis }).redis = redis;
     return svc;

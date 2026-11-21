@@ -12,6 +12,7 @@ import {
   integer,
   boolean,
   real,
+  numeric,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
@@ -1376,4 +1377,85 @@ export const challengerDrafts = pgTable(
       .defaultNow(),
   },
   (t) => [index('challenger_drafts_review_idx').on(t.orgId, t.reviewId)],
+);
+
+// ── Learning Loop T12: search preferences ────────────────────────────────
+// A bounded, expiring, reversible "find more of these" for the next Discover
+// runs of one offer. quota mode reserves at most 20% of a batch. The
+// prospect_runs / prospects columns it adds (preference_id, allocation,
+// via_preference) live in migration 0058 like the rest of the Discover tables.
+export const searchPreferences = pgTable(
+  'search_preferences',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    offerId: uuid('offer_id')
+      .notNull()
+      .references(() => offers.id, { onDelete: 'cascade' }),
+    factor: text('factor').notNull(),
+    value: text('value').notNull(),
+    label: text('label').notNull(),
+    filter: jsonb('filter').notNull(),
+    mode: text('mode').notNull().default('quota'),
+    capShare: numeric('cap_share', { precision: 4, scale: 3 }).notNull(),
+    startsAt: timestamp('starts_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    evidence: jsonb('evidence').notNull(),
+    evidenceHash: text('evidence_hash').notNull(),
+    evidenceReviewId: uuid('evidence_review_id').references(() => reviews.id, {
+      onDelete: 'set null',
+    }),
+    approvedBy: uuid('approved_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    status: text('status').notNull().default('active'),
+    revision: integer('revision').notNull().default(1),
+    priorProfile: jsonb('prior_profile'),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    endedReason: text('ended_reason'),
+    idempotencyKey: text('idempotency_key').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('search_preferences_idem_idx').on(t.orgId, t.idempotencyKey),
+    uniqueIndex('search_preferences_one_active_idx')
+      .on(t.orgId, t.offerId)
+      .where(sql`${t.status} = 'active'`),
+    index('search_preferences_offer_idx').on(t.orgId, t.offerId, t.createdAt),
+  ],
+);
+
+export const searchPreferenceRevisions = pgTable(
+  'search_preference_revisions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    preferenceId: uuid('preference_id')
+      .notNull()
+      .references(() => searchPreferences.id, { onDelete: 'cascade' }),
+    revision: integer('revision').notNull(),
+    action: text('action').notNull(),
+    before: jsonb('before'),
+    after: jsonb('after'),
+    actor: uuid('actor').references(() => users.id, { onDelete: 'set null' }),
+    reason: text('reason'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('search_preference_revisions_idx').on(
+      t.orgId,
+      t.preferenceId,
+      t.createdAt,
+    ),
+  ],
 );

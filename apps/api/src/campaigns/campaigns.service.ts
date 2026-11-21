@@ -283,6 +283,8 @@ export class CampaignsService {
       prospect_company_key: string | null;
       prospect_stars: number | null;
       prospect_fit_score: number | null;
+      preference_id: string | null;
+      preference_revision: number | null;
     }>(
       `SELECT l.id, l.email, l.title, l.source, l.custom,
               l.company_key, l.city, l.region, l.country, l.timezone, l.mail_provider,
@@ -292,16 +294,21 @@ export class CampaignsService {
               p.industry AS prospect_industry, p.size_band AS prospect_size_band,
               p.triggers AS prospect_triggers, p.mail_provider AS prospect_mail_provider,
               p.company_key AS prospect_company_key, p.stars AS prospect_stars,
-              p.fit_score AS prospect_fit_score
+              p.fit_score AS prospect_fit_score,
+              -- T12: only a lead that came IN through a search preference carries it
+              CASE WHEN p.via_preference THEN rr.preference_id END AS preference_id,
+              CASE WHEN p.via_preference THEN rr.preference_revision END AS preference_revision
        FROM leads l
        LEFT JOIN LATERAL (
          SELECT id, run_id, city, region, country, timezone, industry,
-                size_band, triggers, mail_provider, company_key, stars, fit_score
+                size_band, triggers, mail_provider, company_key, stars, fit_score,
+                via_preference
          FROM prospects pr
          WHERE pr.lead_id = l.id
          ORDER BY pr.updated_at DESC
          LIMIT 1
        ) p ON true
+       LEFT JOIN prospect_runs rr ON rr.id = p.run_id
        WHERE ($1::uuid IS NULL
               OR l.id IN (SELECT lead_id FROM segment_members WHERE segment_id = $1))
          AND NOT EXISTS (

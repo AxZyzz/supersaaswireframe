@@ -28,10 +28,19 @@ import { UsageService } from '../usage/usage.service';
 import { SegmentsService } from '../leads/segments/segments.service';
 import { PROSPECT_QUEUE } from '../queue/queue.module';
 import {
+  type Allocation,
+  allocationLine,
+  describeFilter,
+  isSearchFactor,
+  matchesFactor,
+  reservedSlots,
+} from '../search-preferences/preference-logic';
+import {
   ATTR_PROMPT_VERSION,
   type Offer,
   icpAndCandidatesPrompt,
   researchPrompt,
+  targetedCandidatesPrompt,
 } from './prompts';
 import {
   cleanIndustry,
@@ -90,14 +99,25 @@ export interface RunRow {
   error: string | null;
   created_at: Date;
   finished_at: Date | null;
+  /** T12: the search preference pinned when the run started, and how it was used. */
+  preference_id: string | null;
+  preference_revision: number | null;
+  allocation: (Allocation & StoredAllocation) | null;
 }
 
-const RUN_COLS = `id, goal, offer_id, icp, status, requested, total, done, verified, error, created_at, finished_at`;
+/** Working data kept on the run until its allocation is finalized. */
+export interface StoredAllocation {
+  reserve?: { name: string; domain: string; reason: string }[];
+  targetedIds?: string[];
+}
+
+const RUN_COLS = `id, goal, offer_id, icp, status, requested, total, done, verified, error, created_at, finished_at,
+  preference_id, preference_revision, allocation`;
 const PROSPECT_COLS = `id, run_id, company_name, domain, website_url, reason, status, summary,
   industry, location, fit_score, stars, score_parts, evidence, opportunity, unknowns, emails,
   pages, error, lead_id, created_at, updated_at,
   city, region, country, size_band, triggers, timezone, mail_provider, company_key,
-  attr_model, attr_prompt_version`;
+  attr_model, attr_prompt_version, via_preference`;
 
 interface ProspectRow {
   id: string;
@@ -212,10 +232,28 @@ export class ProspectsService {
         orgId,
         offerId,
       );
+      // T12: pin the offer's active, unexpired search preference (and its
+      // revision) now. Later changes (withdraw, expiry) never touch a run that
+      // has already started.
+      const pref = await c.query<{ id: string; revision: number }>(
+        `SELECT id, revision FROM search_preferences
+          WHERE offer_id = $1 AND status = 'active' AND expires_at > now()
+          FOR SHARE`,
+        [resolvedOfferId],
+      );
       const r = await c.query<RunRow>(
-        `INSERT INTO prospect_runs (org_id, created_by, goal, requested, offer_id)
-         VALUES ($1, $2, $3, $4, $5) RETURNING ${RUN_COLS}`,
-        [orgId, userId, goal.trim(), n, resolvedOfferId],
+        `INSERT INTO prospect_runs
+           (org_id, created_by, goal, requested, offer_id, preference_id, preference_revision)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING ${RUN_COLS}`,
+        [
+          orgId,
+          userId,
+          goal.trim(),
+          n,
+          resolvedOfferId,
+          pref.rows[0]?.id ?? null,
+          pref.rows[0]?.revision ?? null,
+        ],
       );
       return r.rows[0];
     });
@@ -268,7 +306,12 @@ export class ProspectsService {
          ORDER BY (status = 'verified') DESC, fit_score DESC NULLS LAST, company_name`,
         [runId],
       );
-      return { ...r.rows[0], prospects: p.rows };
+      const al = r.rows[0].allocation;
+      return {
+        ...r.rows[0],
+        allocation_line: al ? allocationLine(al) : null,
+        prospects: p.rows,
+      };
     });
   }
 
@@ -423,6 +466,20 @@ export class ProspectsService {
           offer,
           todo,
         );
+        await this.finalizeAllocation(
+          orgId,
+          run,
+          typeof icp?.summary === 'string' ? icp.summary : run.goal,
+          offer,
+        );
+        await this.finishRun(orgId, runId);
+        return;
+      }
+      // T12: a run that pinned a search preference plans two searches
+      if (
+        run.preference_id &&
+        (await this.processWithPreference(orgId, run, offer))
+      ) {
         await this.finishRun(orgId, runId);
         return;
       }
@@ -588,6 +645,305 @@ export class ProspectsService {
       if (again) return again;
       throw e;
     }
+  }
+
+  // ── T12: a run with a search preference ─────────────────────────────────
+
+  /** Companies this workspace already knows: earlier searches of the offer, and leads. */
+  private async knownCompanies(
+    orgId: string,
+    run: Pick<RunRow, 'id' | 'offer_id'>,
+  ): Promise<Set<string>> {
+    const rows = await this.run(
+      orgId,
+      async (c) =>
+        (
+          await c.query<{ k: string }>(
+            `SELECT lower(COALESCE(p.company_key, p.domain)) AS k
+               FROM prospects p JOIN prospect_runs r ON r.id = p.run_id
+              WHERE r.offer_id IS NOT DISTINCT FROM $1 AND p.run_id <> $2
+             UNION
+             SELECT lower(company_key) FROM leads WHERE company_key IS NOT NULL`,
+            [run.offer_id, run.id],
+          )
+        ).rows,
+    );
+    return new Set(rows.map((r) => r.k));
+  }
+
+  private parseCandidates(
+    text: string,
+    limit: number,
+  ): { name: string; domain: string; reason: string }[] {
+    const parsed = JSON.parse(text) as {
+      candidates?: { name?: unknown; domain?: unknown; reason?: unknown }[];
+    };
+    const seen = new Set<string>();
+    const out: { name: string; domain: string; reason: string }[] = [];
+    for (const c of parsed.candidates ?? []) {
+      const domain =
+        typeof c.domain === 'string' ? normalizeDomain(c.domain) : null;
+      if (!domain || seen.has(domain) || typeof c.name !== 'string') continue;
+      seen.add(domain);
+      out.push({
+        name: c.name.trim().slice(0, 200),
+        domain,
+        reason: typeof c.reason === 'string' ? c.reason.slice(0, 400) : '',
+      });
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
+
+  /**
+   * Plans a run that reserves a share of its slots for a search preference:
+   * a normal (baseline) search plus a second, constrained one, deduped by
+   * company. Returns false when the preference cannot be used (the caller then
+   * runs the normal search).
+   */
+  private async processWithPreference(
+    orgId: string,
+    run: RunRow,
+    offer: Offer,
+  ): Promise<boolean> {
+    const pref = await this.run(
+      orgId,
+      async (c) =>
+        (
+          await c.query<{
+            factor: string;
+            value: string;
+            label: string;
+            cap_share: string;
+          }>(
+            `SELECT factor, value, label, cap_share FROM search_preferences WHERE id = $1`,
+            [run.preference_id],
+          )
+        ).rows[0],
+    );
+    if (!pref || !isSearchFactor(pref.factor)) return false;
+    const capShare = Number(pref.cap_share);
+    const cap = reservedSlots(run.requested, capShare);
+    const base: Allocation = {
+      batchSize: run.requested,
+      cap,
+      capShare,
+      factor: pref.factor,
+      value: pref.value,
+      label: pref.label,
+      targetedRequested: 0,
+      targetedFound: 0,
+      targetedKept: 0,
+      shortfall: 0,
+      baselineFilled: 0,
+      dedupedOverlap: 0,
+    };
+    if (cap < 1) {
+      await this.run(orgId, (c) =>
+        c.query(
+          `UPDATE prospect_runs SET allocation = $2::jsonb WHERE id = $1`,
+          [
+            run.id,
+            JSON.stringify({
+              ...base,
+              skipped:
+                'the batch is too small to reserve a slot (a preference needs a batch of at least 5 companies).',
+              finalized: true,
+            }),
+          ],
+        ),
+      );
+      return false;
+    }
+
+    // 1. the normal search, with room to spare for filling
+    const plan = await this.ai.generate(orgId, 'prospect-icp', {
+      ...icpAndCandidatesPrompt(
+        run.goal,
+        offer,
+        Math.ceil(run.requested * 1.5),
+      ),
+      task: 'discover_plan',
+    });
+    const parsedPlan = JSON.parse(plan.text) as {
+      icp?: Record<string, unknown>;
+    };
+    const baselineAll = this.parseCandidates(
+      plan.text,
+      Math.ceil(run.requested * 1.5),
+    );
+    const icp = parsedPlan.icp ?? null;
+
+    // 2. the constrained search; if it fails the batch is filled normally
+    let targetedAll: { name: string; domain: string; reason: string }[] = [];
+    try {
+      const t = await this.ai.generate(orgId, 'prospect-targeted', {
+        ...targetedCandidatesPrompt(
+          run.goal,
+          offer,
+          describeFilter(pref.factor, pref.value),
+          Math.min(cap * 2, 8),
+        ),
+        task: 'discover_plan',
+      });
+      targetedAll = this.parseCandidates(t.text, Math.min(cap * 2, 8));
+    } catch (e) {
+      this.logger.warn(
+        `targeted search failed for run ${run.id}, filling from the normal search: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+
+    // 3. dedupe: against what we already know, then across the two lists
+    //    (a company in both counts once, as targeted)
+    const known = await this.knownCompanies(orgId, run);
+    const fresh = <T extends { domain: string }>(xs: T[]) =>
+      xs.filter(
+        (x) =>
+          !known.has((companyKey(null, x.domain) ?? x.domain).toLowerCase()),
+      );
+    const targeted = fresh(targetedAll).slice(0, cap * 2);
+    const tDomains = new Set(targeted.map((t) => t.domain));
+    const baselineFresh = fresh(baselineAll);
+    const overlap = baselineFresh.filter((b) => tDomains.has(b.domain)).length;
+    const baselineFree = baselineFresh.filter((b) => !tDomains.has(b.domain));
+    const mainSize = Math.max(0, run.requested - cap);
+    const main = baselineFree.slice(0, mainSize);
+    const reserve = baselineFree.slice(mainSize, mainSize + cap);
+
+    // 4. save the plan and check every company on its own website
+    const toCheck = await this.run(orgId, async (c) => {
+      const insert = async (
+        list: { name: string; domain: string; reason: string }[],
+      ) => {
+        const out: { id: string; name: string; domain: string }[] = [];
+        for (const cand of list) {
+          const r = await c.query<{ id: string }>(
+            `INSERT INTO prospects (org_id, run_id, company_name, domain, reason)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (run_id, domain) DO NOTHING RETURNING id`,
+            [orgId, run.id, cand.name, cand.domain, cand.reason],
+          );
+          if (r.rows[0]) out.push({ id: r.rows[0].id, ...cand });
+        }
+        return out;
+      };
+      const t = await insert(targeted);
+      const m = await insert(main);
+      const stored: Allocation & StoredAllocation = {
+        ...base,
+        targetedRequested: targeted.length,
+        dedupedOverlap: overlap,
+        reserve,
+        targetedIds: t.map((x) => x.id),
+        finalized: false,
+      };
+      await c.query(
+        `UPDATE prospect_runs SET icp = $2::jsonb, total = $3, allocation = $4::jsonb WHERE id = $1`,
+        [
+          run.id,
+          JSON.stringify(icp),
+          t.length + m.length,
+          JSON.stringify(stored),
+        ],
+      );
+      return [...t, ...m];
+    });
+    const icpSummary =
+      typeof icp?.summary === 'string' ? icp.summary : run.goal;
+    await this.researchAll(orgId, run, icpSummary, offer, toCheck);
+    await this.finalizeAllocation(orgId, run, icpSummary, offer);
+    return true;
+  }
+
+  /**
+   * After the checks: a targeted company counts only if its own website
+   * confirms the factor. Keep up to `cap` of them (best fit first), record any
+   * shortfall, and fill it from the reserve of normal candidates. Safe to call
+   * twice (a restarted run calls it again).
+   */
+  private async finalizeAllocation(
+    orgId: string,
+    run: RunRow,
+    icpSummary: string,
+    offer: Offer,
+  ) {
+    const al = await this.run(
+      orgId,
+      async (c) =>
+        (
+          await c.query<{ allocation: (Allocation & StoredAllocation) | null }>(
+            `SELECT allocation FROM prospect_runs WHERE id = $1`,
+            [run.id],
+          )
+        ).rows[0]?.allocation ?? null,
+    );
+    if (!al || al.finalized) return;
+
+    const rows = await this.run(
+      orgId,
+      async (c) =>
+        (
+          await c.query<{
+            id: string;
+            status: string;
+            city: string | null;
+            region: string | null;
+            country: string | null;
+            industry: string | null;
+            size_band: string | null;
+            triggers: unknown;
+          }>(
+            `SELECT id, status, city, region, country, industry, size_band, triggers
+               FROM prospects WHERE id = ANY($1::uuid[])
+              ORDER BY fit_score DESC NULLS LAST, company_name`,
+            [al.targetedIds ?? []],
+          )
+        ).rows,
+    );
+    const matching = rows.filter((r) => matchesFactor(al.factor, al.value, r));
+    const kept = matching.slice(0, al.cap);
+    const shortfall = al.cap - kept.length;
+    const fill = (al.reserve ?? []).slice(0, Math.max(0, shortfall));
+
+    const filled = await this.run(orgId, async (c) => {
+      if (kept.length) {
+        await c.query(
+          `UPDATE prospects SET via_preference = true, updated_at = now()
+            WHERE id = ANY($1::uuid[])`,
+          [kept.map((k) => k.id)],
+        );
+      }
+      const out: { id: string; name: string; domain: string }[] = [];
+      for (const cand of fill) {
+        const r = await c.query<{ id: string }>(
+          `INSERT INTO prospects (org_id, run_id, company_name, domain, reason)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (run_id, domain) DO NOTHING RETURNING id`,
+          [orgId, run.id, cand.name, cand.domain, cand.reason],
+        );
+        if (r.rows[0]) out.push({ id: r.rows[0].id, ...cand });
+      }
+      return out;
+    });
+    if (filled.length) {
+      await this.researchAll(orgId, run, icpSummary, offer, filled);
+    }
+
+    const final: Allocation & StoredAllocation = {
+      ...al,
+      targetedFound: matching.length,
+      targetedKept: kept.length,
+      shortfall,
+      baselineFilled: filled.length,
+      finalized: true,
+    };
+    delete final.reserve;
+    await this.run(orgId, (c) =>
+      c.query(`UPDATE prospect_runs SET allocation = $2::jsonb WHERE id = $1`, [
+        run.id,
+        JSON.stringify(final),
+      ]),
+    );
   }
 
   private async offer(orgId: string): Promise<Offer> {

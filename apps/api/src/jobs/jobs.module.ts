@@ -8,6 +8,7 @@ import { SYSTEM_JOBS_QUEUE } from '../queue/queue.module';
 import { SystemJobsProcessor } from './system-jobs.processor';
 import { TickSchedulerService } from './tick-scheduler.service';
 import { SendingModule } from '../sending/sending.module';
+import { SearchPreferencesModule } from '../search-preferences/search-preferences.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { SendingModule } from '../sending/sending.module';
     IntegrationsModule,
     InboxModule,
     SendingModule,
+    SearchPreferencesModule,
   ],
   providers: [SystemJobsProcessor, TickSchedulerService],
 })

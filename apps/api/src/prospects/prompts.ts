@@ -86,6 +86,50 @@ export function icpAndCandidatesPrompt(
   };
 }
 
+const TARGETED_SCHEMA = {
+  type: 'object',
+  properties: { candidates: ICP_SCHEMA.properties.candidates },
+  required: ['candidates'],
+};
+
+/**
+ * A second, constrained candidate search for a search preference (T12): only
+ * companies that fit ONE extra condition. The condition is a hint: every
+ * candidate is still checked on its own website and only counts if the page
+ * confirms it.
+ */
+export function targetedCandidatesPrompt(
+  goal: string,
+  offer: Offer,
+  condition: string,
+  count: number,
+): AIGenerateOptions {
+  return {
+    system: [
+      'You are a B2B sales strategist building a prospect list.',
+      "From the seller's goal and offer, list real, currently operating companies",
+      `that fit the goal AND are ${condition}, each with its official website domain.`,
+      'Rules:',
+      '- Only companies you are confident exist, with their real primary domain (e.g. "acme.com").',
+      '- The extra condition is required: leave out companies you cannot tie to it.',
+      '- Never invent companies or domains; it is better to return fewer.',
+      '- No directories, marketplaces, news sites or social networks.',
+      '- Every candidate will be checked on its live website; wrong ones are discarded.',
+      `Return up to ${count} candidates.`,
+    ].join('\n'),
+    messages: [
+      {
+        role: 'user',
+        content: `Seller:\n${offerBlock(offer)}\n\nGoal:\n${goal}\n\nExtra condition: ${condition}`,
+      },
+    ],
+    tier: 'fast',
+    maxTokens: 2000,
+    jsonSchema: TARGETED_SCHEMA,
+    promptVersion: 'prospect-targeted@1',
+  };
+}
+
 const RESEARCH_SCHEMA = {
   type: 'object',
   properties: {

@@ -14,6 +14,7 @@ import { DbModule } from './db/db.module';
 import { InboxModule } from './inbox/inbox.module';
 import { OutcomesModule } from './outcomes/outcomes.module';
 import { InsightsModule } from './insights/insights.module';
+import { SearchPreferencesModule } from './search-preferences/search-preferences.module';
 import { ReviewModule } from './review/review.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { JobsModule } from './jobs/jobs.module';
@@ -63,6 +64,7 @@ import { UsageModule } from './usage/usage.module';
     OutcomesModule,
     ReviewModule,
     InsightsModule,
+    SearchPreferencesModule,
     NotificationsModule,
     OperatorModule,
   ],

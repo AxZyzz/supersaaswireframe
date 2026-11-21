@@ -12,6 +12,7 @@ import { WeeklySummaryService } from '../analytics/weekly-summary.service';
 import { GmailReplySyncService } from '../inbox/gmail-reply-sync.service';
 import { SheetsService } from '../integrations/sheets.service';
 import { NotificationEmailService } from '../notifications/notification-email.service';
+import { SearchPreferencesService } from '../search-preferences/search-preferences.service';
 import { SendService } from '../sending/send.service';
 
 interface Tick {
@@ -66,6 +67,7 @@ export class TickSchedulerService
     private readonly weekly: WeeklySummaryService,
     private readonly sheets: SheetsService,
     private readonly gmailReplies: GmailReplySyncService,
+    private readonly searchPrefs: SearchPreferencesService,
   ) {}
 
   private enabled(group: Tick['group']): boolean {
@@ -100,6 +102,13 @@ export class TickSchedulerService
         everyMs: 15 * 60_000,
         group: 'jobs',
         run: () => this.sheets.runDue(),
+      },
+      {
+        // search preferences: expire the overdue ones, switch off unsafe ones
+        name: 'search-preferences',
+        everyMs: 15 * 60_000,
+        group: 'jobs',
+        run: () => this.searchPrefs.runDue(),
       },
       {
         name: 'weekly-summary',
