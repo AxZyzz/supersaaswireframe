@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://expelly.app/schemas/agents/discover.input.schema.json",
+  "title": "DiscoverInput",
+  "description": "A search request to the Discover agent: who we sell to, how many companies, and optionally a search preference (one factor to look for). No lead data.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["runId", "orgId", "offer", "goal", "targetCount", "mode", "excludeCompanyKeys"],
+  "properties": {
+    "runId": { "type": "string", "minLength": 1 },
+    "orgId": { "type": "string", "minLength": 1 },
+    "offer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "seller": {
+      "type": "object",
+      "description": "The workspace knowledge base: what we sell and to whom.",
+      "additionalProperties": false,
+      "properties": {
+        "description": { "type": ["string", "null"] },
+        "offer": { "type": ["string", "null"] },
+        "audience": { "type": ["string", "null"] },
+        "painPoints": { "type": ["string", "null"] }
+      }
+    },
+    "goal": { "type": "string", "minLength": 3, "maxLength": 2000 },
+    "icp": { "type": "object" },
+    "targetCount": { "type": "integer", "minimum": 1, "maximum": 50 },
+    "mode": { "type": "string", "enum": ["baseline", "targeted"] },
+    "preference": {
+      "type": "object",
+      "description": "Present only in targeted mode: the factor the search should favour.",
+      "additionalProperties": false,
+      "required": ["id", "revision", "filter"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "revision": { "type": "integer", "minimum": 1 },
+        "filter": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["factor", "value"],
+          "properties": {
+            "factor": {
+              "type": "string",
+              "enum": ["city", "industry", "trigger", "size_band", "country", "region"]
+            },
+            "value": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "excludeCompanyKeys": {
+      "type": "array",
+      "maxItems": 2000,
+      "items": { "type": "string" }
+    }
+  }
+}

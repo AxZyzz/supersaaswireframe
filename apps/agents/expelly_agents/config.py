@@ -9,6 +9,10 @@ DEFAULT_MODEL = "gemini-3.5-flash-lite"
 _TIER_ENV = {
     "review_explain": ("REVIEW_ANALYST_MODEL", "GEMINI_MODEL_BALANCED"),
     "challenger_draft": ("COPYWRITER_MODEL", "GEMINI_MODEL_POWERFUL"),
+    # Discover (T10): planning and finding follow discover_plan, reading one company follows
+    # discover_verify_extract (the API's task catalogue)
+    "discover_plan": ("DISCOVER_PLANNER_MODEL", "GEMINI_MODEL_BALANCED"),
+    "discover_verify_extract": ("DISCOVER_VERIFIER_MODEL", "GEMINI_MODEL_FAST"),
 }
 
 

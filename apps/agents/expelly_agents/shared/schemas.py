@@ -143,3 +143,174 @@ class ModelCandidate(BaseModel):
 
 class ModelCopywriterOutput(BaseModel):
     candidates: list[ModelCandidate] = Field(min_length=3, max_length=3)
+
+
+# ── Discover (T10) ──────────────────────────────────────────────────────
+DiscoverMode = Literal["baseline", "targeted"]
+DiscoverFactor = Literal["city", "industry", "trigger", "size_band", "country", "region"]
+TriggerType = Literal["hiring", "expansion", "funding", "product_launch"]
+
+
+class DOffer(_Strict):
+    id: str = Field(min_length=1)
+    name: str
+    description: str | None = None
+
+
+class DSeller(_Strict):
+    description: str | None = None
+    offer: str | None = None
+    audience: str | None = None
+    painPoints: str | None = None
+
+
+class DFilter(_Strict):
+    factor: DiscoverFactor
+    value: str = Field(min_length=1)
+
+
+class DPreference(_Strict):
+    id: str = Field(min_length=1)
+    revision: int = Field(ge=1)
+    filter: DFilter
+
+
+class DiscoverInput(_Strict):
+    runId: str = Field(min_length=1)
+    orgId: str = Field(min_length=1)
+    offer: DOffer
+    seller: DSeller | None = None
+    goal: str = Field(min_length=3, max_length=2000)
+    icp: dict[str, Any] | None = None
+    targetCount: int = Field(ge=1, le=50)
+    mode: DiscoverMode
+    preference: DPreference | None = None
+    excludeCompanyKeys: list[str] = Field(max_length=2000)
+
+
+class DEvidence(_Strict):
+    fact: str | None = None
+    quote: str
+    url: str
+
+
+class DAttributes(_Strict):
+    city: str | None = None
+    region: str | None = None
+    country: str | None = None
+    location: str | None = None
+    industry: str | None = None
+    size_band: str | None = None
+
+
+class DTrigger(_Strict):
+    type: TriggerType
+    quote: str
+    url: str
+
+
+class DEmailSeen(_Strict):
+    email: str
+    url: str
+
+
+class DOpportunity(_Strict):
+    hypothesis: str | None = None
+    service: str | None = None
+    discoveryQuestion: str | None = None
+
+
+class DScores(_Strict):
+    icp: int
+    opportunity: int
+    timing: int
+    commercial: int
+
+
+class DiscoverCandidate(_Strict):
+    name: str = Field(min_length=1)
+    domain: str = Field(min_length=3)
+    companyKey: str
+    isRealBusinessSite: bool | None = None
+    summary: str | None = None
+    evidence: list[DEvidence]
+    attributes: DAttributes
+    triggers: list[DTrigger]
+    emailsSeen: list[DEmailSeen]
+    opportunity: DOpportunity | None = None
+    unknowns: list[str] | None = None
+    scores: DScores | None = None
+    matchedPreference: bool
+
+
+class DiscoverStats(_Strict):
+    proposed: int = Field(ge=0)
+    fetched: int = Field(ge=0)
+    verified: int = Field(ge=0)
+    droppedUnverified: int = Field(ge=0)
+    droppedSafety: int = Field(ge=0)
+    preferenceId: str | None = None
+    preferenceRevision: int | None = Field(default=None, ge=1)
+
+
+class DiscoverOutput(_Strict):
+    runId: str = Field(min_length=1)
+    mode: DiscoverMode
+    candidates: list[DiscoverCandidate] = Field(max_length=100)
+    stats: DiscoverStats
+
+
+# What each LLM step of the Discover agent returns (internal to the agent, not part of the A2A contract).
+class PlanIcp(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    summary: str = ""
+    industries: list[str] = []
+    regions: list[str] = []
+    buyerRoles: list[str] = []
+
+
+class PlannerOutput(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    icp: PlanIcp
+    searchIdeas: list[str] = []
+    candidateCount: int = 0
+
+
+class FoundCompany(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: str
+    domain: str
+    why: str = ""
+
+
+class FinderOutput(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    candidates: list[FoundCompany] = []
+
+
+class VerifiedFact(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    fact: str = ""
+    quote: str
+    url: str
+
+
+class VerifierOutput(BaseModel):
+    """One company, read from its own pages. Every quote must be copied exactly from a page."""
+
+    model_config = ConfigDict(extra="ignore")
+    isRealBusinessSite: bool = False
+    companyName: str = ""
+    summary: str = ""
+    industry: str | None = None
+    city: str | None = None
+    region: str | None = None
+    country: str | None = None
+    location: str | None = None
+    sizeBand: str | None = None
+    triggers: list[DTrigger] = []
+    facts: list[VerifiedFact] = []
+    emails: list[DEmailSeen] = []
+    opportunity: DOpportunity | None = None
+    unknowns: list[str] = []
+    scores: DScores | None = None

@@ -1,1 +1,1 @@
-"""Placeholder for the Discover multi-agent (Learning Loop T10)."""
+"""Discover multi-agent (Learning Loop T10). See agent.py."""

@@ -2,6 +2,8 @@ import Ajv2020 from 'ajv/dist/2020';
 import type { ErrorObject, ValidateFunction } from 'ajv/dist/2020';
 import copywriterInputSchema from './contracts/copywriter.input.schema.json';
 import copywriterOutputSchema from './contracts/copywriter.output.schema.json';
+import discoverInputSchema from './contracts/discover.input.schema.json';
+import discoverOutputSchema from './contracts/discover.output.schema.json';
 import reviewInputSchema from './contracts/review-analyst.input.schema.json';
 import reviewOutputSchema from './contracts/review-analyst.output.schema.json';
 
@@ -66,6 +68,82 @@ export interface CopywriterOutput {
   candidates: Array<{ subject: string; rationale: string }>;
 }
 
+// ── Discover (T10) ──────────────────────────────────────────────────────
+export type DiscoverMode = 'baseline' | 'targeted';
+export type DiscoverFactor =
+  'city' | 'industry' | 'trigger' | 'size_band' | 'country' | 'region';
+
+export interface DiscoverInput {
+  runId: string;
+  orgId: string;
+  offer: { id: string; name: string; description?: string };
+  seller?: {
+    description?: string | null;
+    offer?: string | null;
+    audience?: string | null;
+    painPoints?: string | null;
+  };
+  goal: string;
+  icp?: Record<string, unknown>;
+  targetCount: number;
+  mode: DiscoverMode;
+  preference?: {
+    id: string;
+    revision: number;
+    filter: { factor: DiscoverFactor; value: string };
+  };
+  excludeCompanyKeys: string[];
+}
+
+/** One company the agent claims to have found. A CLAIM: the API re-checks all of it. */
+export interface DiscoverCandidate {
+  name: string;
+  domain: string;
+  companyKey: string;
+  isRealBusinessSite?: boolean;
+  summary?: string;
+  evidence: Array<{ fact?: string; quote: string; url: string }>;
+  attributes: {
+    city?: string;
+    region?: string;
+    country?: string;
+    location?: string;
+    industry?: string;
+    size_band?: string;
+  };
+  triggers: Array<{ type: string; quote: string; url: string }>;
+  emailsSeen: Array<{ email: string; url: string }>;
+  opportunity?: {
+    hypothesis?: string;
+    service?: string;
+    discoveryQuestion?: string;
+  };
+  unknowns?: string[];
+  scores?: {
+    icp: number;
+    opportunity: number;
+    timing: number;
+    commercial: number;
+  };
+  /** The agent's claim. Ignored: the API decides from the verified attributes. */
+  matchedPreference: boolean;
+}
+
+export interface DiscoverOutput {
+  runId: string;
+  mode: DiscoverMode;
+  candidates: DiscoverCandidate[];
+  stats: {
+    proposed: number;
+    fetched: number;
+    verified: number;
+    droppedUnverified: number;
+    droppedSafety: number;
+    preferenceId?: string;
+    preferenceRevision?: number;
+  };
+}
+
 // ── validators ──────────────────────────────────────────────────────────
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 
@@ -74,6 +152,8 @@ const compiled = {
   'review-analyst.output': ajv.compile(reviewOutputSchema),
   'copywriter.input': ajv.compile(copywriterInputSchema),
   'copywriter.output': ajv.compile(copywriterOutputSchema),
+  'discover.input': ajv.compile(discoverInputSchema),
+  'discover.output': ajv.compile(discoverOutputSchema),
 } satisfies Record<string, ValidateFunction>;
 
 export type ContractName = keyof typeof compiled;
@@ -99,4 +179,6 @@ export const CONTRACT_SCHEMAS = {
   'review-analyst.output': reviewOutputSchema,
   'copywriter.input': copywriterInputSchema,
   'copywriter.output': copywriterOutputSchema,
+  'discover.input': discoverInputSchema,
+  'discover.output': discoverOutputSchema,
 };

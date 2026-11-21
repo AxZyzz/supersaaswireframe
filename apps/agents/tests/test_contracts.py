@@ -9,6 +9,8 @@ from pydantic import ValidationError
 from expelly_agents.shared.schemas import (
     CopywriterInput,
     CopywriterOutput,
+    DiscoverInput,
+    DiscoverOutput,
     ReviewAnalystInput,
     ReviewAnalystOutput,
     load_schema,
@@ -25,6 +27,12 @@ CASES = [
     ("review-analyst.output", ReviewAnalystOutput, "review-analyst-output.unknown-finding", True),
     ("copywriter.input", CopywriterInput, "copywriter-input.valid", True),
     ("copywriter.output", CopywriterOutput, "copywriter-output.valid", True),
+    ("discover.input", DiscoverInput, "discover-input.valid", True),
+    ("discover.input", DiscoverInput, "discover-input.targeted", True),
+    ("discover.output", DiscoverOutput, "discover-output.valid", True),
+    # schema-valid on purpose: the API re-checks quotes and decides matchedPreference itself
+    ("discover.output", DiscoverOutput, "discover-output.unverified-trigger", True),
+    ("discover.output", DiscoverOutput, "discover-output.claims-match", True),
 ]
 
 
@@ -89,3 +97,42 @@ def test_model_facing_schemas_are_gemini_safe_and_agree_with_the_contract():
         assert '"pattern"' not in text
         out = model.model_validate(fixture(fixture_name))
         jsonschema.validate(out.model_dump(), load_schema(schema))
+
+
+def test_both_reject_oversized_and_malformed_discover_requests():
+    big = fixture("discover-input.valid")
+    big["targetCount"] = 51
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(big, load_schema("discover.input"))
+    with pytest.raises(ValidationError):
+        DiscoverInput.model_validate(big)
+
+    lead = fixture("discover-input.valid")
+    lead["leadEmail"] = "someone@example.com"
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(lead, load_schema("discover.input"))
+    with pytest.raises(ValidationError):
+        DiscoverInput.model_validate(lead)
+
+    bad = fixture("discover-input.targeted")
+    bad["preference"]["filter"]["factor"] = "favourite_colour"
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, load_schema("discover.input"))
+    with pytest.raises(ValidationError):
+        DiscoverInput.model_validate(bad)
+
+
+def test_both_reject_a_bad_trigger_type_and_extra_fields_in_a_discover_answer():
+    bad = fixture("discover-output.unverified-trigger")
+    bad["candidates"][0]["triggers"][0]["type"] = "vibes"
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, load_schema("discover.output"))
+    with pytest.raises(ValidationError):
+        DiscoverOutput.model_validate(bad)
+
+    extra = fixture("discover-output.valid")
+    extra["confidence"] = 0.9
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(extra, load_schema("discover.output"))
+    with pytest.raises(ValidationError):
+        DiscoverOutput.model_validate(extra)

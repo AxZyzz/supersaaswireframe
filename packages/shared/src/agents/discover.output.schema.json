@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://expelly.app/schemas/agents/discover.output.schema.json",
+  "title": "DiscoverOutput",
+  "description": "What the Discover agent found. A CLAIM, not a fact: the API re-checks every quote against the pages it served, re-reads every email from the page, re-computes the company key and decides matchedPreference itself.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["runId", "mode", "candidates", "stats"],
+  "properties": {
+    "runId": { "type": "string", "minLength": 1 },
+    "mode": { "type": "string", "enum": ["baseline", "targeted"] },
+    "candidates": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "domain",
+          "companyKey",
+          "evidence",
+          "attributes",
+          "triggers",
+          "emailsSeen",
+          "matchedPreference"
+        ],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "domain": { "type": "string", "minLength": 3 },
+          "companyKey": { "type": "string" },
+          "isRealBusinessSite": { "type": "boolean" },
+          "summary": { "type": "string" },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["quote", "url"],
+              "properties": {
+                "fact": { "type": "string" },
+                "quote": { "type": "string" },
+                "url": { "type": "string" }
+              }
+            }
+          },
+          "attributes": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "city": { "type": "string" },
+              "region": { "type": "string" },
+              "country": { "type": "string" },
+              "location": { "type": "string" },
+              "industry": { "type": "string" },
+              "size_band": { "type": "string" }
+            }
+          },
+          "triggers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type", "quote", "url"],
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["hiring", "expansion", "funding", "product_launch"]
+                },
+                "quote": { "type": "string" },
+                "url": { "type": "string" }
+              }
+            }
+          },
+          "emailsSeen": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["email", "url"],
+              "properties": {
+                "email": { "type": "string" },
+                "url": { "type": "string" }
+              }
+            }
+          },
+          "opportunity": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "hypothesis": { "type": "string" },
+              "service": { "type": "string" },
+              "discoveryQuestion": { "type": "string" }
+            }
+          },
+          "unknowns": { "type": "array", "items": { "type": "string" } },
+          "scores": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["icp", "opportunity", "timing", "commercial"],
+            "properties": {
+              "icp": { "type": "integer" },
+              "opportunity": { "type": "integer" },
+              "timing": { "type": "integer" },
+              "commercial": { "type": "integer" }
+            }
+          },
+          "matchedPreference": { "type": "boolean" }
+        }
+      }
+    },
+    "stats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proposed", "fetched", "verified", "droppedUnverified", "droppedSafety"],
+      "properties": {
+        "proposed": { "type": "integer", "minimum": 0 },
+        "fetched": { "type": "integer", "minimum": 0 },
+        "verified": { "type": "integer", "minimum": 0 },
+        "droppedUnverified": { "type": "integer", "minimum": 0 },
+        "droppedSafety": { "type": "integer", "minimum": 0 },
+        "preferenceId": { "type": "string" },
+        "preferenceRevision": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}
