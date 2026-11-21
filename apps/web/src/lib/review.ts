@@ -92,7 +92,14 @@ export interface Review {
   computedAt: string;
   policyVersion: string;
   explanationSource: string;
-  explanation: { summary: string; points: { text: string; findingIds: string[] }[] };
+  explanation: {
+    summary: string;
+    points: { text: string; findingIds: string[] }[];
+    /** Set when the AI explanation failed the API's checks and the plain template is shown. */
+    fallbackReason?: string;
+    suggestedNextStep?: string;
+    caveats?: string[];
+  };
   result: {
     decision: Decision;
     winnerVariantId: string | null;
@@ -106,6 +113,8 @@ export interface Review {
     allowedActions: ReviewAction[];
     diagnosticNote: string;
     slices: Slice[];
+    /** The facts an explanation may cite (F1, F2, ...). */
+    findings?: { id: string; kind: string; variantId?: string }[];
   };
   inputs: { arms: ArmCounts[]; minLiftPp: number };
   experiment: ExperimentMeta | null;

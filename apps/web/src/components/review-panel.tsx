@@ -80,6 +80,8 @@ export function ReviewPanel({
   const [noTest, setNoTest] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  // finding ids to highlight while a point of the explanation is hovered (T09)
+  const [hot, setHot] = useState<string[]>([]);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
 
   const load = useCallback(async () => {
@@ -258,7 +260,13 @@ export function ReviewPanel({
                 const c = byId(a.variantId);
                 if (!c) return null;
                 return (
-                  <tr key={a.variantId} className="border-t border-line">
+                  <tr
+                    key={a.variantId}
+                    data-finding={findingOfArm(r.findings, a.variantId)}
+                    className={`border-t border-line ${
+                      hot.includes(findingOfArm(r.findings, a.variantId) ?? "-") ? "bg-accent-soft" : ""
+                    }`}
+                  >
                     <td className="py-1.5 pr-3 font-medium text-ink">
                       {a.label}
                       {a.isControl && <span className="ml-1 text-tiny text-faint">(control)</span>}
@@ -301,12 +309,21 @@ export function ReviewPanel({
 
       {/* 3. lift card */}
       {r.lift && (
-        <LiftCard
-          lift={r.lift}
-          minLift={minLift}
-          challenger={r.arms.find((a) => a.variantId === r.lift!.challengerId)?.label ?? "B"}
-          control={r.arms.find((a) => a.variantId === r.lift!.controlId)?.label ?? "A"}
-        />
+        <div
+          data-finding={r.findings?.find((f) => f.kind === "lift")?.id}
+          className={`rounded-lg ${
+            hot.includes(r.findings?.find((f) => f.kind === "lift")?.id ?? "-")
+              ? "ring-2 ring-accent"
+              : ""
+          }`}
+        >
+          <LiftCard
+            lift={r.lift}
+            minLift={minLift}
+            challenger={r.arms.find((a) => a.variantId === r.lift!.challengerId)?.label ?? "B"}
+            control={r.arms.find((a) => a.variantId === r.lift!.controlId)?.label ?? "A"}
+          />
+        </div>
       )}
 
       {/* 4. checks */}
@@ -340,13 +357,46 @@ export function ReviewPanel({
         <p className="text-sm font-medium text-ink">{current.explanation.summary}</p>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
           {current.explanation.points.map((p, i) => (
-            <li key={i}>{p.text}</li>
+            <li
+              key={i}
+              onMouseEnter={() => setHot(p.findingIds)}
+              onMouseLeave={() => setHot([])}
+              onFocus={() => setHot(p.findingIds)}
+              onBlur={() => setHot([])}
+              tabIndex={0}
+              className="rounded outline-none focus:bg-hover hover:bg-hover"
+            >
+              {p.text}
+              {current.explanationSource !== "template" && (
+                <span className="ml-1.5 text-micro text-faint">
+                  [{p.findingIds.join(", ")}]
+                </span>
+              )}
+            </li>
           ))}
         </ul>
-        <p className="mt-2 text-tiny text-faint">
-          Written from the numbers above, not by AI ({current.explanationSource}). Policy{" "}
-          {current.policyVersion}.
-        </p>
+        {current.explanationSource === "agent" && (
+          <p className="mt-2 text-tiny text-faint" data-testid="explained-by-agent">
+            Explained by Expelly Review agent. Hover a point to see the number it
+            relies on; the app checked every number against the table above. Policy{" "}
+            {current.policyVersion}.
+          </p>
+        )}
+        {current.explanationSource === "gemini" && (
+          <p className="mt-2 text-tiny text-faint">
+            Explained by Gemini; the app checked every number against the table above. Policy{" "}
+            {current.policyVersion}.
+          </p>
+        )}
+        {current.explanationSource === "template" && (
+          <p className="mt-2 text-tiny text-faint">
+            Written from the numbers above, not by AI ({current.explanationSource}).
+            {current.explanation.fallbackReason
+              ? " An AI explanation was tried but did not pass the app's checks."
+              : ""}{" "}
+            Policy {current.policyVersion}.
+          </p>
+        )}
         <ReviewActions
           review={current}
           canManage={canManage}
@@ -415,6 +465,14 @@ export function ReviewPanel({
       </div>
     </div>
   );
+}
+
+/** The finding id of a version's rate (F1, F2, ...), so a hovered point can highlight its row. */
+function findingOfArm(
+  findings: { id: string; kind: string; variantId?: string }[] | undefined,
+  variantId: string,
+): string | undefined {
+  return findings?.find((f) => f.kind === "rate" && f.variantId === variantId)?.id;
 }
 
 /** Lift with its range, drawn against the smallest lift worth acting on. */
