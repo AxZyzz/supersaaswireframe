@@ -38,6 +38,22 @@ export function validateEnv(
     }
   }
 
+  // ADK agents (T09): a switch set to "agent" needs the agent's address.
+  const re = str('REVIEW_EXPLAINER').toLowerCase();
+  if (re && !['template', 'agent', 'gemini'].includes(re)) {
+    errors.push('REVIEW_EXPLAINER must be "template", "agent" or "gemini"');
+  }
+  if (re === 'agent' && !str('REVIEW_ANALYST_URL')) {
+    errors.push('REVIEW_EXPLAINER=agent needs REVIEW_ANALYST_URL');
+  }
+  const cd = str('COPYWRITER_DRIVER').toLowerCase();
+  if (cd && !['gemini', 'agent', 'mock'].includes(cd)) {
+    errors.push('COPYWRITER_DRIVER must be "gemini", "agent" or "mock"');
+  }
+  if (cd === 'agent' && !str('COPYWRITER_URL')) {
+    errors.push('COPYWRITER_DRIVER=agent needs COPYWRITER_URL');
+  }
+
   // Model Armor (T08): needs a template to call.
   if (
     str('SAFETY_DRIVER') &&

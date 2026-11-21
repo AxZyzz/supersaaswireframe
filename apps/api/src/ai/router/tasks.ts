@@ -68,6 +68,7 @@ export const FEATURE_TASK: Record<string, AiTask> = {
   'prospect-icp': 'discover_plan',
   'prospect-research': 'discover_verify_extract',
   'challenger-draft': 'challenger_draft',
+  'review-explain': 'review_explain',
   'map-columns': 'import_column_match',
 };
 

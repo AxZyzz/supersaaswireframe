@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://expelly.app/schemas/agents/review-analyst.output.schema.json",
+  "title": "ReviewAnalystOutput",
+  "description": "A short plain explanation. Every point cites finding ids; the API checks each id and number before showing it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "points", "caveats", "suggestedNextStep"],
+  "properties": {
+    "summary": { "type": "string", "minLength": 1, "maxLength": 700 },
+    "points": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text", "findingIds"],
+        "properties": {
+          "text": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "findingIds": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "pattern": "^F[0-9]+$" }
+          }
+        }
+      }
+    },
+    "caveats": {
+      "type": "array",
+      "maxItems": 5,
+      "items": { "type": "string", "maxLength": 300 }
+    },
+    "suggestedNextStep": {
+      "enum": ["keep_testing", "review_challenger", "apply_to_next_search", "none"]
+    }
+  }
+}

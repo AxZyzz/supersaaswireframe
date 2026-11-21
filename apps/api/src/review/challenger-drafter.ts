@@ -23,11 +23,13 @@ export interface ChallengerDraftInput {
   avoid: string[];
   offerName: string | null;
   offerDescription: string | null;
+  /** The workspace's business knowledge base as text (used by the Copywriter agent). */
+  kb?: string;
 }
 
 export interface ChallengerCandidate {
   subject: string;
-  source: 'template' | 'gemini' | 'mock';
+  source: 'template' | 'gemini' | 'mock' | 'agent';
 }
 
 export interface ChallengerDrafter {
@@ -105,7 +107,7 @@ export function templateSubjects(
 export function completeCandidates(
   aiSubjects: string[],
   input: Pick<ChallengerDraftInput, 'baseSubject' | 'avoid' | 'offerName'>,
-  aiSource: 'gemini' | 'mock',
+  aiSource: 'gemini' | 'mock' | 'agent',
 ): ChallengerCandidate[] {
   const picked: ChallengerCandidate[] = aiSubjects
     .slice(0, CANDIDATE_COUNT)

@@ -1,0 +1,7 @@
+{
+  "candidates": [
+    { "subject": "{first_name|there}, a faster way to book demos", "rationale": "Names the outcome the reader wants." },
+    { "subject": "What {company|your team} could test this week", "rationale": "Invites a small, concrete experiment." },
+    { "subject": "Which subject line wins for {company|your team}?", "rationale": "Poses a curiosity question tied to the offer." }
+  ]
+}

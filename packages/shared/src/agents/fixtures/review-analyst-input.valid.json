@@ -1,0 +1,24 @@
+{
+  "reviewId": "rev-fixture-1",
+  "revision": 3,
+  "simulated": false,
+  "decision": "inconclusive",
+  "minLiftPp": 2,
+  "gates": [
+    { "id": "window_mature", "passed": true, "reason": "Every counted company has been open for at least 14 days." },
+    { "id": "minimum_sample", "passed": true, "reason": "Both versions have enough companies to read." }
+  ],
+  "findings": [
+    { "id": "F1", "kind": "rate", "variantId": "var-a", "label": "A", "isControl": true, "x": 3, "n": 120, "p": 0.025, "lo": 0.0086, "hi": 0.0708 },
+    { "id": "F2", "kind": "rate", "variantId": "var-b", "label": "B", "isControl": false, "x": 5, "n": 118, "p": 0.0424, "lo": 0.0183, "hi": 0.0955 },
+    { "id": "F3", "kind": "lift", "value": 0.0174, "lo": -0.0213, "hi": 0.0553, "armA": "var-b", "armB": "var-a", "minLift": 0.02 },
+    { "id": "F4", "kind": "sample_plan", "neededPerArm": 1500, "havePerArm": 118 },
+    { "id": "F5", "kind": "diagnostic", "note": "Opens and replies are shown for context only; the decision uses confirmed qualified replies.", "arms": [ { "variantId": "var-a", "opened": 40, "replied": 9, "delivered": 118 }, { "variantId": "var-b", "opened": 44, "replied": 12, "delivered": 116 } ] }
+  ],
+  "arms": [
+    { "variantId": "var-a", "label": "A", "isControl": true, "assigned": 120, "qualifiedVerified": 3, "qualifiedRate": 0.025 },
+    { "variantId": "var-b", "label": "B", "isControl": false, "assigned": 118, "qualifiedVerified": 5, "qualifiedRate": 0.0424 }
+  ],
+  "allowedActions": [ { "type": "keep_testing", "label": "Keep testing" } ],
+  "slices": []
+}

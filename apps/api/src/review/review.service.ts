@@ -5,8 +5,13 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Pool } from 'pg';
+import {
+  type ExplainOutcome,
+  ReviewExplainerService,
+} from '../agents/review-explainer.service';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import {
@@ -96,6 +101,8 @@ export class ReviewService {
   constructor(
     @Inject(PG_POOL) private readonly pool: Pool,
     private readonly data: ReviewDataService,
+    // T09: AI explanation (REVIEW_EXPLAINER). Absent/template = the T04 text.
+    @Optional() private readonly explainer?: ReviewExplainerService,
   ) {}
 
   private view(
@@ -217,13 +224,27 @@ export class ReviewService {
       ...decide(src.input),
       slices: src.slices,
     };
-    const explanation = explain(result);
+    const template = explain(result);
+    // explained once, and only when something changed (never on an unchanged refresh)
+    let explained: ExplainOutcome | null = null;
 
     for (let attempt = 0; attempt < 2; attempt++) {
       const latest = await this.latestRow(orgId, experimentId);
       if (latest && latest.inputs_hash === hash) {
         return { row: latest, changed: false };
       }
+      if (!explained) {
+        explained = this.explainer
+          ? await this.explainer.explain(
+              orgId,
+              experimentId,
+              (latest?.revision ?? 0) + 1,
+              result,
+            )
+          : { explanation: template, source: 'template' };
+      }
+      const explanation = explained.explanation;
+      const explanationSource = explained.source;
       try {
         const row = await withOrgContext(this.pool, orgId, async (c) => {
           const r = await c.query<ReviewRow>(
@@ -232,7 +253,7 @@ export class ReviewService {
                 inputs_hash, created_by, inputs, result, explanation,
                 explanation_source)
              SELECT $1, $2, COALESCE(max(revision), 0) + 1, $3, false,
-                    $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, 'template'
+                    $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9
                FROM reviews WHERE experiment_id = $2
              RETURNING ${COLS}`,
             [
@@ -244,6 +265,7 @@ export class ReviewService {
               JSON.stringify(src.input),
               JSON.stringify(result),
               JSON.stringify(explanation),
+              explanationSource,
             ],
           );
           return r.rows[0];

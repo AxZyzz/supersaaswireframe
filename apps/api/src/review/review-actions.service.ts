@@ -1042,9 +1042,19 @@ export class ReviewActionsService {
            JOIN offers o ON o.id = e.offer_ref WHERE e.id = $1`,
         [experimentId],
       );
+      // the workspace knowledge base (text only), for the Copywriter agent
+      const kbRow = await c.query<Record<string, string | null>>(
+        `SELECT description, audience, offer, pain_points, usps
+           FROM org_knowledge LIMIT 1`,
+      );
+      const kb = Object.entries(kbRow.rows[0] ?? {})
+        .filter(([, v]) => typeof v === 'string' && v.trim())
+        .map(([k, v]) => `${k.replace('_', ' ')}: ${v}`)
+        .join(String.fromCharCode(10));
       return {
         experimentId,
         actionId: allowed.actionId,
+        kb,
         baseSubject: keep?.subject ?? '',
         avoid: variants.map((v) => v.subject),
         offerName: offer.rows[0]?.name ?? null,
@@ -1059,6 +1069,7 @@ export class ReviewActionsService {
       avoid: ctx.avoid,
       offerName: ctx.offerName,
       offerDescription: ctx.offerDescription,
+      kb: ctx.kb,
     });
 
     // Phase 3: store them (re-reads the review so a deleted one is a 404).

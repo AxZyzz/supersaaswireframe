@@ -40,6 +40,30 @@ describe('validateEnv', () => {
     ).not.toThrow();
   });
 
+  it('T09: agent switches need their address, and reject unknown values', () => {
+    const dev = { DATABASE_URL: 'x' };
+    expect(() => validateEnv({ ...dev, REVIEW_EXPLAINER: 'agent' })).toThrow(
+      /REVIEW_ANALYST_URL/,
+    );
+    expect(() =>
+      validateEnv({
+        ...dev,
+        REVIEW_EXPLAINER: 'agent',
+        REVIEW_ANALYST_URL: 'http://localhost:8101',
+      }),
+    ).not.toThrow();
+    expect(() => validateEnv({ ...dev, COPYWRITER_DRIVER: 'agent' })).toThrow(
+      /COPYWRITER_URL/,
+    );
+    expect(() => validateEnv({ ...dev, REVIEW_EXPLAINER: 'robot' })).toThrow(
+      /REVIEW_EXPLAINER must be/,
+    );
+    // blank values (as in .env.example) mean "off"
+    expect(() =>
+      validateEnv({ ...dev, REVIEW_EXPLAINER: '', COPYWRITER_DRIVER: '' }),
+    ).not.toThrow();
+  });
+
   it('accepts a complete production env', () => {
     expect(() => validateEnv(prod)).not.toThrow();
   });

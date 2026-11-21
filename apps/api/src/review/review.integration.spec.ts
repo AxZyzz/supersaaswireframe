@@ -501,6 +501,53 @@ describe('Review API and aggregation (T05)', () => {
     });
   });
 
+  it('T09: with an AI explainer on, a new revision stores its source and trace; an unchanged refresh never calls it', async () => {
+    const svc = app.get(ReviewService);
+    const calls: number[] = [];
+    const stub = {
+      explain: (_org: string, _id: string, revision: number) => {
+        calls.push(revision);
+        return Promise.resolve({
+          source: 'agent',
+          explanation: {
+            summary: 'Agent summary',
+            points: [{ text: 'A point', findingIds: ['F1'] }],
+            traceId: 'x'.repeat(32),
+          },
+        });
+      },
+    };
+    (svc as any).explainer = stub;
+    try {
+      const unchanged = await refresh().expect(200);
+      expect(unchanged.body.changed).toBe(false);
+      expect(calls).toHaveLength(0);
+
+      // move one reply back to AI-only: the numbers change, so there is a new revision
+      await q((c) =>
+        c.query(
+          `UPDATE outcome_events SET verification = 'provisional'
+            WHERE company_key = 'provisional.test' AND type = 'qualified_reply'`,
+        ),
+      );
+      const next = await refresh().expect(200);
+      expect(next.body.changed).toBe(true);
+      expect(calls).toEqual([next.body.revision]);
+      expect(next.body.explanationSource).toBe('agent');
+      expect(next.body.explanation.summary).toBe('Agent summary');
+      expect(next.body.explanation.traceId).toBe('x'.repeat(32));
+      const row = await q((c) =>
+        c.query(
+          `SELECT explanation_source FROM reviews WHERE experiment_id = $1 AND revision = $2`,
+          [experimentId, next.body.revision],
+        ),
+      );
+      expect(row.rows[0].explanation_source).toBe('agent');
+    } finally {
+      (svc as any).explainer = undefined;
+    }
+  });
+
   it('a campaign with no experiment answers 404 no_experiment', async () => {
     const camp = await q((c) =>
       c.query<{ id: string }>(

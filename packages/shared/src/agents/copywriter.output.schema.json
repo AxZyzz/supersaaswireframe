@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://expelly.app/schemas/agents/copywriter.output.schema.json",
+  "title": "CopywriterOutput",
+  "description": "Exactly three challenger subject lines. The API checks length, merge tokens and duplicates; the result is only ever saved as a draft.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["candidates"],
+  "properties": {
+    "candidates": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["subject", "rationale"],
+        "properties": {
+          "subject": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "rationale": { "type": "string", "maxLength": 300 }
+        }
+      }
+    }
+  }
+}
