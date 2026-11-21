@@ -67,6 +67,11 @@ export class OperatorController {
     return this.ops.failures();
   }
 
+  @Get('ai-routing')
+  aiRouting() {
+    return this.ops.aiRouting();
+  }
+
   @Get('health')
   health() {
     return this.ops.health();

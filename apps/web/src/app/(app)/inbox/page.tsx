@@ -186,6 +186,11 @@ function Inbox() {
     }
   }
 
+  // T8: no AI draft when Model Armor flagged the latest inbound message.
+  const lastInboundFlagged =
+    [...(selected?.thread ?? [])].reverse().find((m) => m.direction === "inbound")
+      ?.safety_flag === true;
+
   // T6.6: AI drafts the reply; anything already typed is used as guidance.
   async function aiDraft() {
     if (!selected || drafting) return;
@@ -462,7 +467,17 @@ function Inbox() {
                       {m.direction === "outbound" ? "You" : m.from_email} ·{" "}
                       {new Date(m.created_at).toLocaleString()}
                     </span>
-                    {m.direction === "inbound" && <ClassBadge c={m.classification} />}
+                    <span className="flex items-center gap-1.5">
+                      {m.direction === "inbound" && m.safety_flag && (
+                        <span
+                          title="Model Armor flagged this message, so the AI never read it"
+                          className="rounded bg-warning-bg px-1.5 py-0.5 text-tiny font-medium text-warning-text"
+                        >
+                          Safety check flagged this message
+                        </span>
+                      )}
+                      {m.direction === "inbound" && <ClassBadge c={m.classification} />}
+                    </span>
                   </div>
                   {m.subject && <div className="font-medium text-ink">{m.subject}</div>}
                   {m.body_text ? (
@@ -518,8 +533,12 @@ function Inbox() {
                     <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => void aiDraft()}
-                      disabled={drafting || sending}
-                      title="Draft with AI — type a few notes first to steer it"
+                      disabled={drafting || sending || lastInboundFlagged}
+                      title={
+                        lastInboundFlagged
+                          ? "AI drafts are off: the safety check flagged this message"
+                          : "Draft with AI — type a few notes first to steer it"
+                      }
                       className="flex items-center gap-1.5 rounded border border-line-mid px-2.5 py-1.5 text-sm text-ink hover:bg-hover disabled:opacity-50"
                     >
                       <Sparkles size={13} className="text-accent" />{" "}

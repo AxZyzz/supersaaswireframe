@@ -42,6 +42,8 @@ export interface ThreadMessage {
   created_at: string;
   classification: ReplyClass | null;
   confidence: number | null;
+  /** Model Armor flagged this message: no AI draft is offered for it. */
+  safety_flag?: boolean;
 }
 
 export interface ConversationDetail {

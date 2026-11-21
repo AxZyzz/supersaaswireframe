@@ -116,6 +116,7 @@
 | `GET /offers` | login | ✅ | ✅ | ✅ |
 | `POST /offers` | login | ✅ | ✅ | ⛔ |
 | `PATCH /offers/:id` | login | ✅ | ✅ | ⛔ |
+| `GET /operator/ai-routing` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /operator/failures` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /operator/feedback` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /operator/health` | operator | ⛔ | ⛔ | ⛔ |

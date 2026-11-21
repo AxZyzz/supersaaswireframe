@@ -6,6 +6,7 @@ import { api, errorMessage } from "@/lib/api";
 import { timeAgo } from "@/lib/analytics";
 import { LoadError, loadErrorText, toast } from "@/components/feedback";
 import { OperatorBeta } from "@/components/operator-beta";
+import { OperatorAiRouting } from "@/components/operator-ai-routing";
 
 interface Totals {
   orgs: number;
@@ -273,6 +274,8 @@ export default function OperatorPage() {
           </table>
         </div>
       </section>
+
+      <OperatorAiRouting />
 
       <section className="rounded-lg border border-line bg-surface p-4">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink2">
