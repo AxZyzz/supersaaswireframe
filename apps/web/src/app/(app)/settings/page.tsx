@@ -14,6 +14,7 @@ import { api } from "@/lib/api";
 import { toast } from "@/components/feedback";
 import { SendersSection } from "@/components/senders-section";
 import { KnowledgeSection } from "@/components/knowledge-section";
+import { ReviewRubricSection } from "@/components/review-rubric-section";
 import { WorkspaceSection } from "@/components/workspace-section";
 import { TeamSection } from "@/components/team-section";
 import { UsageSection } from "@/components/usage-section";
@@ -21,9 +22,14 @@ import { NotificationPrefsSection } from "@/components/notification-prefs-sectio
 import { PrivacySection } from "@/components/privacy-section";
 import { LeadStatusesSection } from "@/components/lead-statuses-section";
 import { IntegrationsSection } from "@/components/integrations-section";
+import { AppearanceSection } from "@/components/appearance-section";
 import { HelpLink } from "@/components/help-link";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+// Shown in the API-keys help: the API's own public address, not the /api proxy.
+const API_URL =
+  process.env.NEXT_PUBLIC_API_PUBLIC_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  "http://localhost:4000";
 
 export default function SettingsPage() {
   const [keys, setKeys] = useState<ApiKey[]>([]);
@@ -98,11 +104,15 @@ export default function SettingsPage() {
 
       <NotificationPrefsSection />
 
+      <AppearanceSection />
+
       <SendersSection readOnly={role === "agent"} />
 
       <IntegrationsSection canManage={canManage} />
 
       <KnowledgeSection readOnly={role === "agent"} />
+
+      <ReviewRubricSection readOnly={!canManage} />
 
       <LeadStatusesSection canEdit={canManage} />
 
@@ -114,7 +124,7 @@ export default function SettingsPage() {
           <HelpLink slug="leads-api" />
         </div>
         <p className="mb-4 text-sm text-muted">
-          Push leads into SuperSaaS from external systems. Send the key as an{" "}
+          Push leads into Expelly from external systems. Send the key as an{" "}
           <code className="rounded bg-panel px-1">X-Api-Key</code> header to{" "}
           <code className="rounded bg-panel px-1">POST {API_URL}/v1/leads</code>.
         </p>

@@ -22,15 +22,28 @@ import { FetchLike } from './providers/gmail.provider';
 import { SendersService } from './senders.service';
 
 export const GMAIL_SEND_SCOPE = 'https://www.googleapis.com/auth/gmail.send';
+// Read access lets the reply sync (T5.7) pull replies and bounces. Google
+// classes it as restricted: fine for test users while the OAuth app is in
+// testing mode; public launch needs Google's verification. Optional: if the
+// user unticks it, sending still works and reply sync stays off.
+export const GMAIL_READ_SCOPE =
+  'https://www.googleapis.com/auth/gmail.readonly';
 // openid + email: lets us read which address was connected from the ID token
 // without asking for a Gmail read scope.
-const SCOPES = ['openid', 'email', GMAIL_SEND_SCOPE];
+const SCOPES = ['openid', 'email', GMAIL_SEND_SCOPE, GMAIL_READ_SCOPE];
+
+/** Pages a Gmail connect may return to (no open redirects). Onboarding needs
+ *  its own: /settings bounces an un-onboarded admin back to the wizard's
+ *  first step, which looked like "Connect Gmail does nothing". */
+const RETURN_PATHS = ['/settings', '/onboarding'] as const;
+type ReturnPath = (typeof RETURN_PATHS)[number];
 
 interface ConnectState {
   type: 'gmail-connect';
   sub: string;
   orgId: string;
   fromName?: string;
+  returnTo?: ReturnPath;
   /** sha256 of the browser-binding cookie (OAuth CSRF guard). */
   nh: string;
 }
@@ -62,6 +75,7 @@ export class GmailOAuthService {
     user: AuthUser,
     fromName: string | undefined,
     nonceHash: string,
+    returnTo?: string,
   ) {
     if (!this.isConfigured()) {
       throw new ServiceUnavailableException(
@@ -73,6 +87,9 @@ export class GmailOAuthService {
       sub: user.userId,
       orgId: user.orgId,
       ...(fromName?.trim() ? { fromName: fromName.trim() } : {}),
+      returnTo: RETURN_PATHS.includes(returnTo as ReturnPath)
+        ? (returnTo as ReturnPath)
+        : '/settings',
       nh: nonceHash,
     };
     const state = await this.jwt.signAsync(payload, { expiresIn: '10m' });
@@ -85,10 +102,19 @@ export class GmailOAuthService {
     /** Value of the browser-binding cookie on this request. */
     browserNonce?: string | null,
   ): Promise<string> {
+    let returnTo: ReturnPath = '/settings';
     const back = (params: Record<string, string>) =>
-      `${webUrl(this.config)}/settings?${new URLSearchParams(params).toString()}`;
+      `${webUrl(this.config)}${returnTo}?${new URLSearchParams(params).toString()}`;
 
     try {
+      // Learn where to send the browser back to first, so even a Google error
+      // (e.g. consent cancelled) lands on the page the user started from.
+      if (q.state) {
+        const early = await this.verifyState(q.state).catch(() => null);
+        if (early?.returnTo && RETURN_PATHS.includes(early.returnTo)) {
+          returnTo = early.returnTo;
+        }
+      }
       if (q.error) {
         throw new ConnectError(googleErrorText(q.error));
       }
@@ -117,7 +143,7 @@ export class GmailOAuthService {
       }
       if (!tokens.refresh_token) {
         throw new ConnectError(
-          'Google did not grant offline access. Remove SuperSaaS under your Google Account → Security → Third-party access, then reconnect.',
+          'Google did not grant offline access. Remove Expelly under your Google Account → Security → Third-party access, then reconnect.',
         );
       }
       const email = emailFromIdToken(tokens.id_token);

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   BarChart3,
   CircleHelp,
+  ClipboardCheck,
   Gauge,
   FileText,
   Filter,
@@ -14,6 +15,7 @@ import {
   LogOut,
   Send,
   Settings,
+  Sparkles,
   Users,
 } from "lucide-react";
 import { logout } from "@/lib/api";
@@ -23,10 +25,12 @@ import { disconnectLive, useLive } from "@/lib/realtime";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/discover", label: "Discover", icon: Sparkles },
   { href: "/leads", label: "Leads", icon: Users },
   { href: "/segments", label: "Segments", icon: Filter },
   { href: "/campaigns", label: "Campaigns", icon: Send },
   { href: "/inbox", label: "Inbox", icon: Inbox },
+  { href: "/review", label: "Review", icon: ClipboardCheck },
   { href: "/templates", label: "Templates", icon: FileText },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];

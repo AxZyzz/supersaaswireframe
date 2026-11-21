@@ -1,0 +1,677 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5800 9141" width="1450" height="2285" style="background:#fff;font-family:Segoe Print,Comic Sans MS,sans-serif">
+<rect x="3800" y="230" width="1900" height="470" rx="16" fill="#ffffff" stroke="#1e1e1e" stroke-width="2"/>
+<rect x="3830" y="310" width="70" height="44" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="3830" y="370" width="70" height="44" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<rect x="3830" y="430" width="70" height="44" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="3830" y="490" width="70" height="44" rx="16" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<rect x="3830" y="550" width="70" height="44" rx="16" fill="#e5dbff" stroke="#7048e8" stroke-width="2"/>
+<rect x="100" y="230" width="3640" height="194" rx="16" fill="#e5dbff" stroke="#7048e8" stroke-width="2"/>
+<rect x="100" y="780" width="5600" height="251" rx="16" fill="none" stroke="#495057" stroke-width="2" stroke-dasharray="16 10"/>
+<rect x="136" y="873" width="1074" height="122" rx="16" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<rect x="1250" y="873" width="1074" height="122" rx="16" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<rect x="2363" y="873" width="1074" height="122" rx="16" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<rect x="3477" y="873" width="1074" height="122" rx="16" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<rect x="4590" y="873" width="1074" height="92" rx="16" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<rect x="100" y="1231" width="4780" height="1799" rx="16" fill="none" stroke="#1971c2" stroke-width="4"/>
+<rect x="140" y="1341" width="4700" height="443" rx="16" fill="none" stroke="#1971c2" stroke-width="2" stroke-dasharray="16 10"/>
+<rect x="176" y="1434" width="1127" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="1343" y="1434" width="1127" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="2510" y="1434" width="1127" height="122" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<rect x="3677" y="1434" width="1127" height="152" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="176" y="1566" width="1127" height="152" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="1343" y="1566" width="1127" height="182" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<rect x="2510" y="1596" width="1127" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="3677" y="1626" width="1127" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="140" y="1824" width="4700" height="845" rx="16" fill="none" stroke="#1971c2" stroke-width="2" stroke-dasharray="16 10"/>
+<rect x="176" y="1917" width="1127" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="1343" y="1917" width="1127" height="242" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="2510" y="1917" width="1127" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="3677" y="1917" width="1127" height="212" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="176" y="2079" width="1127" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="2510" y="2079" width="1127" height="242" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="3677" y="2169" width="1127" height="122" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="1343" y="2199" width="1127" height="272" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="176" y="2241" width="1127" height="182" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="3677" y="2331" width="1127" height="302" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="2510" y="2361" width="1127" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="176" y="2463" width="1127" height="152" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="140" y="2709" width="4700" height="281" rx="16" fill="none" stroke="#1971c2" stroke-width="2" stroke-dasharray="16 10"/>
+<rect x="176" y="2802" width="894" height="152" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="1110" y="2802" width="894" height="152" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="2043" y="2802" width="894" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="2977" y="2802" width="894" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="3910" y="2802" width="894" height="92" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="4940" y="1231" width="760" height="1799" rx="16" fill="none" stroke="#0ca678" stroke-width="2" stroke-dasharray="16 10"/>
+<rect x="4976" y="1324" width="688" height="212" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<rect x="4976" y="1576" width="688" height="182" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="4976" y="1798" width="688" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="4976" y="1960" width="688" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="1300" y1="1031" x2="1300" y2="1231" stroke="#1e1e1e" stroke-width="3"/>
+<line x1="5320" y1="1031" x2="5320" y2="1231" stroke="#0ca678" stroke-width="3"/>
+<rect x="100" y="3250" width="5600" height="1841" rx="16" fill="none" stroke="#2f9e44" stroke-width="4"/>
+<rect x="140" y="3360" width="5520" height="281" rx="16" fill="none" stroke="#2f9e44" stroke-width="2" stroke-dasharray="16 10"/>
+<rect x="176" y="3453" width="1058" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="1274" y="3453" width="1058" height="152" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="2371" y="3453" width="1058" height="152" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="3469" y="3453" width="1058" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="4566" y="3453" width="1058" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="140" y="3681" width="5520" height="857" rx="16" fill="none" stroke="#2f9e44" stroke-width="2" stroke-dasharray="16 10"/>
+<rect x="176" y="3774" width="1058" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="1274" y="3774" width="1058" height="152" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="2371" y="3774" width="1058" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="3469" y="3774" width="1058" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="4566" y="3774" width="1058" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="3469" y="3906" width="1058" height="152" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="176" y="3936" width="1058" height="242" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="2371" y="3936" width="1058" height="152" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<rect x="4566" y="3936" width="1058" height="182" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="1274" y="3966" width="1058" height="152" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="3469" y="4098" width="1058" height="212" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<rect x="2371" y="4128" width="1058" height="182" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="1274" y="4158" width="1058" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="4566" y="4158" width="1058" height="122" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<rect x="176" y="4218" width="1058" height="122" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<rect x="1274" y="4320" width="1058" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="4566" y="4320" width="1058" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="2371" y="4350" width="1058" height="152" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<rect x="140" y="4578" width="5520" height="473" rx="16" fill="none" stroke="#e8590c" stroke-width="2" stroke-dasharray="16 10"/>
+<rect x="176" y="4671" width="1789" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="2005" y="4671" width="1789" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="3835" y="4671" width="1789" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="176" y="4803" width="1789" height="212" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="2005" y="4803" width="1789" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="3835" y="4803" width="1789" height="92" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<line x1="1300" y1="3030" x2="1300" y2="3250" stroke="#1e1e1e" stroke-width="3"/>
+<line x1="5320" y1="3030" x2="5320" y2="3250" stroke="#0ca678" stroke-width="3"/>
+<rect x="100" y="5311" width="2128" height="737" rx="16" fill="none" stroke="#c2255c" stroke-width="2" stroke-dasharray="16 10"/>
+<rect x="136" y="5404" width="2056" height="212" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="136" y="5656" width="2056" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="136" y="5788" width="2056" height="92" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="136" y="5920" width="2056" height="92" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="2288" y="5311" width="3412" height="677" rx="16" fill="none" stroke="#0ca678" stroke-width="2" stroke-dasharray="16 10"/>
+<rect x="2324" y="5404" width="1087" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="3451" y="5404" width="1087" height="122" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<rect x="4577" y="5404" width="1087" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="2324" y="5536" width="1087" height="92" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<rect x="4577" y="5536" width="1087" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="3451" y="5566" width="1087" height="122" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<rect x="2324" y="5668" width="1087" height="122" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="4577" y="5698" width="1087" height="92" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="3451" y="5728" width="1087" height="92" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="2324" y="5830" width="1087" height="122" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<rect x="4577" y="5830" width="1087" height="92" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="3451" y="5860" width="1087" height="92" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<line x1="1164" y1="5091" x2="1164" y2="5311" stroke="#c2255c" stroke-width="3"/>
+<line x1="4024" y1="5091" x2="4024" y2="5311" stroke="#0ca678" stroke-width="3"/>
+<rect x="100" y="6168" width="5600" height="413" rx="16" fill="none" stroke="#495057" stroke-width="2" stroke-dasharray="16 10"/>
+<rect x="136" y="6261" width="1074" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="1250" y="6261" width="1074" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="2363" y="6261" width="1074" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="3477" y="6261" width="1074" height="92" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<rect x="4590" y="6261" width="1074" height="122" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="3477" y="6393" width="1074" height="92" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="136" y="6423" width="1074" height="122" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="1250" y="6423" width="1074" height="122" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="2363" y="6423" width="1074" height="92" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="4590" y="6423" width="1074" height="92" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="100" y="6701" width="5600" height="1124" rx="16" fill="none" stroke="#1e1e1e" stroke-width="2" stroke-dasharray="16 10"/>
+<rect x="140" y="6791" width="360" height="92" rx="16" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<rect x="540" y="6791" width="671" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="1281" y="6791" width="671" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="1215" y1="6837" x2="1277" y2="6837" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="2023" y="6791" width="671" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="1957" y1="6837" x2="2019" y2="6837" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="2764" y="6791" width="671" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="2698" y1="6837" x2="2760" y2="6837" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="3506" y="6791" width="671" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="3440" y1="6837" x2="3502" y2="6837" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="140" y="6923" width="360" height="122" rx="16" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<rect x="540" y="6923" width="671" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="1281" y="6923" width="671" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="1215" y1="6984" x2="1277" y2="6984" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="2023" y="6923" width="671" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="1957" y1="6984" x2="2019" y2="6984" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="2764" y="6923" width="671" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="2698" y1="6984" x2="2760" y2="6984" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="3506" y="6923" width="671" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="3440" y1="6984" x2="3502" y2="6984" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="140" y="7085" width="360" height="122" rx="16" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<rect x="540" y="7085" width="671" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="1281" y="7085" width="671" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="1215" y1="7146" x2="1277" y2="7146" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="2023" y="7085" width="671" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="1957" y1="7146" x2="2019" y2="7146" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="2764" y="7085" width="671" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="2698" y1="7146" x2="2760" y2="7146" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="3506" y="7085" width="671" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="3440" y1="7146" x2="3502" y2="7146" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="4247" y="7085" width="671" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="4181" y1="7146" x2="4243" y2="7146" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="4989" y="7085" width="671" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="4923" y1="7146" x2="4985" y2="7146" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="140" y="7247" width="360" height="122" rx="16" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<rect x="540" y="7247" width="671" height="122" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<rect x="1281" y="7247" width="671" height="122" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<line x1="1215" y1="7308" x2="1277" y2="7308" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="2023" y="7247" width="671" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="1957" y1="7308" x2="2019" y2="7308" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="2764" y="7247" width="671" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="2698" y1="7308" x2="2760" y2="7308" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="3506" y="7247" width="671" height="122" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="3440" y1="7308" x2="3502" y2="7308" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="140" y="7409" width="360" height="92" rx="16" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<rect x="540" y="7409" width="671" height="92" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<rect x="1281" y="7409" width="671" height="92" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<line x1="1215" y1="7455" x2="1277" y2="7455" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="2023" y="7409" width="671" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="1957" y1="7455" x2="2019" y2="7455" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="2764" y="7409" width="671" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="2698" y1="7455" x2="2760" y2="7455" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="3506" y="7409" width="671" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="3440" y1="7455" x2="3502" y2="7455" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="4247" y="7409" width="671" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="4181" y1="7455" x2="4243" y2="7455" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="140" y="7541" width="360" height="92" rx="16" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<rect x="540" y="7541" width="671" height="92" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<rect x="1281" y="7541" width="671" height="92" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<line x1="1215" y1="7587" x2="1277" y2="7587" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="2023" y="7541" width="671" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="1957" y1="7587" x2="2019" y2="7587" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="2764" y="7541" width="671" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="2698" y1="7587" x2="2760" y2="7587" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="3506" y="7541" width="671" height="92" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<line x1="3440" y1="7587" x2="3502" y2="7587" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="140" y="7673" width="360" height="92" rx="16" fill="#f1f3f5" stroke="#495057" stroke-width="2"/>
+<rect x="540" y="7673" width="671" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<rect x="1281" y="7673" width="671" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="1215" y1="7719" x2="1277" y2="7719" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="2023" y="7673" width="671" height="92" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<line x1="1957" y1="7719" x2="2019" y2="7719" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="2764" y="7673" width="671" height="92" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<line x1="2698" y1="7719" x2="2760" y2="7719" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="3506" y="7673" width="671" height="92" rx="16" fill="#d0ebff" stroke="#1971c2" stroke-width="2"/>
+<line x1="3440" y1="7719" x2="3502" y2="7719" stroke="#1e1e1e" stroke-width="3"/>
+<rect x="100" y="7945" width="5600" height="623" rx="16" fill="none" stroke="#e03131" stroke-width="2" stroke-dasharray="16 10"/>
+<rect x="136" y="8038" width="1816" height="242" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="1992" y="8038" width="1816" height="272" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<rect x="3848" y="8038" width="1816" height="332" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="136" y="8320" width="1816" height="182" rx="16" fill="#fff3bf" stroke="#f08c00" stroke-width="2"/>
+<rect x="1992" y="8350" width="1816" height="122" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="3848" y="8410" width="1816" height="122" rx="16" fill="#ffc9c9" stroke="#e03131" stroke-width="2"/>
+<rect x="100" y="8688" width="5600" height="353" rx="16" fill="none" stroke="#7048e8" stroke-width="2" stroke-dasharray="16 10"/>
+<rect x="136" y="8781" width="1816" height="92" rx="16" fill="#e5dbff" stroke="#7048e8" stroke-width="2"/>
+<rect x="1992" y="8781" width="1816" height="92" rx="16" fill="#e5dbff" stroke="#7048e8" stroke-width="2"/>
+<rect x="3848" y="8781" width="1816" height="92" rx="16" fill="#e5dbff" stroke="#7048e8" stroke-width="2"/>
+<rect x="136" y="8913" width="1816" height="92" rx="16" fill="#e5dbff" stroke="#7048e8" stroke-width="2"/>
+<rect x="1992" y="8913" width="1816" height="92" rx="16" fill="#e5dbff" stroke="#7048e8" stroke-width="2"/>
+<rect x="3848" y="8913" width="1816" height="92" rx="16" fill="#e5dbff" stroke="#7048e8" stroke-width="2"/>
+<text x="100" y="111" font-size="48" fill="#1e1e1e">SuperSaaS - complete architecture + build status</text>
+<text x="100" y="162" font-size="28" fill="#868e96">AI cold-email outreach platform by A2B AI Technologies  |  monorepo: apps/api (NestJS 11) + apps/web (Next.js 16) + Postgres 16 + Redis 7</text>
+<text x="100" y="197" font-size="28" fill="#868e96">Status as of 2026-11-19  |  repo AxZyzz/supersaaswireframe  |  read top -&gt; bottom: 1 users, 2 frontend, 3 backend, 4 data, 5 external services, 6 infrastructure, 7 workflows, 8 pending, 9 design notes</text>
+<text x="3824" y="284" font-size="36" fill="#1e1e1e">Legend</text>
+<text x="3920" y="344" font-size="26" fill="#1e1e1e">DONE: built, tested, working</text>
+<text x="3920" y="404" font-size="26" fill="#1e1e1e">PARTIAL: built but waiting on an account, a public URL or a live test</text>
+<text x="3920" y="464" font-size="26" fill="#1e1e1e">NOT DONE: not built yet / needs account / deferred</text>
+<text x="3920" y="524" font-size="26" fill="#1e1e1e">Grey = who uses it (no status)</text>
+<text x="3920" y="584" font-size="26" fill="#1e1e1e">Purple = design note / trade-off</text>
+<text x="3830" y="642" font-size="26" fill="#c2255c">*  = exists on branch google-stack only (not yet merged to main)</text>
+<text x="114" y="274" font-size="26" fill="#1e1e1e">How to read this</text>
+<text x="114" y="306" font-size="26" fill="#1e1e1e">Each box is one page, module, service or step, filled by status (legend, right). Dashed boxes group a layer. Solid arrows = synchronous requests; dashed = async / external traffic.</text>
+<text x="114" y="339" font-size="26" fill="#1e1e1e"></text>
+<text x="114" y="371" font-size="26" fill="#1e1e1e">Branches: main = stable, real AI through AWS Bedrock. google-stack = main + Gemini AI provider, Gmail reply + bounce reading, and sender name / reply-to / signature editing (marked *). Explanation:</text>
+<text x="114" y="404" font-size="26" fill="#1e1e1e">docs/architecture/README.md. Run it: docs/RUNNING-LOCALLY.md.</text>
+<text x="150" y="914" font-size="24" fill="#1e1e1e">Workspace users</text>
+<text x="150" y="944" font-size="24" fill="#1e1e1e">Admin / Manager / Agent. Every route checks the role (docs/AUTHZ-</text>
+<text x="150" y="974" font-size="24" fill="#1e1e1e">MATRIX.md). One person can belong to several workspaces and switch.</text>
+<text x="1264" y="914" font-size="24" fill="#1e1e1e">A2B operator (staff)</text>
+<text x="1264" y="944" font-size="24" fill="#1e1e1e">Uses /operator across all workspaces. Granted only from the CLI: npm</text>
+<text x="1264" y="974" font-size="24" fill="#1e1e1e">run operator -w apps/api -- grant &lt;email&gt;.</text>
+<text x="2377" y="914" font-size="24" fill="#1e1e1e">Website visitor</text>
+<text x="2377" y="944" font-size="24" fill="#1e1e1e">Sees landing + pricing; joins the waitlist when SIGNUP_MODE=waitlist</text>
+<text x="2377" y="974" font-size="24" fill="#1e1e1e">(invite-only beta).</text>
+<text x="3491" y="914" font-size="24" fill="#1e1e1e">Lead / email recipient</text>
+<text x="3491" y="944" font-size="24" fill="#1e1e1e">Gets campaign emails in Gmail/Outlook; opens, clicks, unsubscribes,</text>
+<text x="3491" y="974" font-size="24" fill="#1e1e1e">replies or bounces.</text>
+<text x="4604" y="914" font-size="24" fill="#1e1e1e">External system</text>
+<text x="4604" y="944" font-size="24" fill="#1e1e1e">CRM, form or Zapier pushing leads with POST /v1/leads + X-Api-Key.</text>
+<text x="124" y="834" font-size="36" fill="#495057">1 - WHO USES IT</text>
+<text x="190" y="1476" font-size="24" fill="#1e1e1e">Landing  /   [DONE]</text>
+<text x="190" y="1506" font-size="24" fill="#1e1e1e">Hero, features, CTA. Waitlist form when sign-up is invite-only.</text>
+<text x="1357" y="1476" font-size="24" fill="#1e1e1e">Pricing  /pricing   [DONE]</text>
+<text x="1357" y="1506" font-size="24" fill="#1e1e1e">Beta = free. Planned $29-$199 tiers shown only with SHOW_PLANNED_TIERS.</text>
+<text x="2524" y="1476" font-size="24" fill="#1e1e1e">Privacy  /privacy  +  Terms  /terms   [PARTIAL]</text>
+<text x="2524" y="1506" font-size="24" fill="#1e1e1e">Draft pages exist. Need: company name + domain (decision D-A), postal</text>
+<text x="2524" y="1536" font-size="24" fill="#1e1e1e">address, legal review, customer DPA, sub-processor list.</text>
+<text x="3691" y="1476" font-size="24" fill="#1e1e1e">Sign up  /signup   [DONE]</text>
+<text x="3691" y="1506" font-size="24" fill="#1e1e1e">Creates user + workspace + admin membership; seeds 5 tags + 5 starter</text>
+<text x="3691" y="1536" font-size="24" fill="#1e1e1e">templates. Invite-only in waitlist mode.</text>
+<text x="3691" y="1566" font-size="24" fill="#1e1e1e">Email verification at sign-up: NOT built.</text>
+<text x="190" y="1608" font-size="24" fill="#1e1e1e">Login  /login   [DONE]</text>
+<text x="190" y="1638" font-size="24" fill="#1e1e1e">Email + password (bcrypt 12, constant-time for unknown emails), per-IP</text>
+<text x="190" y="1668" font-size="24" fill="#1e1e1e">throttling. httpOnly refresh cookie + in-memory access token. Org</text>
+<text x="190" y="1698" font-size="24" fill="#1e1e1e">switcher.</text>
+<text x="1357" y="1608" font-size="24" fill="#1e1e1e">Forgot / reset password   [PARTIAL]</text>
+<text x="1357" y="1638" font-size="24" fill="#1e1e1e">/forgot-password, /reset-password: single-use hashed token, expiry,</text>
+<text x="1357" y="1668" font-size="24" fill="#1e1e1e">revokes all sessions. Built + tested, but the email only goes out once</text>
+<text x="1357" y="1698" font-size="24" fill="#1e1e1e">SYSTEM_SMTP_* works (Gmail app password rejected, 535). Locally the link</text>
+<text x="1357" y="1728" font-size="24" fill="#1e1e1e">is printed in the API log.</text>
+<text x="2524" y="1638" font-size="24" fill="#1e1e1e">Invite  /invite/[token]   [DONE]</text>
+<text x="2524" y="1668" font-size="24" fill="#1e1e1e">Single-use link bound to the invited email; works for existing and new</text>
+<text x="2524" y="1698" font-size="24" fill="#1e1e1e">users.</text>
+<text x="3691" y="1668" font-size="24" fill="#1e1e1e">Onboarding wizard  /onboarding   [DONE]</text>
+<text x="3691" y="1698" font-size="24" fill="#1e1e1e">Workspace -&gt; business knowledge -&gt; connect sender -&gt; DNS check -&gt; done.</text>
+<text x="3691" y="1728" font-size="24" fill="#1e1e1e">Every step skippable.</text>
+<text x="164" y="1395" font-size="36" fill="#1971c2">2a - Public + auth pages (no login)</text>
+<text x="190" y="1958" font-size="24" fill="#1e1e1e">Dashboard  /dashboard   [DONE]</text>
+<text x="190" y="1988" font-size="24" fill="#1e1e1e">Lead / campaign / send counts with 7-day deltas, engagement, activity</text>
+<text x="190" y="2018" font-size="24" fill="#1e1e1e">feed, sender alerts, &#x27;Start here&#x27; checklist.</text>
+<text x="1357" y="1958" font-size="24" fill="#1e1e1e">Leads  /leads   [DONE]</text>
+<text x="1357" y="1988" font-size="24" fill="#1e1e1e">- Search, filters (status, score, source, tag), sort, pagination</text>
+<text x="1357" y="2018" font-size="24" fill="#1e1e1e">- Table + kanban (drag to change status)</text>
+<text x="1357" y="2048" font-size="24" fill="#1e1e1e">- Bulk tag, CSV export (formula-safe)</text>
+<text x="1357" y="2078" font-size="24" fill="#1e1e1e">- Import modal: CSV / XLSX &lt;=10 MB, column mapping with auto-guess, skip</text>
+<text x="1357" y="2108" font-size="24" fill="#1e1e1e">  or update duplicates, per-row error report</text>
+<text x="1357" y="2138" font-size="24" fill="#1e1e1e">- Duplicates modal: detect + merge</text>
+<text x="2524" y="1958" font-size="24" fill="#1e1e1e">Lead profile  /leads/[id]   [DONE]</text>
+<text x="2524" y="1988" font-size="24" fill="#1e1e1e">Inline-edit details, activity timeline (sent, opened, replied...),</text>
+<text x="2524" y="2018" font-size="24" fill="#1e1e1e">notes, tags, Forget (GDPR erase + suppress).</text>
+<text x="3691" y="1958" font-size="24" fill="#1e1e1e">Segments  /segments, /segments/[id]   [DONE]</text>
+<text x="3691" y="1988" font-size="24" fill="#1e1e1e">Manual lists + smart rule builder (all/any): status, score, source,</text>
+<text x="3691" y="2018" font-size="24" fill="#1e1e1e">company, email, tags, created within N days, engagement (emailed,</text>
+<text x="3691" y="2048" font-size="24" fill="#1e1e1e">opened, clicked, replied, no reply...). Membership materialised by a</text>
+<text x="3691" y="2078" font-size="24" fill="#1e1e1e">worker.</text>
+<text x="3691" y="2108" font-size="24" fill="#1e1e1e">Known bug: invalid tag id -&gt; refresh fails silently.</text>
+<text x="190" y="2120" font-size="24" fill="#1e1e1e">Templates  /templates   [DONE]</text>
+<text x="190" y="2150" font-size="24" fill="#1e1e1e">Folders, visual editor + raw HTML mode, {variable|fallback} chips,</text>
+<text x="190" y="2180" font-size="24" fill="#1e1e1e">preview with sample or real lead (sanitised), test-send, duplicate.</text>
+<text x="2524" y="2120" font-size="24" fill="#1e1e1e">Campaigns  /campaigns   [DONE]</text>
+<text x="2524" y="2150" font-size="24" fill="#1e1e1e">- 4-step wizard: Setup -&gt; Sequence -&gt; Senders -&gt; Review</text>
+<text x="2524" y="2180" font-size="24" fill="#1e1e1e">- Steps: template, delay, condition (always / opened-no-reply / not-</text>
+<text x="2524" y="2210" font-size="24" fill="#1e1e1e">  opened), A/B subject variants</text>
+<text x="2524" y="2240" font-size="24" fill="#1e1e1e">- AI builder: brief -&gt; sequence -&gt; &#x27;Ask AI to edit&#x27; with undo -&gt; draft</text>
+<text x="2524" y="2270" font-size="24" fill="#1e1e1e">  campaign</text>
+<text x="2524" y="2300" font-size="24" fill="#1e1e1e">- Launch now / schedule, pause, resume, duplicate, archive, live stats</text>
+<text x="3691" y="2210" font-size="24" fill="#1e1e1e">A/B auto-winner (in Campaigns)   [NOT DONE]</text>
+<text x="3691" y="2240" font-size="24" fill="#1e1e1e">Spec: weekly score (open 0.3 + reply 0.5 + click 0.2), double top</text>
+<text x="3691" y="2270" font-size="24" fill="#1e1e1e">variants, halve/remove bottom ones. Only even round-robin A/B is built.</text>
+<text x="1357" y="2240" font-size="24" fill="#1e1e1e">Inbox  /inbox   [DONE]</text>
+<text x="1357" y="2270" font-size="24" fill="#1e1e1e">- 3 panes: list, thread (sent + replies + notes), lead context</text>
+<text x="1357" y="2300" font-size="24" fill="#1e1e1e">- Filters: classification, unread, open/closed, campaign, activity range</text>
+<text x="1357" y="2330" font-size="24" fill="#1e1e1e">- Assign, reclassify, convert, close, internal notes</text>
+<text x="1357" y="2360" font-size="24" fill="#1e1e1e">- Reply to lead (threaded In-Reply-To)</text>
+<text x="1357" y="2390" font-size="24" fill="#1e1e1e">- Draft / Rewrite with AI (never auto-sent)</text>
+<text x="1357" y="2420" font-size="24" fill="#1e1e1e">- Live via Socket.io, unread badge</text>
+<text x="1357" y="2450" font-size="24" fill="#1e1e1e">- Sync Gmail button + Test reply</text>
+<text x="190" y="2282" font-size="24" fill="#1e1e1e">Analytics  /analytics   [DONE]</text>
+<text x="190" y="2312" font-size="24" fill="#1e1e1e">Date ranges (7/30/90/all/custom), funnel, campaign table per step + per</text>
+<text x="190" y="2342" font-size="24" fill="#1e1e1e">A/B variant, template performance, lead-source funnel, CSV + Save-as-</text>
+<text x="190" y="2372" font-size="24" fill="#1e1e1e">PDF.</text>
+<text x="190" y="2402" font-size="24" fill="#1e1e1e">Open/click numbers stay 0 until tracking has a public URL.</text>
+<text x="3691" y="2372" font-size="24" fill="#1e1e1e">Settings  /settings   [DONE]</text>
+<text x="3691" y="2402" font-size="24" fill="#1e1e1e">- Workspace profile + branding (logo, brand colour app-wide)</text>
+<text x="3691" y="2432" font-size="24" fill="#1e1e1e">- Team: invites, roles, remove</text>
+<text x="3691" y="2462" font-size="24" fill="#1e1e1e">- Senders: Gmail / SMTP, verify, test, DNS check, warm-up, daily limit,</text>
+<text x="3691" y="2492" font-size="24" fill="#1e1e1e">  window; edit name / reply-to / signature*</text>
+<text x="3691" y="2522" font-size="24" fill="#1e1e1e">- API keys, Knowledge base, Lead statuses</text>
+<text x="3691" y="2552" font-size="24" fill="#1e1e1e">- Notification prefs (in-app + email), Integrations (Gmail, Sheets)</text>
+<text x="3691" y="2582" font-size="24" fill="#1e1e1e">- Usage / plan meter, Data &amp; privacy (export, delete)</text>
+<text x="3691" y="2612" font-size="24" fill="#1e1e1e">* google-stack only</text>
+<text x="2524" y="2402" font-size="24" fill="#1e1e1e">Help  /help   [DONE]</text>
+<text x="2524" y="2432" font-size="24" fill="#1e1e1e">13 articles with search, contextual &#x27;?&#x27; links on pages.</text>
+<text x="190" y="2504" font-size="24" fill="#1e1e1e">Operator console  /operator (A2B staff)   [DONE]</text>
+<text x="190" y="2534" font-size="24" fill="#1e1e1e">Workspaces, plan beta/internal, failures, queue + system health, uptime,</text>
+<text x="190" y="2564" font-size="24" fill="#1e1e1e">waitlist approve -&gt; invite link, feedback, Pause sending (needs a</text>
+<text x="190" y="2594" font-size="24" fill="#1e1e1e">reason, notifies members).</text>
+<text x="164" y="1878" font-size="36" fill="#1971c2">2b - App pages (logged in): apps/web/src/app/(app)</text>
+<text x="190" y="2844" font-size="24" fill="#1e1e1e">App shell   [DONE]</text>
+<text x="190" y="2874" font-size="24" fill="#1e1e1e">Sidebar, Ctrl/Cmd+K command palette, notification bell</text>
+<text x="190" y="2904" font-size="24" fill="#1e1e1e">(deep links), theme toggle (system/light/dark, no flash),</text>
+<text x="190" y="2934" font-size="24" fill="#1e1e1e">feedback button, error boundary + 404.</text>
+<text x="1124" y="2844" font-size="24" fill="#1e1e1e">API client  lib/api.ts   [DONE]</text>
+<text x="1124" y="2874" font-size="24" fill="#1e1e1e">Access token kept in memory only; silent refresh through</text>
+<text x="1124" y="2904" font-size="24" fill="#1e1e1e">the httpOnly cookie; one error helper. Talks to</text>
+<text x="1124" y="2934" font-size="24" fill="#1e1e1e">NEXT_PUBLIC_API_URL (default :4000).</text>
+<text x="2057" y="2844" font-size="24" fill="#1e1e1e">Realtime client  lib/realtime.ts   [DONE]</text>
+<text x="2057" y="2874" font-size="24" fill="#1e1e1e">Socket.io (websocket transport only) -&gt; live inbox +</text>
+<text x="2057" y="2904" font-size="24" fill="#1e1e1e">notifications.</text>
+<text x="2991" y="2844" font-size="24" fill="#1e1e1e">Stack   [DONE]</text>
+<text x="2991" y="2874" font-size="24" fill="#1e1e1e">Next.js 16.4.2 (App Router, Turbopack), React 19.2.9,</text>
+<text x="2991" y="2904" font-size="24" fill="#1e1e1e">Tailwind v4, runtime brand colour. Port 3000.</text>
+<text x="3924" y="2844" font-size="24" fill="#1e1e1e">Next.js upgrade   [NOT DONE]</text>
+<text x="3924" y="2874" font-size="24" fill="#1e1e1e">A newer moderate advisory on 16.4.2 is not yet addressed.</text>
+<text x="164" y="2763" font-size="36" fill="#1971c2">2c - Shared UI + client plumbing</text>
+<text x="130" y="1298" font-size="44" fill="#1971c2">2 - FRONTEND  apps/web  (Next.js 16, React 19, Tailwind v4)  :3000</text>
+<text x="4990" y="1366" font-size="24" fill="#1e1e1e">Tracking + unsubscribe   [PARTIAL]</text>
+<text x="4990" y="1396" font-size="24" fill="#1e1e1e">GET /t/o/:id open pixel, GET /t/c/:id click</text>
+<text x="4990" y="1426" font-size="24" fill="#1e1e1e">redirect (HMAC-signed), GET/POST /u/:id</text>
+<text x="4990" y="1456" font-size="24" fill="#1e1e1e">unsubscribe.</text>
+<text x="4990" y="1486" font-size="24" fill="#1e1e1e">Code done; on localhost recipients can&#x27;t</text>
+<text x="4990" y="1516" font-size="24" fill="#1e1e1e">reach it -&gt; needs public HTTPS API_URL.</text>
+<text x="4990" y="1618" font-size="24" fill="#1e1e1e">Public REST API   [DONE]</text>
+<text x="4990" y="1648" font-size="24" fill="#1e1e1e">POST /v1/leads with X-Api-Key: create or</text>
+<text x="4990" y="1678" font-size="24" fill="#1e1e1e">upsert. Keys SHA-256 hashed, shown once,</text>
+<text x="4990" y="1708" font-size="24" fill="#1e1e1e">per-key requests/min limit (429 + Retry-</text>
+<text x="4990" y="1738" font-size="24" fill="#1e1e1e">After).</text>
+<text x="4990" y="1840" font-size="24" fill="#1e1e1e">Google OAuth callback   [DONE]</text>
+<text x="4990" y="1870" font-size="24" fill="#1e1e1e">GET /auth/google/callback for Connect Gmail</text>
+<text x="4990" y="1900" font-size="24" fill="#1e1e1e">and Connect Sheets (browser-bound state).</text>
+<text x="4990" y="2002" font-size="24" fill="#1e1e1e">Health   [DONE]</text>
+<text x="4990" y="2032" font-size="24" fill="#1e1e1e">GET /  and  GET /health/ready (DB + Redis,</text>
+<text x="4990" y="2062" font-size="24" fill="#1e1e1e">503 when down).</text>
+<text x="4964" y="1285" font-size="36" fill="#0ca678">2d - Hits the API directly</text>
+<text x="1320" y="1140" font-size="22" fill="#495057">browser, HTTPS</text>
+<text x="4760" y="1140" font-size="22" fill="#495057">mail-app pixel / click / unsubscribe,</text>
+<text x="4760" y="1168" font-size="22" fill="#495057">X-Api-Key lead pushes</text>
+<text x="190" y="3494" font-size="24" fill="#1e1e1e">Auth + roles   [DONE]</text>
+<text x="190" y="3524" font-size="24" fill="#1e1e1e">JWT access token + rotating refresh token (httpOnly cookie, revoked</text>
+<text x="190" y="3554" font-size="24" fill="#1e1e1e">on logout). RolesGuard admin / manager / agent; operator flag.</text>
+<text x="1288" y="3494" font-size="24" fill="#1e1e1e">Tenant isolation   [DONE]</text>
+<text x="1288" y="3524" font-size="24" fill="#1e1e1e">Postgres RLS ENABLE + FORCE on every tenant table; app connects as</text>
+<text x="1288" y="3554" font-size="24" fill="#1e1e1e">restricted supersaas_app; withOrgContext sets app.current_org_id;</text>
+<text x="1288" y="3584" font-size="24" fill="#1e1e1e">SECURITY DEFINER functions for cross-tenant scans.</text>
+<text x="2385" y="3494" font-size="24" fill="#1e1e1e">Rate limiting   [DONE]</text>
+<text x="2385" y="3524" font-size="24" fill="#1e1e1e">Redis throttler (throttle:* keys): per-IP login, signup, waitlist,</text>
+<text x="2385" y="3554" font-size="24" fill="#1e1e1e">per-API-key RPM.</text>
+<text x="2385" y="3584" font-size="24" fill="#1e1e1e">Per-account login throttling: not built.</text>
+<text x="3483" y="3494" font-size="24" fill="#1e1e1e">Input + secrets safety   [DONE]</text>
+<text x="3483" y="3524" font-size="24" fill="#1e1e1e">Global ValidationPipe (whitelist), AES-256-GCM for sender secrets,</text>
+<text x="3483" y="3554" font-size="24" fill="#1e1e1e">SSRF guard on SMTP hosts, HTML sanitiser, Swagger /docs dev-only.</text>
+<text x="4580" y="3494" font-size="24" fill="#1e1e1e">Plan limits  usage/plan-limits.ts   [DONE]</text>
+<text x="4580" y="3524" font-size="24" fill="#1e1e1e">Leads, campaigns, steps, senders, seats, emails per day/month, AI</text>
+<text x="4580" y="3554" font-size="24" fill="#1e1e1e">generations. 403 LIMIT_REACHED. &#x27;internal&#x27; plan unlimited.</text>
+<text x="164" y="3414" font-size="36" fill="#2f9e44">3a - Cross-cutting (runs on every request)</text>
+<text x="190" y="3816" font-size="24" fill="#1e1e1e">auth   [DONE]</text>
+<text x="190" y="3846" font-size="24" fill="#1e1e1e">signup, login, logout, refresh, me, switch-org, forgot / reset</text>
+<text x="190" y="3876" font-size="24" fill="#1e1e1e">password, delete account, Google OAuth callback.</text>
+<text x="1288" y="3816" font-size="24" fill="#1e1e1e">orgs   [DONE]</text>
+<text x="1288" y="3846" font-size="24" fill="#1e1e1e">Workspace profile + branding, members + roles (last-admin</text>
+<text x="1288" y="3876" font-size="24" fill="#1e1e1e">protection), invites, onboarding, setup checklist, JSON export,</text>
+<text x="1288" y="3906" font-size="24" fill="#1e1e1e">delete workspace.</text>
+<text x="2385" y="3816" font-size="24" fill="#1e1e1e">leads + tags + lead-statuses + api-keys + v1   [DONE]</text>
+<text x="2385" y="3846" font-size="24" fill="#1e1e1e">CRUD, import job (queue), duplicates + merge, CSV export, notes,</text>
+<text x="2385" y="3876" font-size="24" fill="#1e1e1e">bulk tags, custom statuses (6 locked system ones), hashed API keys.</text>
+<text x="3483" y="3816" font-size="24" fill="#1e1e1e">segments   [DONE]</text>
+<text x="3483" y="3846" font-size="24" fill="#1e1e1e">Manual + smart segments, materialised membership, refresh worker.</text>
+<text x="4580" y="3816" font-size="24" fill="#1e1e1e">templates   [DONE]</text>
+<text x="4580" y="3846" font-size="24" fill="#1e1e1e">Folders, preview, test-send, duplicate; 5 starter templates per</text>
+<text x="4580" y="3876" font-size="24" fill="#1e1e1e">workspace.</text>
+<text x="3483" y="3948" font-size="24" fill="#1e1e1e">campaigns   [DONE]</text>
+<text x="3483" y="3978" font-size="24" fill="#1e1e1e">CRUD, steps, A/B variants, enroll audience, schedule / pause /</text>
+<text x="3483" y="4008" font-size="24" fill="#1e1e1e">resume / duplicate / archive, stats. Per-lead state machine</text>
+<text x="3483" y="4038" font-size="24" fill="#1e1e1e">(campaign_leads): step, status, stop reason, next send time.</text>
+<text x="190" y="3978" font-size="24" fill="#1e1e1e">sending engine   [DONE]</text>
+<text x="190" y="4008" font-size="24" fill="#1e1e1e">30 s tick finds due sends (definer fn) then works per tenant: send</text>
+<text x="190" y="4038" font-size="24" fill="#1e1e1e">window, daily limit, warm-up 20/50/100 per day, plan caps (defer,</text>
+<text x="190" y="4068" font-size="24" fill="#1e1e1e">not drop), suppression, verified-only senders. Render: variables,</text>
+<text x="190" y="4098" font-size="24" fill="#1e1e1e">tracked links, pixel, unsubscribe footer, List-Unsubscribe one-</text>
+<text x="190" y="4128" font-size="24" fill="#1e1e1e">click. Network call outside the DB transaction. Gmail auth failure</text>
+<text x="190" y="4158" font-size="24" fill="#1e1e1e">-&gt; retry in 15 min.</text>
+<text x="2385" y="3978" font-size="24" fill="#1e1e1e">tracking  (/t, /u)   [PARTIAL]</text>
+<text x="2385" y="4008" font-size="24" fill="#1e1e1e">Open pixel, signed click redirect, bot filter (no UA, scanners, &lt;10</text>
+<text x="2385" y="4038" font-size="24" fill="#1e1e1e">s after send), unsubscribe confirm page then POST. Works in tests;</text>
+<text x="2385" y="4068" font-size="24" fill="#1e1e1e">live needs public URL.</text>
+<text x="4580" y="3978" font-size="24" fill="#1e1e1e">senders   [DONE]</text>
+<text x="4580" y="4008" font-size="24" fill="#1e1e1e">Providers: Gmail OAuth (gmail.send, optional gmail.readonly), SMTP</text>
+<text x="4580" y="4038" font-size="24" fill="#1e1e1e">(verify, test, encrypted password), SES (stub only). SPF/DMARC DNS</text>
+<text x="4580" y="4068" font-size="24" fill="#1e1e1e">check, warm-up ramp, auto-verify on add, name / reply-to / signature</text>
+<text x="4580" y="4098" font-size="24" fill="#1e1e1e">edit*.</text>
+<text x="1288" y="4008" font-size="24" fill="#1e1e1e">inbox   [DONE]</text>
+<text x="1288" y="4038" font-size="24" fill="#1e1e1e">Conversations, threads, notes, assign, reclassify, convert, threaded</text>
+<text x="1288" y="4068" font-size="24" fill="#1e1e1e">reply, simulate-reply (dev). Stop-on-reply; out-of-office -&gt; next</text>
+<text x="1288" y="4098" font-size="24" fill="#1e1e1e">step +3 days; not-interested -&gt; stop + tag.</text>
+<text x="3483" y="4140" font-size="24" fill="#1e1e1e">Gmail reply sync*  (T5.7)   [PARTIAL]</text>
+<text x="3483" y="4170" font-size="24" fill="#1e1e1e">Every 2 min + &#x27;Sync Gmail&#x27;. Replies from emailed leads -&gt; inbox</text>
+<text x="3483" y="4200" font-size="24" fill="#1e1e1e">(quote-stripped, AI-classified, sequence stopped). mailer-daemon</text>
+<text x="3483" y="4230" font-size="24" fill="#1e1e1e">bounces -&gt; suppression. Personal mail ignored (only its Gmail id</text>
+<text x="3483" y="4260" font-size="24" fill="#1e1e1e">kept). Built + 4 tests; needs Gmail reconnect with read permission +</text>
+<text x="3483" y="4290" font-size="24" fill="#1e1e1e">live test.</text>
+<text x="2385" y="4170" font-size="24" fill="#1e1e1e">ai   [DONE]</text>
+<text x="2385" y="4200" font-size="24" fill="#1e1e1e">Knowledge base, generate-sequence, from-sequence, refine (&#x27;Ask AI to</text>
+<text x="2385" y="4230" font-size="24" fill="#1e1e1e">edit&#x27;), reply-draft, reply classification. ai_usage log, 30</text>
+<text x="2385" y="4260" font-size="24" fill="#1e1e1e">generations/month on beta. AI_DRIVER = mock | bedrock | gemini*.</text>
+<text x="2385" y="4290" font-size="24" fill="#1e1e1e">Eval harness: 25 replies + 5 briefs.</text>
+<text x="1288" y="4200" font-size="24" fill="#1e1e1e">analytics   [DONE]</text>
+<text x="1288" y="4230" font-size="24" fill="#1e1e1e">Overview, campaigns, steps + variants, templates, sources, CSV</text>
+<text x="1288" y="4260" font-size="24" fill="#1e1e1e">export. Live queries (no roll-ups yet).</text>
+<text x="4580" y="4200" font-size="24" fill="#1e1e1e">notifications   [PARTIAL]</text>
+<text x="4580" y="4230" font-size="24" fill="#1e1e1e">In-app list / read / prefs. Email delivery every minute + Monday</text>
+<text x="4580" y="4260" font-size="24" fill="#1e1e1e">weekly summary through the system mailer: waits on SYSTEM_SMTP.</text>
+<text x="190" y="4260" font-size="24" fill="#1e1e1e">integrations / Google Sheets   [PARTIAL]</text>
+<text x="190" y="4290" font-size="24" fill="#1e1e1e">Connect (spreadsheets.readonly), preview, map columns, import, Sync</text>
+<text x="190" y="4320" font-size="24" fill="#1e1e1e">now, hourly re-sync, disconnect. Not yet tested with a real sheet.</text>
+<text x="1288" y="4362" font-size="24" fill="#1e1e1e">operator + beta + waitlist + feedback   [DONE]</text>
+<text x="1288" y="4392" font-size="24" fill="#1e1e1e">Cross-tenant console APIs, plan switch, pause sending, waitlist</text>
+<text x="1288" y="4422" font-size="24" fill="#1e1e1e">approve -&gt; invite, feedback inbox.</text>
+<text x="4580" y="4362" font-size="24" fill="#1e1e1e">realtime gateway   [DONE]</text>
+<text x="4580" y="4392" font-size="24" fill="#1e1e1e">Socket.io /realtime, per-org rooms, Redis adapter so several API</text>
+<text x="4580" y="4422" font-size="24" fill="#1e1e1e">instances fan out.</text>
+<text x="2385" y="4392" font-size="24" fill="#1e1e1e">mail (system mailer)   [PARTIAL]</text>
+<text x="2385" y="4422" font-size="24" fill="#1e1e1e">Platform&#x27;s own mail: resets, notifications, weekly summary via</text>
+<text x="2385" y="4452" font-size="24" fill="#1e1e1e">SYSTEM_SMTP_*. Unset -&gt; printed to the API log. Current Gmail app</text>
+<text x="2385" y="4482" font-size="24" fill="#1e1e1e">password rejected (535), parked.</text>
+<text x="164" y="3735" font-size="36" fill="#2f9e44">3b - Feature modules: apps/api/src/*  (REST, ~150 routes)</text>
+<text x="190" y="4712" font-size="24" fill="#1e1e1e">Queue: lead-import   [DONE]</text>
+<text x="190" y="4742" font-size="24" fill="#1e1e1e">CSV / XLSX import worker: mapping, dedupe (case-insensitive email), per-row errors.</text>
+<text x="2019" y="4712" font-size="24" fill="#1e1e1e">Queue: segment-refresh   [DONE]</text>
+<text x="2019" y="4742" font-size="24" fill="#1e1e1e">Re-materialises smart segment membership.</text>
+<text x="3849" y="4712" font-size="24" fill="#1e1e1e">Queue: campaign-send   [DONE]</text>
+<text x="3849" y="4742" font-size="24" fill="#1e1e1e">Repeatable 30 s scheduler tick -&gt; sending engine.</text>
+<text x="190" y="4844" font-size="24" fill="#1e1e1e">Queue: system-jobs (one shared Redis schedule)   [DONE]</text>
+<text x="190" y="4874" font-size="24" fill="#1e1e1e">- notification-emails: every 1 min</text>
+<text x="190" y="4904" font-size="24" fill="#1e1e1e">- weekly-summary: Mon 08:00 UTC</text>
+<text x="190" y="4934" font-size="24" fill="#1e1e1e">- sheet-sync: every 15 min (each sheet hourly)</text>
+<text x="190" y="4964" font-size="24" fill="#1e1e1e">- gmail-reply-sync*: every 2 min</text>
+<text x="190" y="4994" font-size="24" fill="#1e1e1e">JOBS_SCHEDULER=off on extra instances.</text>
+<text x="2019" y="4844" font-size="24" fill="#1e1e1e">Test isolation   [DONE]</text>
+<text x="2019" y="4874" font-size="24" fill="#1e1e1e">QUEUE_PREFIX per test process so a running dev API can&#x27;t steal test jobs.</text>
+<text x="3849" y="4844" font-size="24" fill="#1e1e1e">Daily analytics roll-up worker (T8.1)   [NOT DONE]</text>
+<text x="3849" y="4874" font-size="24" fill="#1e1e1e">Deferred by design: live queries are fine at beta scale.</text>
+<text x="164" y="4632" font-size="36" fill="#e8590c">3c - Async: BullMQ queues + workers (same API process)</text>
+<text x="130" y="3317" font-size="44" fill="#2f9e44">3 - BACKEND  apps/api  (NestJS 11.1.28, one process: REST + Socket.io + workers)  :4000</text>
+<text x="1320" y="3149" font-size="22" fill="#495057">REST JSON + Bearer access token, httpOnly refresh cookie, Socket.io /realtime</text>
+<text x="4850" y="3149" font-size="22" fill="#495057">/t, /u, /v1/leads, OAuth callback</text>
+<text x="150" y="5446" font-size="24" fill="#1e1e1e">PostgreSQL 16  (port 5432)   [DONE]</text>
+<text x="150" y="5476" font-size="24" fill="#1e1e1e">46 migrations (0000-0045), run by drizzle-kit as the owner role. RLS on every tenant table.</text>
+<text x="150" y="5506" font-size="24" fill="#1e1e1e">Tables: orgs, users, memberships, invites, password_resets, refresh_tokens, leads, tags, lead_tags, lead_notes, lead_events, segments,</text>
+<text x="150" y="5536" font-size="24" fill="#1e1e1e">segment_members, import_jobs, sender_accounts, api_keys, template_folders, templates, campaigns, campaign_steps, campaign_leads,</text>
+<text x="150" y="5566" font-size="24" fill="#1e1e1e">sent_emails, email_events, suppression_list, conversations, conversation_messages, conversation_notes, notifications, ai_usage,</text>
+<text x="150" y="5596" font-size="24" fill="#1e1e1e">org_knowledge, integrations, sheet_syncs, gmail_seen_messages ...</text>
+<text x="150" y="5698" font-size="24" fill="#1e1e1e">Redis 7  (port 6379)   [DONE]</text>
+<text x="150" y="5728" font-size="24" fill="#1e1e1e">BullMQ queues + repeatable schedules, rate-limit counters, Socket.io adapter pub/sub. Losing Redis loses queued jobs, not data.</text>
+<text x="150" y="5830" font-size="24" fill="#1e1e1e">Object storage (S3 / GCS)   [NOT DONE]</text>
+<text x="150" y="5860" font-size="24" fill="#1e1e1e">Durable storage for import files (T2.5). Today the upload is handled in-process.</text>
+<text x="150" y="5962" font-size="24" fill="#1e1e1e">Automated backups   [NOT DONE]</text>
+<text x="150" y="5992" font-size="24" fill="#1e1e1e">pg_dump / restore steps are in RUNBOOK.md; nothing scheduled yet (no host).</text>
+<text x="124" y="5365" font-size="36" fill="#c2255c">4 - DATA (Docker locally)</text>
+<text x="2338" y="5446" font-size="24" fill="#1e1e1e">Gmail API: send   [DONE]</text>
+<text x="2338" y="5476" font-size="24" fill="#1e1e1e">OAuth sender, token AES-encrypted, live-verified with Aman&#x27;s Gmail.</text>
+<text x="3465" y="5446" font-size="24" fill="#1e1e1e">Gmail API: read*   [PARTIAL]</text>
+<text x="3465" y="5476" font-size="24" fill="#1e1e1e">gmail.readonly for replies + bounces. Restricted scope: Testing mode</text>
+<text x="3465" y="5506" font-size="24" fill="#1e1e1e">needs test users; public launch needs Google verification.</text>
+<text x="4591" y="5446" font-size="24" fill="#1e1e1e">Workspace SMTP servers   [DONE]</text>
+<text x="4591" y="5476" font-size="24" fill="#1e1e1e">Any mailbox (port 25/465/587/2525) as a sender.</text>
+<text x="2338" y="5578" font-size="24" fill="#1e1e1e">Google Sheets API   [PARTIAL]</text>
+<text x="2338" y="5608" font-size="24" fill="#1e1e1e">Read-only lead sync; not yet tried on a real sheet.</text>
+<text x="4591" y="5578" font-size="24" fill="#1e1e1e">Google Gemini API*   [DONE]</text>
+<text x="4591" y="5608" font-size="24" fill="#1e1e1e">gemini-3.5-flash-lite on all tiers, fallback model on 503/504/timeout,</text>
+<text x="4591" y="5638" font-size="24" fill="#1e1e1e">45 s timeout. Live: classification 24/25, builder ~8 s, drafts 1-6 s.</text>
+<text x="3465" y="5608" font-size="24" fill="#1e1e1e">AWS Bedrock (Claude) - main path   [PARTIAL]</text>
+<text x="3465" y="5638" font-size="24" fill="#1e1e1e">Provider built + tested with mocks; never run for real (no AWS account</text>
+<text x="3465" y="5668" font-size="24" fill="#1e1e1e">yet, ~$200 budget planned).</text>
+<text x="2338" y="5710" font-size="24" fill="#1e1e1e">AWS SES sending   [NOT DONE]</text>
+<text x="2338" y="5740" font-size="24" fill="#1e1e1e">Only a stub. Needs AWS account, domain verification, production access</text>
+<text x="2338" y="5770" font-size="24" fill="#1e1e1e">(~2-week wait).</text>
+<text x="4591" y="5740" font-size="24" fill="#1e1e1e">SES -&gt; SNS bounce / complaint webhooks   [NOT DONE]</text>
+<text x="4591" y="5770" font-size="24" fill="#1e1e1e">(T5.6) feed suppression automatically.</text>
+<text x="3465" y="5770" font-size="24" fill="#1e1e1e">SES inbound replies (MX)   [NOT DONE]</text>
+<text x="3465" y="5800" font-size="24" fill="#1e1e1e">Reply capture for non-Gmail senders.</text>
+<text x="2338" y="5872" font-size="24" fill="#1e1e1e">System SMTP mailbox   [PARTIAL]</text>
+<text x="2338" y="5902" font-size="24" fill="#1e1e1e">For resets + notifications. Configured but login rejected (535):</text>
+<text x="2338" y="5932" font-size="24" fill="#1e1e1e">parked.</text>
+<text x="4591" y="5872" font-size="24" fill="#1e1e1e">Sentry (web + API)   [NOT DONE]</text>
+<text x="4591" y="5902" font-size="24" fill="#1e1e1e">Error tracking; needs account / DSN.</text>
+<text x="3465" y="5902" font-size="24" fill="#1e1e1e">Outlook sender / Stripe billing   [NOT DONE]</text>
+<text x="3465" y="5932" font-size="24" fill="#1e1e1e">Deferred by design.</text>
+<text x="2312" y="5365" font-size="36" fill="#0ca678">5 - EXTERNAL SERVICES</text>
+<text x="1184" y="5210" font-size="22" fill="#495057">SQL as supersaas_app (RLS), BullMQ + pub/sub</text>
+<text x="4044" y="5210" font-size="22" fill="#495057">OAuth, Gmail API, SMTP, Gemini / Bedrock</text>
+<text x="150" y="6302" font-size="24" fill="#1e1e1e">Local dev   [DONE]</text>
+<text x="150" y="6332" font-size="24" fill="#1e1e1e">Docker Compose (supersaas-postgres, supersaas-redis), npm workspaces,</text>
+<text x="150" y="6362" font-size="24" fill="#1e1e1e">ports 3000 / 4000. Guide: docs/RUNNING-LOCALLY.md.</text>
+<text x="1264" y="6302" font-size="24" fill="#1e1e1e">GitHub repo (private)   [DONE]</text>
+<text x="1264" y="6332" font-size="24" fill="#1e1e1e">AxZyzz/supersaaswireframe. Branches: main (Bedrock), google-stack</text>
+<text x="1264" y="6362" font-size="24" fill="#1e1e1e">(Gemini + Gmail read), cloud-session (kept).</text>
+<text x="2377" y="6302" font-size="24" fill="#1e1e1e">CI: GitHub Actions   [DONE]</text>
+<text x="2377" y="6332" font-size="24" fill="#1e1e1e">On main: npm audit, migrate, lint, ~293 API tests, build, Playwright</text>
+<text x="2377" y="6362" font-size="24" fill="#1e1e1e">E2E.</text>
+<text x="3491" y="6302" font-size="24" fill="#1e1e1e">Uptime probe workflow   [PARTIAL]</text>
+<text x="3491" y="6332" font-size="24" fill="#1e1e1e">Every 30 min; idle until repo variable UPTIME_URL is set.</text>
+<text x="4604" y="6302" font-size="24" fill="#1e1e1e">Public HTTPS API_URL   [NOT DONE]</text>
+<text x="4604" y="6332" font-size="24" fill="#1e1e1e">Cloudflare tunnel now or real hosting. Needed for opens, clicks,</text>
+<text x="4604" y="6362" font-size="24" fill="#1e1e1e">unsubscribe, and so emails don&#x27;t look spammy.</text>
+<text x="3491" y="6434" font-size="24" fill="#1e1e1e">Web hosting: Vercel   [NOT DONE]</text>
+<text x="3491" y="6464" font-size="24" fill="#1e1e1e">Fine for apps/web (decision D-C open).</text>
+<text x="150" y="6464" font-size="24" fill="#1e1e1e">API + workers hosting   [NOT DONE]</text>
+<text x="150" y="6494" font-size="24" fill="#1e1e1e">Not Vercel (long-running workers, 30 s ticks, websockets). Cloud Run</text>
+<text x="150" y="6524" font-size="24" fill="#1e1e1e">(min instances), Railway, Render, Fly or a VPS behind Caddy.</text>
+<text x="1264" y="6464" font-size="24" fill="#1e1e1e">Managed Postgres + Redis   [NOT DONE]</text>
+<text x="1264" y="6494" font-size="24" fill="#1e1e1e">Neon / Supabase / RDS + Upstash; private networking, Redis TLS +</text>
+<text x="1264" y="6524" font-size="24" fill="#1e1e1e">password.</text>
+<text x="2377" y="6464" font-size="24" fill="#1e1e1e">Domain + DNS   [NOT DONE]</text>
+<text x="2377" y="6494" font-size="24" fill="#1e1e1e">Name decision D-A, then SPF / DKIM / DMARC, app + api subdomains.</text>
+<text x="4604" y="6464" font-size="24" fill="#1e1e1e">Prod secrets + env management   [NOT DONE]</text>
+<text x="4604" y="6494" font-size="24" fill="#1e1e1e">Per-environment .env, key rotation plan.</text>
+<text x="124" y="6222" font-size="36" fill="#495057">6 - INFRASTRUCTURE + DEPLOY</text>
+<text x="154" y="6849" font-size="28" fill="#1e1e1e">1. Onboard</text>
+<text x="554" y="6832" font-size="24" fill="#1e1e1e">Sign up   [DONE]</text>
+<text x="554" y="6862" font-size="24" fill="#1e1e1e">user + workspace + seeds</text>
+<text x="1295" y="6832" font-size="24" fill="#1e1e1e">Onboarding wizard   [DONE]</text>
+<text x="1295" y="6862" font-size="24" fill="#1e1e1e">knowledge base</text>
+<text x="2037" y="6832" font-size="24" fill="#1e1e1e">Connect Gmail or SMTP   [DONE]</text>
+<text x="2037" y="6862" font-size="24" fill="#1e1e1e">encrypted creds</text>
+<text x="2778" y="6832" font-size="24" fill="#1e1e1e">Auto-verify + DNS check   [DONE]</text>
+<text x="2778" y="6862" font-size="24" fill="#1e1e1e">SPF / DMARC</text>
+<text x="3520" y="6832" font-size="24" fill="#1e1e1e">Ready to send   [DONE]</text>
+<text x="3520" y="6862" font-size="24" fill="#1e1e1e">verified sender</text>
+<text x="154" y="6996" font-size="28" fill="#1e1e1e">2. Lead intake</text>
+<text x="554" y="6964" font-size="24" fill="#1e1e1e">CSV / XLSX upload   [DONE]</text>
+<text x="554" y="6994" font-size="24" fill="#1e1e1e">or Google Sheet* or</text>
+<text x="554" y="7024" font-size="24" fill="#1e1e1e">POST /v1/leads</text>
+<text x="1295" y="6980" font-size="24" fill="#1e1e1e">lead-import queue   [DONE]</text>
+<text x="1295" y="7010" font-size="24" fill="#1e1e1e">worker</text>
+<text x="2037" y="6980" font-size="24" fill="#1e1e1e">Map columns, dedupe   [DONE]</text>
+<text x="2037" y="7010" font-size="24" fill="#1e1e1e">per-row errors</text>
+<text x="2778" y="6980" font-size="24" fill="#1e1e1e">leads + lead_events   [DONE]</text>
+<text x="2778" y="7010" font-size="24" fill="#1e1e1e">in Postgres (RLS)</text>
+<text x="3520" y="6980" font-size="24" fill="#1e1e1e">Smart segments   [DONE]</text>
+<text x="3520" y="7010" font-size="24" fill="#1e1e1e">refresh</text>
+<text x="154" y="7158" font-size="28" fill="#1e1e1e">3. Campaign send</text>
+<text x="554" y="7142" font-size="24" fill="#1e1e1e">Build: wizard or   [DONE]</text>
+<text x="554" y="7172" font-size="24" fill="#1e1e1e">AI builder</text>
+<text x="1295" y="7142" font-size="24" fill="#1e1e1e">Enroll segment / leads   [DONE]</text>
+<text x="1295" y="7172" font-size="24" fill="#1e1e1e">schedule</text>
+<text x="2037" y="7142" font-size="24" fill="#1e1e1e">30 s tick finds due   [DONE]</text>
+<text x="2037" y="7172" font-size="24" fill="#1e1e1e">campaign_leads</text>
+<text x="2778" y="7126" font-size="24" fill="#1e1e1e">Checks: window, warm-up,   [DONE]</text>
+<text x="2778" y="7156" font-size="24" fill="#1e1e1e">caps, suppression,</text>
+<text x="2778" y="7186" font-size="24" fill="#1e1e1e">verified sender</text>
+<text x="3520" y="7142" font-size="24" fill="#1e1e1e">Render + tracking   [DONE]</text>
+<text x="3520" y="7172" font-size="24" fill="#1e1e1e">links + unsubscribe</text>
+<text x="4261" y="7142" font-size="24" fill="#1e1e1e">Send via Gmail / SMTP   [DONE]</text>
+<text x="4261" y="7172" font-size="24" fill="#1e1e1e">(SES not built)</text>
+<text x="5003" y="7142" font-size="24" fill="#1e1e1e">sent_emails + events   [DONE]</text>
+<text x="5003" y="7172" font-size="24" fill="#1e1e1e">next step scheduled</text>
+<text x="154" y="7320" font-size="28" fill="#1e1e1e">4. Opens + clicks</text>
+<text x="554" y="7304" font-size="24" fill="#1e1e1e">Recipient opens /   [PARTIAL]</text>
+<text x="554" y="7334" font-size="24" fill="#1e1e1e">clicks</text>
+<text x="1295" y="7288" font-size="24" fill="#1e1e1e">/t/o pixel, /t/c   [PARTIAL]</text>
+<text x="1295" y="7318" font-size="24" fill="#1e1e1e">redirect (needs</text>
+<text x="1295" y="7348" font-size="24" fill="#1e1e1e">public API_URL)</text>
+<text x="2037" y="7318" font-size="24" fill="#1e1e1e">Bot filter   [DONE]</text>
+<text x="2778" y="7318" font-size="24" fill="#1e1e1e">email_events   [DONE]</text>
+<text x="3520" y="7304" font-size="24" fill="#1e1e1e">Step conditions +   [DONE]</text>
+<text x="3520" y="7334" font-size="24" fill="#1e1e1e">analytics</text>
+<text x="154" y="7467" font-size="28" fill="#1e1e1e">5. Reply</text>
+<text x="554" y="7466" font-size="24" fill="#1e1e1e">Lead replies in Gmail   [PARTIAL]</text>
+<text x="1295" y="7450" font-size="24" fill="#1e1e1e">gmail-reply-sync*   [PARTIAL]</text>
+<text x="1295" y="7480" font-size="24" fill="#1e1e1e">(2 min) or Sync Gmail</text>
+<text x="2037" y="7450" font-size="24" fill="#1e1e1e">Match an address we   [DONE]</text>
+<text x="2037" y="7480" font-size="24" fill="#1e1e1e">emailed, strip quotes</text>
+<text x="2778" y="7450" font-size="24" fill="#1e1e1e">AI classifies   [DONE]</text>
+<text x="2778" y="7480" font-size="24" fill="#1e1e1e">(interested, OOO ...)</text>
+<text x="3520" y="7450" font-size="24" fill="#1e1e1e">Stop sequence / OOO   [DONE]</text>
+<text x="3520" y="7480" font-size="24" fill="#1e1e1e">+3 days / tag</text>
+<text x="4261" y="7450" font-size="24" fill="#1e1e1e">Inbox + notification   [DONE]</text>
+<text x="4261" y="7480" font-size="24" fill="#1e1e1e">+ realtime push</text>
+<text x="154" y="7599" font-size="28" fill="#1e1e1e">6. Bounce</text>
+<text x="554" y="7582" font-size="24" fill="#1e1e1e">mailer-daemon   [PARTIAL]</text>
+<text x="554" y="7612" font-size="24" fill="#1e1e1e">bounce in Gmail</text>
+<text x="1295" y="7598" font-size="24" fill="#1e1e1e">gmail-reply-sync*   [PARTIAL]</text>
+<text x="2037" y="7582" font-size="24" fill="#1e1e1e">Suppress &#x27;bounced&#x27;   [DONE]</text>
+<text x="2037" y="7612" font-size="24" fill="#1e1e1e">stop sequences</text>
+<text x="2778" y="7582" font-size="24" fill="#1e1e1e">Bounce event +   [DONE]</text>
+<text x="2778" y="7612" font-size="24" fill="#1e1e1e">lead timeline</text>
+<text x="3520" y="7582" font-size="24" fill="#1e1e1e">SES / SNS bounce   [NOT DONE]</text>
+<text x="3520" y="7612" font-size="24" fill="#1e1e1e">path</text>
+<text x="154" y="7731" font-size="28" fill="#1e1e1e">7. Password reset</text>
+<text x="554" y="7714" font-size="24" fill="#1e1e1e">Forgot password   [DONE]</text>
+<text x="554" y="7744" font-size="24" fill="#1e1e1e">(same answer always)</text>
+<text x="1295" y="7714" font-size="24" fill="#1e1e1e">Hashed single-use   [DONE]</text>
+<text x="1295" y="7744" font-size="24" fill="#1e1e1e">token</text>
+<text x="2037" y="7714" font-size="24" fill="#1e1e1e">System mailer   [PARTIAL]</text>
+<text x="2037" y="7744" font-size="24" fill="#1e1e1e">(SYSTEM_SMTP, 535)</text>
+<text x="2778" y="7730" font-size="24" fill="#1e1e1e">Email link   [PARTIAL]</text>
+<text x="3520" y="7714" font-size="24" fill="#1e1e1e">New password,   [DONE]</text>
+<text x="3520" y="7744" font-size="24" fill="#1e1e1e">sessions revoked</text>
+<text x="124" y="6755" font-size="36" fill="#1e1e1e">7 - KEY WORKFLOWS (end to end, left -&gt; right)</text>
+<text x="150" y="8080" font-size="24" fill="#1e1e1e">Needs Aman&#x27;s accounts / actions   [NOT DONE]</text>
+<text x="150" y="8110" font-size="24" fill="#1e1e1e">- Fix system SMTP login (535) -&gt; test reset + notification email</text>
+<text x="150" y="8140" font-size="24" fill="#1e1e1e">- Reconnect Gmail with read permission; add Gmail addresses as test users in Google Cloud; live-test reply sync</text>
+<text x="150" y="8170" font-size="24" fill="#1e1e1e">- Try a real Google Sheet import + Sync now</text>
+<text x="150" y="8200" font-size="24" fill="#1e1e1e">- Public HTTPS URL (cloudflared tunnel) -&gt; re-test opens/clicks</text>
+<text x="150" y="8230" font-size="24" fill="#1e1e1e">- AWS account -&gt; file SES request first (2 weeks), Bedrock access (~$200)</text>
+<text x="150" y="8260" font-size="24" fill="#1e1e1e">- Sentry DSN; set UPTIME_URL</text>
+<text x="2006" y="8080" font-size="24" fill="#1e1e1e">Decisions waiting   [PARTIAL]</text>
+<text x="2006" y="8110" font-size="24" fill="#1e1e1e">- D-A product name + domain (blocks legal pages, DNS)</text>
+<text x="2006" y="8140" font-size="24" fill="#1e1e1e">- D-B target market</text>
+<text x="2006" y="8170" font-size="24" fill="#1e1e1e">- D-C hosting (then deploy T10.4)</text>
+<text x="2006" y="8200" font-size="24" fill="#1e1e1e">- D-D beta size + channel</text>
+<text x="2006" y="8230" font-size="24" fill="#1e1e1e">- Email verification at sign-up</text>
+<text x="2006" y="8260" font-size="24" fill="#1e1e1e">- Legal review of /privacy + /terms, DPA, sub-processors</text>
+<text x="2006" y="8290" font-size="24" fill="#1e1e1e">- Merge google-stack into main? (Gemini, reply sync, sender edit)</text>
+<text x="3862" y="8080" font-size="24" fill="#1e1e1e">Security before public launch   [NOT DONE]</text>
+<text x="3862" y="8110" font-size="24" fill="#1e1e1e">- 2FA for admins + managers</text>
+<text x="3862" y="8140" font-size="24" fill="#1e1e1e">- Per-account login throttling</text>
+<text x="3862" y="8170" font-size="24" fill="#1e1e1e">- Email verification at sign-up</text>
+<text x="3862" y="8200" font-size="24" fill="#1e1e1e">- Private DB/Redis networking, Redis TLS + password</text>
+<text x="3862" y="8230" font-size="24" fill="#1e1e1e">- Least-privilege AWS IAM</text>
+<text x="3862" y="8260" font-size="24" fill="#1e1e1e">- Audit log of sensitive actions</text>
+<text x="3862" y="8290" font-size="24" fill="#1e1e1e">- Encryption-key rotation plan</text>
+<text x="3862" y="8320" font-size="24" fill="#1e1e1e">- Dependabot + NestJS 12 upgrade, Next.js advisory</text>
+<text x="3862" y="8350" font-size="24" fill="#1e1e1e">- Strict CSP with nonces</text>
+<text x="150" y="8362" font-size="24" fill="#1e1e1e">Code gaps found   [PARTIAL]</text>
+<text x="150" y="8392" font-size="24" fill="#1e1e1e">- Smart segment with invalid tag id fails silently</text>
+<text x="150" y="8422" font-size="24" fill="#1e1e1e">- E2E gaps: add campaign step, add leads to segment, Sheets screens</text>
+<text x="150" y="8452" font-size="24" fill="#1e1e1e">- AI emails come back as one paragraph; a {first_name} without fallback seen once</text>
+<text x="150" y="8482" font-size="24" fill="#1e1e1e">- Restricted-scope Google verification for gmail.readonly</text>
+<text x="2006" y="8392" font-size="24" fill="#1e1e1e">Launch sequence   [NOT DONE]</text>
+<text x="2006" y="8422" font-size="24" fill="#1e1e1e">T10.1 acceptance with a real send + reply -&gt; T10.3 deliverability check (seed inboxes, spam score, DKIM alignment) -&gt;</text>
+<text x="2006" y="8452" font-size="24" fill="#1e1e1e">T10.4 production deploy -&gt; T10.7 first beta users</text>
+<text x="3862" y="8452" font-size="24" fill="#1e1e1e">Deferred by design   [NOT DONE]</text>
+<text x="3862" y="8482" font-size="24" fill="#1e1e1e">T8.1 roll-ups, Outlook sender, Stripe billing, WhatsApp / SMS / LinkedIn, warm-up network, custom-domain white-label,</text>
+<text x="3862" y="8512" font-size="24" fill="#1e1e1e">Elasticsearch, Datadog, fully automatic AI replies, A/B auto-winner.</text>
+<text x="124" y="7999" font-size="36" fill="#e03131">8 - WHAT&#x27;S LEFT (from docs/BUILD-SUMMARY.md section 14)</text>
+<text x="150" y="8822" font-size="24" fill="#1e1e1e">Trade-off: one API process runs HTTP, websockets and every worker. Simple to run and deploy today; split workers into</text>
+<text x="150" y="8852" font-size="24" fill="#1e1e1e">their own service when send volume grows (JOBS_SCHEDULER=off on extra web instances).</text>
+<text x="2006" y="8822" font-size="24" fill="#1e1e1e">Bottleneck: tracking, click and unsubscribe links point at API_URL. On localhost no open/click is ever recorded and</text>
+<text x="2006" y="8852" font-size="24" fill="#1e1e1e">emails look spammy. Fix = public HTTPS URL (tunnel or hosting).</text>
+<text x="3862" y="8822" font-size="24" fill="#1e1e1e">Trade-off: Postgres RLS isolates tenants even if a query forgets WHERE org_id. Cost: a SET per transaction and</text>
+<text x="3862" y="8852" font-size="24" fill="#1e1e1e">SECURITY DEFINER functions for the few cross-tenant scans (scheduler, reply sync).</text>
+<text x="150" y="8954" font-size="24" fill="#1e1e1e">Scale: schedules live in Redis and Socket.io uses the Redis adapter, so the API can run as several instances behind a</text>
+<text x="150" y="8984" font-size="24" fill="#1e1e1e">load balancer (websocket transport only, no sticky sessions needed).</text>
+<text x="2006" y="8954" font-size="24" fill="#1e1e1e">Why: AI behind one provider seam (AI_DRIVER mock | bedrock | gemini). Bedrock stays the main path; Gemini lives on</text>
+<text x="2006" y="8984" font-size="24" fill="#1e1e1e">google-stack to test with real AI until AWS is ready. Mock keeps tests offline.</text>
+<text x="3862" y="8954" font-size="24" fill="#1e1e1e">CAP: CP. Single Postgres primary, strong consistency for sends and suppression (never email someone who unsubscribed).</text>
+<text x="3862" y="8984" font-size="24" fill="#1e1e1e">Redis holds only jobs + counters, so losing it delays work but loses no data.</text>
+<text x="124" y="8742" font-size="36" fill="#7048e8">9 - DESIGN NOTES, TRADE-OFFS, BOTTLENECKS</text>
+</svg>

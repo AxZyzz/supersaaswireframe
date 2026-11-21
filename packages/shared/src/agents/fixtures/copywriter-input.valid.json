@@ -1,0 +1,9 @@
+{
+  "offer": { "name": "Cold-email platform", "description": "AI outreach that tests subject lines and learns what works." },
+  "kb": "Audience: founders of small B2B agencies in India. Tone: friendly and direct.",
+  "control": { "subject": "Quick idea for {company|your team}" },
+  "currentWinner": { "subject": "Quick idea for {company|your team}" },
+  "losingSubjects": ["Checking in about outreach"],
+  "constraints": { "maxChars": 60, "keepMergeTokens": true, "language": "en" },
+  "playbooks": []
+}

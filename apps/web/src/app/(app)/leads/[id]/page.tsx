@@ -131,6 +131,20 @@ export default function LeadProfilePage() {
           <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
             <Row label="Email" value={lead.email} />
             <Row label="Phone" value={lead.phone} />
+            <Row label="Company key" value={lead.company_key ?? "unknown"} />
+            <Row
+              label="Mail provider"
+              value={lead.mail_provider ?? "unknown"}
+            />
+            <Row label="Timezone" value={lead.timezone ?? "unknown"} />
+            <Row
+              label="Location"
+              value={
+                [lead.city, lead.region, lead.country]
+                  .filter(Boolean)
+                  .join(", ") || "unknown"
+              }
+            />
             <Row label="Source" value={lead.source} />
             <Row
               label="Added"

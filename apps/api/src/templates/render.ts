@@ -12,6 +12,10 @@ export const TEMPLATE_VARS = [
   'email',
   'phone',
   'sender_name',
+  // sender side, for Reply / website buttons in HTML templates
+  'sender_email', // reply-to if set, else the From address
+  'sender_company', // workspace name
+  'sender_website', // workspace website (https:// added if missing)
 ] as const;
 
 export type TemplateVar = (typeof TEMPLATE_VARS)[number];
@@ -53,6 +57,13 @@ export function renderTemplate(
   );
 }
 
+/** Workspace website as a link target: adds https:// to a bare domain. */
+export function websiteUrl(raw: string | null | undefined): string | null {
+  const v = raw?.trim();
+  if (!v) return null;
+  return /^https?:\/\//i.test(v) ? v : `https://${v}`;
+}
+
 // Build the token bag from a lead-like row. business_name aliases company.
 export function varsFromLead(lead: {
   first_name?: string | null;
@@ -83,4 +94,7 @@ export const SAMPLE_VARS: TemplateVars = {
   email: 'alex@acme.com',
   phone: '+1 555 0142',
   sender_name: 'Jordan Lee',
+  sender_email: 'jordan@yourcompany.com',
+  sender_company: 'Your Company',
+  sender_website: 'https://yourcompany.com',
 };

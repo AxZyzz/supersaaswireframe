@@ -1,0 +1,25 @@
+{
+  "displayName": "Expelly: AI circuit opened more than 3 times an hour",
+  "documentation": {
+    "content": "The AI model router opened a circuit more than 3 times in an hour: a model is failing or timing out and traffic is being moved to fallbacks. See the operator console, AI routing card.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "ai_circuit_open > 3 per hour",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/expelly_ai_circuit_open\" AND resource.type=\"cloud_run_revision\"",
+        "aggregations": [
+          { "alignmentPeriod": "3600s", "perSeriesAligner": "ALIGN_SUM", "crossSeriesReducer": "REDUCE_SUM" }
+        ],
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 3,
+        "duration": "0s",
+        "trigger": { "count": 1 }
+      }
+    }
+  ],
+  "notificationChannels": ["CHANNEL_NAME"],
+  "enabled": true
+}

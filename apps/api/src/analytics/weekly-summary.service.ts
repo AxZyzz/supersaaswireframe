@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Pool } from 'pg';
 import { PG_POOL } from '../db/db.module';
+import { ReviewDigestService } from '../loop-health/review-digest.service';
 import { SystemMailService } from '../mail/system-mail.service';
 import { AnalyticsService } from './analytics.service';
 
@@ -30,6 +31,7 @@ export class WeeklySummaryService {
     private readonly analytics: AnalyticsService,
     private readonly mail: SystemMailService,
     private readonly config: ConfigService,
+    private readonly reviewDigest: ReviewDigestService,
   ) {}
 
   async run(now = new Date()): Promise<{ workspaces: number; emails: number }> {
@@ -61,6 +63,8 @@ export class WeeklySummaryService {
           (c) =>
             `• ${c.name}: ${c.sent} sent, ${c.replied} repl${c.replied === 1 ? 'y' : 'ies'}`,
         );
+      // T13: what Review and the search preferences are saying (real tests only)
+      const review = await this.reviewDigest.lines(orgId, web).catch(() => []);
       const text = [
         `Your week in ${people[0].org_name}:`,
         [
@@ -74,6 +78,7 @@ export class WeeklySummaryService {
             : []),
         ].join('\n'),
         ...(top.length ? [`Top campaigns:\n${top.join('\n')}`] : []),
+        ...(review.length ? [`Campaign Review:\n${review.join('\n')}`] : []),
         `You get this every Monday as a workspace admin/manager. Turn it off: ${web}/settings#notifications`,
       ];
       for (const p of people) {

@@ -2,7 +2,7 @@
 
 import Papa from "papaparse";
 import { useEffect, useState } from "react";
-import { FileSpreadsheet, Upload, X } from "lucide-react";
+import { FileSpreadsheet, Sparkles, Upload, X } from "lucide-react";
 import { errorMessage } from "@/lib/api";
 import {
   connectSheets,
@@ -13,9 +13,11 @@ import {
   SheetPreview,
 } from "@/lib/integrations";
 import {
+  FIELD_LABELS,
   getImportStatus,
   IMPORTABLE_FIELDS,
   ImportJob,
+  suggestMapping,
   uploadImport,
 } from "@/lib/leads";
 import { isExcel, xlsxToCsvFile } from "@/lib/xlsx-to-csv";
@@ -26,51 +28,66 @@ export type ImportSource = "file" | "sheet";
 const field =
   "rounded border border-line-mid bg-surface px-2 py-1 text-sm outline-none focus:border-accent";
 
-/** Auto-map columns whose header matches a lead field name. */
+/** Offline fallback: exact header == field name only (no substring guesses:
+ *  "recent_company_posts" must never become Company). */
 function guessMapping(cols: string[]): Record<string, string> {
   const guess: Record<string, string> = {};
+  const used = new Set<string>();
   for (const col of cols) {
     const norm = col.toLowerCase().replace(/[^a-z]/g, "");
-    const hit = IMPORTABLE_FIELDS.find(
-      (f) => f.toLowerCase() === norm || norm.includes(f.toLowerCase()),
-    );
-    if (hit) guess[col] = hit;
+    const hit = IMPORTABLE_FIELDS.find((f) => f.toLowerCase() === norm);
+    if (hit && !used.has(hit)) {
+      guess[col] = hit;
+      used.add(hit);
+    }
   }
   return guess;
 }
 
+const shorten = (v: string) => (v.length > 60 ? `${v.slice(0, 60)}…` : v);
+
 /** Column → lead field pickers, shared by file and Google Sheet imports. */
 function ColumnMapper({
   headers,
+  samples,
   mapping,
   onChange,
 }: {
   headers: string[];
+  samples: string[][];
   mapping: Record<string, string>;
   onChange: (m: Record<string, string>) => void;
 }) {
   return (
-    <div className="space-y-2">
-      {headers.map((col) => (
-        <div key={col} className="flex items-center gap-3">
-          <span className="w-40 truncate text-sm text-ink" title={col}>
-            {col}
-          </span>
-          <span className="text-faint">→</span>
-          <select
-            value={mapping[col] ?? ""}
-            onChange={(e) => onChange({ ...mapping, [col]: e.target.value })}
-            className={field}
-          >
-            <option value="">Ignore</option>
-            {IMPORTABLE_FIELDS.map((f) => (
-              <option key={f} value={f}>
-                {f}
-              </option>
-            ))}
-          </select>
-        </div>
-      ))}
+    <div className="space-y-2.5">
+      {headers.map((col, i) => {
+        const example = samples.map((r) => r[i] ?? "").find((v) => v.trim()) ?? "";
+        return (
+          <div key={col} className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm text-ink" title={col}>
+                {col}
+              </div>
+              <div className="truncate text-tiny text-faint" title={example}>
+                {example ? `e.g. ${shorten(example)}` : "empty in the first rows"}
+              </div>
+            </div>
+            <span className="text-faint">→</span>
+            <select
+              value={mapping[col] ?? ""}
+              onChange={(e) => onChange({ ...mapping, [col]: e.target.value })}
+              className={`${field} w-44 shrink-0`}
+            >
+              <option value="">Ignore</option>
+              {IMPORTABLE_FIELDS.map((f) => (
+                <option key={f} value={f}>
+                  {FIELD_LABELS[f]}
+                </option>
+              ))}
+            </select>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -89,7 +106,10 @@ export function ImportModal({
   const [stage, setStage] = useState<Stage>("pick");
   const [file, setFile] = useState<File | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
+  const [samples, setSamples] = useState<string[][]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
+  const [matching, setMatching] = useState(false);
+  const [matchedBy, setMatchedBy] = useState<"ai" | "rules" | null>(null);
   const [onDuplicate, setOnDuplicate] = useState<"skip" | "update">(
     initialSource === "sheet" ? "update" : "skip",
   );
@@ -136,15 +156,33 @@ export function ImportModal({
     }
   }
 
+  /** Ask the server (AI, or rules) to match columns; offline fallback. */
+  async function autoMatch(cols: string[], rows: string[][]) {
+    setMatching(true);
+    try {
+      const r = await suggestMapping(cols, rows);
+      setMapping(r.mapping);
+      setMatchedBy(r.source);
+    } catch {
+      setMapping(guessMapping(cols));
+      setMatchedBy(null);
+    }
+    setMatching(false);
+  }
+
   function pick(f: File) {
     setFile(f);
     Papa.parse<string[]>(f, {
-      preview: 1,
+      preview: 6,
+      skipEmptyLines: true,
       complete: (res) => {
         const cols = (res.data[0] as string[]) ?? [];
+        const rows = (res.data.slice(1) as string[][]) ?? [];
         setHeaders(cols);
-        setMapping(guessMapping(cols));
+        setSamples(rows);
+        setMapping({});
         setStage("map");
+        if (cols.length) void autoMatch(cols, rows);
       },
     });
   }
@@ -156,8 +194,10 @@ export function ImportModal({
       const p = await previewSheet(sheetUrl, tab);
       setPreview(p);
       setHeaders(p.headers);
-      setMapping(guessMapping(p.headers));
+      setSamples(p.rows.slice(0, 5));
+      setMapping({});
       setStage("map");
+      if (p.headers.length) void autoMatch(p.headers, p.rows.slice(0, 5));
     } catch (e) {
       setError(errorMessage(e, "Couldn't open that sheet."));
     }
@@ -289,7 +329,7 @@ export function ImportModal({
               ) : !gs.connected ? (
                 <div className="rounded-lg border border-line bg-panel p-4 text-sm">
                   <p className="mb-3 text-muted">
-                    Connect a Google account to import from its sheets. SuperSaaS only
+                    Connect a Google account to import from its sheets. Expelly only
                     asks to <b>view</b> your spreadsheets, never to change them.
                   </p>
                   <button
@@ -357,10 +397,33 @@ export function ImportModal({
                 </p>
               ) : (
                 <>
-                  <p className="text-sm text-muted">
-                    Map your columns to lead fields. Unmapped columns are ignored.
-                  </p>
-                  <ColumnMapper headers={headers} mapping={mapping} onChange={setMapping} />
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm text-muted">
+                      {matching
+                        ? "Matching your columns…"
+                        : matchedBy === "ai"
+                          ? "Matched with AI from your column names and sample values. Check them, then import."
+                          : "Map your columns to lead fields. Unmapped columns are ignored."}
+                    </p>
+                    <button
+                      onClick={() => void autoMatch(headers, samples)}
+                      disabled={matching}
+                      title="Match columns again from their names and sample values"
+                      className="flex shrink-0 items-center gap-1 rounded border border-line-mid px-2 py-1 text-tiny text-muted hover:text-accent disabled:opacity-50"
+                    >
+                      <Sparkles size={12} className={matching ? "animate-pulse" : ""} />
+                      {matching ? "Matching…" : "Auto-match"}
+                    </button>
+                  </div>
+                  <ColumnMapper
+                    headers={headers}
+                    samples={samples}
+                    mapping={mapping}
+                    onChange={(m) => {
+                      setMapping(m);
+                      setMatchedBy(null);
+                    }}
+                  />
                 </>
               )}
               <label className="flex items-center gap-2 text-sm text-muted">
@@ -393,7 +456,7 @@ export function ImportModal({
                 </button>
                 <button
                   onClick={run}
-                  disabled={headers.length === 0}
+                  disabled={headers.length === 0 || matching}
                   className="rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-60"
                 >
                   Import

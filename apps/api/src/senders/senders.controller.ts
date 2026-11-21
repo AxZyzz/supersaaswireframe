@@ -29,6 +29,8 @@ class DnsQueryDto {
 class GmailConnectDto {
   /** Display name for the new sender; defaults to the mailbox name. */
   @IsOptional() @IsString() @MaxLength(120) fromName?: string;
+  /** Page to come back to after Google ('/settings' or '/onboarding'). */
+  @IsOptional() @IsString() @MaxLength(40) returnTo?: string;
 }
 
 @Controller('senders')
@@ -62,7 +64,12 @@ export class SendersController {
     @Body() dto: GmailConnectDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    return this.gmail.connectUrl(user, dto.fromName, bindBrowser(res));
+    return this.gmail.connectUrl(
+      user,
+      dto.fromName,
+      bindBrowser(res),
+      dto.returnTo,
+    );
   }
 
   @Get()

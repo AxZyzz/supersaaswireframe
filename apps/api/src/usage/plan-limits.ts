@@ -14,7 +14,8 @@ export type Resource =
   | 'members'
   | 'emailsPerDay'
   | 'emailsPerMonth'
-  | 'aiGenerationsPerMonth';
+  | 'aiGenerationsPerMonth'
+  | 'prospectSearchesPerMonth';
 
 export type PlanLimits = Record<Resource, number | null>;
 
@@ -28,6 +29,8 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     emailsPerDay: 100,
     emailsPerMonth: 1000,
     aiGenerationsPerMonth: 30,
+    // each Discover search = 1 AI planning call + 1 per company checked
+    prospectSearchesPerMonth: 20,
   },
   internal: {
     leads: null,
@@ -38,6 +41,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     emailsPerDay: null,
     emailsPerMonth: null,
     aiGenerationsPerMonth: null,
+    prospectSearchesPerMonth: null,
   },
 };
 
@@ -50,6 +54,7 @@ export const RESOURCE_LABELS: Record<Resource, string> = {
   emailsPerDay: 'emails per day',
   emailsPerMonth: 'emails per month',
   aiGenerationsPerMonth: 'AI sequence generations per month',
+  prospectSearchesPerMonth: 'Discover searches per month',
 };
 
 /** ai_usage.feature value that counts toward aiGenerationsPerMonth. */

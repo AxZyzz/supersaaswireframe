@@ -58,6 +58,19 @@ export class DeleteAccountDto {
   password!: string;
 }
 
+export class ResendVerificationDto {
+  @IsEmail()
+  @MaxLength(320)
+  email!: string;
+}
+
+export class VerifyEmailDto {
+  @IsString()
+  @MinLength(20)
+  @MaxLength(200)
+  token!: string;
+}
+
 export class ForgotPasswordDto {
   @IsEmail()
   @MaxLength(320)

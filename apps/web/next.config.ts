@@ -1,4 +1,15 @@
+import path from "path";
 import type { NextConfig } from "next";
+
+/**
+ * Hosted build (Dockerfile): NEXT_OUTPUT=standalone produces a self-contained
+ * server, and API_PROXY_TARGET makes /api/* on this origin proxy to the API.
+ * Same-origin REST means the refresh cookie is first-party even though web
+ * and API live on different hosts (two *.run.app hosts are cross-site, and
+ * Safari blocks cross-site cookies). Both are build-time; unset locally.
+ */
+const standalone = process.env.NEXT_OUTPUT === "standalone";
+const apiProxy = process.env.API_PROXY_TARGET?.replace(/\/$/, "");
 
 /**
  * Security headers for every page. The app is never meant to be framed, so
@@ -23,6 +34,14 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  ...(standalone && {
+    output: "standalone",
+    // monorepo: trace dependencies from the repo root
+    outputFileTracingRoot: path.join(__dirname, "../.."),
+  }),
+  async rewrites() {
+    return apiProxy ? [{ source: "/api/:path*", destination: `${apiProxy}/:path*` }] : [];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

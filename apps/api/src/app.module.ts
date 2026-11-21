@@ -12,10 +12,17 @@ import { validateEnv } from './config/env.validation';
 import { CryptoModule } from './crypto/crypto.module';
 import { DbModule } from './db/db.module';
 import { InboxModule } from './inbox/inbox.module';
+import { OutcomesModule } from './outcomes/outcomes.module';
+import { InsightsModule } from './insights/insights.module';
+import { SearchPreferencesModule } from './search-preferences/search-preferences.module';
+import { InternalModule } from './internal/internal.module';
+import { LoopHealthModule } from './loop-health/loop-health.module';
+import { ReviewModule } from './review/review.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { JobsModule } from './jobs/jobs.module';
 import { MailModule } from './mail/mail.module';
 import { LeadsModule } from './leads/leads.module';
+import { ProspectsModule } from './prospects/prospects.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { OperatorModule } from './operator/operator.module';
 import { OrgsModule } from './orgs/orgs.module';
@@ -46,6 +53,7 @@ import { UsageModule } from './usage/usage.module';
     AuthModule,
     OrgsModule,
     LeadsModule,
+    ProspectsModule,
     SendersModule,
     TemplatesModule,
     CampaignsModule,
@@ -55,6 +63,12 @@ import { UsageModule } from './usage/usage.module';
     IntegrationsModule,
     JobsModule,
     InboxModule,
+    OutcomesModule,
+    ReviewModule,
+    InsightsModule,
+    SearchPreferencesModule,
+    LoopHealthModule,
+    InternalModule,
     NotificationsModule,
     OperatorModule,
   ],

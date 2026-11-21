@@ -128,6 +128,18 @@ export class AiContentService {
         [dto.conversationId],
       );
       if (!conv.rows[0]) throw new NotFoundException('Conversation not found');
+      // Model Armor flagged the latest inbound message: no AI draft for it.
+      const last = await c.query<{ safety_flag: boolean }>(
+        `SELECT safety_flag FROM conversation_messages
+         WHERE conversation_id = $1 AND direction = 'inbound'
+         ORDER BY created_at DESC LIMIT 1`,
+        [dto.conversationId],
+      );
+      if (last.rows[0]?.safety_flag) {
+        throw new BadRequestException(
+          'AI drafts are off for this message: the safety check flagged it. Write the reply yourself.',
+        );
+      }
       const msgs = await c.query<ThreadTurn>(
         `SELECT direction, COALESCE(body_text, '') AS body
          FROM conversation_messages WHERE conversation_id = $1
@@ -137,10 +149,8 @@ export class AiContentService {
       return { conv: conv.rows[0], thread: msgs.rows };
     });
     const kb = await this.getKnowledge(orgId);
-    const result = await this.ai.generate(
-      orgId,
-      'reply-draft',
-      replyDraftPrompt({
+    const result = await this.ai.generate(orgId, 'reply-draft', {
+      ...replyDraftPrompt({
         subject: ctx.conv.subject,
         leadName: ctx.conv.lead_name,
         leadCompany: ctx.conv.lead_company,
@@ -149,7 +159,8 @@ export class AiContentService {
         instruction: dto.instruction,
         kb,
       }),
-    );
+      task: 'reply_draft',
+    });
     return this.parseJson<{ body: string }>(result.text, ['body']);
   }
 
@@ -162,11 +173,10 @@ export class AiContentService {
       this.usage.assertCanAdd(c, orgId, 'aiGenerationsPerMonth'),
     );
     const kb = await this.getKnowledge(orgId);
-    const result = await this.ai.generate(
-      orgId,
-      'refine-email',
-      refineEmailPrompt({ ...dto, kb }),
-    );
+    const result = await this.ai.generate(orgId, 'refine-email', {
+      ...refineEmailPrompt({ ...dto, kb }),
+      task: 'template_edit',
+    });
     return this.parseJson<{ subject: string; body: string }>(result.text, [
       'subject',
       'body',
@@ -191,7 +201,10 @@ export class AiContentService {
     );
     const kb = await this.getKnowledge(orgId);
     const opts = sequencePrompt({ ...dto, kb });
-    const result = await this.ai.generate(orgId, 'sequence-gen', opts);
+    const result = await this.ai.generate(orgId, 'sequence-gen', {
+      ...opts,
+      task: 'campaign_build',
+    });
 
     let steps: GeneratedStep[] = [];
     try {

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://expelly.app/schemas/agents/copywriter.input.schema.json",
+  "title": "CopywriterInput",
+  "description": "What the Copywriter may see: the offer, subjects, the workspace knowledge base and playbooks. No lead data.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["offer", "kb", "control", "losingSubjects", "constraints", "playbooks"],
+  "properties": {
+    "offer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "kb": { "type": "string" },
+    "control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject"],
+      "properties": { "subject": { "type": "string", "minLength": 1 } }
+    },
+    "currentWinner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject"],
+      "properties": { "subject": { "type": "string", "minLength": 1 } }
+    },
+    "losingSubjects": { "type": "array", "items": { "type": "string" } },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxChars", "keepMergeTokens", "language"],
+      "properties": {
+        "maxChars": { "type": "integer", "minimum": 10, "maximum": 200 },
+        "keepMergeTokens": { "type": "boolean" },
+        "language": { "type": "string" }
+      }
+    },
+    "playbooks": { "type": "array", "items": { "type": "string" } }
+  }
+}

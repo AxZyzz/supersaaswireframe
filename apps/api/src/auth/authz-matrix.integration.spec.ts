@@ -42,6 +42,9 @@ const PUBLIC_ALLOWLIST = [
   'POST /auth/logout',
   'POST /auth/forgot-password',
   'POST /auth/reset-password',
+  // email confirmation: the person isn't signed in yet
+  'POST /auth/verify-email',
+  'POST /auth/resend-verification',
   'GET /t/o/:trackingId',
   'GET /t/c/:trackingId',
   'GET /u/:token',
@@ -52,6 +55,12 @@ const PUBLIC_ALLOWLIST = [
   'GET /beta/mode',
   'POST /waitlist',
   'GET /auth/google/callback', // Google redirect; signed `state` names the workspace
+  // Cloud Scheduler only: CronAuthGuard verifies its signed ID token (T13)
+  'POST /internal/cron/weekly-review',
+  'POST /internal/cron/expire-preferences',
+  'POST /internal/cron/loop-health',
+  // the Discover agent's page-reading tool: AgentToolAuthGuard verifies its signed ID token (T10)
+  'POST /internal/agent-tools/fetch-pages',
 ];
 
 interface RouteInfo {

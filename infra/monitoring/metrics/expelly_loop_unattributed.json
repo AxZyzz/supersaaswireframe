@@ -1,0 +1,5 @@
+{
+  "name": "expelly_loop_unattributed",
+  "description": "loop_health lines that report replies nobody could attach to a campaign in the last 7 days (T13, watched only)",
+  "filter": "resource.type=\"cloud_run_revision\" AND jsonPayload.event=\"loop_health\" AND jsonPayload.unattributed_7d>0"
+}

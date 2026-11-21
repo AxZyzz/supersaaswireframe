@@ -1,7 +1,7 @@
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { Queue } from 'bullmq';
-import { CAMPAIGN_SEND_QUEUE } from '../queue/queue.module';
+import { CAMPAIGN_SEND_QUEUE, WORKER_OPTIONS } from '../queue/queue.module';
 import { SendService } from './send.service';
 
 // Repeatable BullMQ job that drives the send loop. Each tick processes all due
@@ -9,7 +9,7 @@ import { SendService } from './send.service';
 // repeatable schedule is skipped under tests (jest sets NODE_ENV=test) and can
 // be disabled with SEND_SCHEDULER=off — tests/dev drive tick() manually via
 // POST /sending/tick.
-@Processor(CAMPAIGN_SEND_QUEUE)
+@Processor(CAMPAIGN_SEND_QUEUE, WORKER_OPTIONS)
 export class SendProcessor
   extends WorkerHost
   implements OnApplicationBootstrap
@@ -30,26 +30,13 @@ export class SendProcessor
   }
 
   async onApplicationBootstrap() {
-    if (!this.enabled) {
-      // Repeatable jobs outlive the process in Redis. A dev server that ran
-      // with the scheduler on leaves one behind; clear it so a scheduler-off
-      // instance (tests, e2e) never runs surprise global ticks mid-test.
-      for (const job of await this.queue.getRepeatableJobs()) {
-        await this.queue.removeRepeatableByKey(job.key);
-      }
-      return;
+    // The 30 s send loop now runs from TickSchedulerService (one Redis
+    // command per tick). Repeatable jobs outlive the process in Redis: clear
+    // any an older build left behind so the queue holds no delayed job (which
+    // would keep the worker waking every 10 s) and no surprise ticks run.
+    for (const job of await this.queue.getRepeatableJobs()) {
+      await this.queue.removeRepeatableByKey(job.key);
     }
-    // Fire every 30s. jobId keeps a single repeatable instance.
-    await this.queue.add(
-      'tick',
-      {},
-      {
-        repeat: { every: 30_000 },
-        jobId: 'send-tick',
-        removeOnComplete: true,
-        removeOnFail: true,
-      },
-    );
   }
 
   async process(): Promise<void> {

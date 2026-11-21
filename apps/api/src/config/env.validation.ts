@@ -27,6 +27,88 @@ export function validateEnv(
     errors.push('SIGNUP_MODE must be "open" or "waitlist"');
   }
 
+  // Gemini (google-stack): fail at boot, not on the first AI request.
+  if (str('AI_DRIVER') === 'gemini') {
+    if (str('GEMINI_USE_VERTEX') === 'true') {
+      if (!str('GOOGLE_CLOUD_PROJECT')) {
+        errors.push('AI_DRIVER=gemini on Vertex AI needs GOOGLE_CLOUD_PROJECT');
+      }
+    } else if (!str('GEMINI_API_KEY')) {
+      errors.push('AI_DRIVER=gemini needs GEMINI_API_KEY (Google AI Studio)');
+    }
+  }
+
+  // Discover driver (T10): the agent needs an address and the identity it may call back with.
+  const dd = str('DISCOVER_DRIVER').toLowerCase();
+  if (dd && !['native', 'agent'].includes(dd)) {
+    errors.push('DISCOVER_DRIVER must be "native" or "agent"');
+  }
+  if (dd === 'agent') {
+    for (const k of [
+      'DISCOVER_AGENT_URL',
+      'AGENT_TOOLS_AUDIENCE',
+      'AGENT_TOOLS_SA_EMAIL',
+    ]) {
+      if (!str(k)) errors.push(`DISCOVER_DRIVER=agent needs ${k}`);
+    }
+  }
+
+  // Scheduled jobs (T13): CRON_MODE=scheduler hands the loop jobs to Cloud
+  // Scheduler, which can only call in with a verifiable identity.
+  const cm = str('CRON_MODE').toLowerCase();
+  if (cm && !['internal', 'scheduler'].includes(cm)) {
+    errors.push('CRON_MODE must be "internal" or "scheduler"');
+  }
+  if (cm === 'scheduler' && (!str('CRON_AUDIENCE') || !str('CRON_SA_EMAIL'))) {
+    errors.push('CRON_MODE=scheduler needs CRON_AUDIENCE and CRON_SA_EMAIL');
+  }
+  if (str('TRACING') && !['on', 'off'].includes(str('TRACING').toLowerCase())) {
+    errors.push('TRACING must be "on" or "off"');
+  }
+
+  // ADK agents (T09): a switch set to "agent" needs the agent's address.
+  const re = str('REVIEW_EXPLAINER').toLowerCase();
+  if (re && !['template', 'agent', 'gemini'].includes(re)) {
+    errors.push('REVIEW_EXPLAINER must be "template", "agent" or "gemini"');
+  }
+  if (re === 'agent' && !str('REVIEW_ANALYST_URL')) {
+    errors.push('REVIEW_EXPLAINER=agent needs REVIEW_ANALYST_URL');
+  }
+  const cd = str('COPYWRITER_DRIVER').toLowerCase();
+  if (cd && !['gemini', 'agent', 'mock'].includes(cd)) {
+    errors.push('COPYWRITER_DRIVER must be "gemini", "agent" or "mock"');
+  }
+  if (cd === 'agent' && !str('COPYWRITER_URL')) {
+    errors.push('COPYWRITER_DRIVER=agent needs COPYWRITER_URL');
+  }
+
+  // Model Armor (T08): needs a template to call.
+  if (
+    str('SAFETY_DRIVER') &&
+    !['off', 'modelarmor'].includes(str('SAFETY_DRIVER'))
+  ) {
+    errors.push('SAFETY_DRIVER must be "off" or "modelarmor"');
+  }
+  if (str('SAFETY_DRIVER') === 'modelarmor') {
+    if (!str('MODEL_ARMOR_TEMPLATE')) {
+      errors.push('SAFETY_DRIVER=modelarmor needs MODEL_ARMOR_TEMPLATE');
+    }
+    if (
+      !str('MODEL_ARMOR_TEMPLATE').startsWith('projects/') &&
+      !str('GOOGLE_CLOUD_PROJECT')
+    ) {
+      errors.push(
+        'SAFETY_DRIVER=modelarmor needs GOOGLE_CLOUD_PROJECT (or a full projects/... template name)',
+      );
+    }
+  }
+  if (
+    str('SAFETY_FAIL_MODE') &&
+    !['open', 'closed'].includes(str('SAFETY_FAIL_MODE'))
+  ) {
+    errors.push('SAFETY_FAIL_MODE must be "open" or "closed"');
+  }
+
   if (
     str('COOKIE_SAMESITE') &&
     !['lax', 'strict', 'none'].includes(str('COOKIE_SAMESITE'))

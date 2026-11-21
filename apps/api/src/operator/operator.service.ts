@@ -13,6 +13,8 @@ import {
   SEGMENT_REFRESH_QUEUE,
 } from '../queue/queue.module';
 import type { Plan } from '../usage/plan-limits';
+import { ModelRouter } from '../ai/router/model-router';
+import { FEATURE_TASK } from '../ai/router/tasks';
 
 /**
  * Platform-wide reads for A2B operators. Every cross-tenant query goes through
@@ -29,6 +31,7 @@ export class OperatorService {
     @InjectQueue(SEGMENT_REFRESH_QUEUE) private readonly segmentQ: Queue,
     private readonly notifications: NotificationsService,
     private readonly realtime: RealtimeService,
+    private readonly router: ModelRouter,
   ) {}
 
   private async one<T>(sql: string, params: unknown[] = []) {
@@ -100,6 +103,33 @@ export class OperatorService {
     if (!r[0]?.operator_set_plan)
       throw new NotFoundException('Workspace not found');
     return { id, plan };
+  }
+
+  /**
+   * "AI routing" card: last 24 h per task → model, from ai_usage (all
+   * instances, aggregates only) plus this instance's recent route decisions
+   * (fallbacks, circuit-open events).
+   */
+  async aiRouting() {
+    const rows = await this.one<{
+      feature: string;
+      provider: string;
+      model: string;
+      calls: number;
+      input_tokens: string;
+      output_tokens: string;
+    }>(`SELECT * FROM operator_ai_usage(24)`);
+    return {
+      usage: rows.map((r) => ({
+        task: FEATURE_TASK[r.feature] ?? r.feature,
+        provider: r.provider,
+        model: r.model,
+        calls: r.calls,
+        tokens: Number(r.input_tokens) + Number(r.output_tokens),
+      })),
+      live: this.router.log.summary(),
+      liveScope: 'this API instance only (last 500 calls)',
+    };
   }
 
   async health() {

@@ -11,6 +11,7 @@ import {
   Plus,
   Search,
   Tag,
+  Trash2,
   Upload,
 } from "lucide-react";
 import { ImportModal, ImportSource } from "@/components/import-modal";
@@ -21,6 +22,7 @@ import { errorMessage } from "@/lib/api";
 import { toast } from "@/components/feedback";
 import { LeadKanban } from "@/components/lead-kanban";
 import {
+  bulkDeleteLeads,
   bulkTag,
   createLead,
   exportLeads,
@@ -85,6 +87,9 @@ export default function LeadsPage() {
   const [dedup, setDedup] = useState(false);
   const [view, setView] = useState<"table" | "kanban">("table");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // "Select all N matching": acts on every lead matching the filters,
+  // not just the 50 on this page.
+  const [allMatching, setAllMatching] = useState(false);
   const [tags, setTags] = useState<LeadTag[]>([]);
   const [bulkTagId, setBulkTagId] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -92,6 +97,7 @@ export default function LeadsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setSelected(new Set());
+    setAllMatching(false);
     // failures surface via the global Toaster; the spinner always clears
     try {
       const res = await listLeads({
@@ -142,7 +148,40 @@ export default function LeadsPage() {
     }
   }
 
+  async function deleteSelected() {
+    const n = allMatching ? total : selected.size;
+    if (
+      !window.confirm(
+        `Delete ${n} lead${n === 1 ? "" : "s"}? Their notes, tags, activity and campaign enrolments go too. This can't be undone.`,
+      )
+    )
+      return;
+    setBulkBusy(true);
+    try {
+      const r = await bulkDeleteLeads(
+        allMatching
+          ? {
+              allMatching: true,
+              filters: {
+                search: search || undefined,
+                status: status || undefined,
+                score: score || undefined,
+              },
+            }
+          : { leadIds: Array.from(selected) },
+      );
+      toast(`Deleted ${r.deleted} lead${r.deleted === 1 ? "" : "s"}.`);
+      setOffset(0);
+      await load();
+    } catch (e) {
+      toast(errorMessage(e, "Couldn't delete leads."), "error");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   function toggle(id: string) {
+    setAllMatching(false);
     setSelected((s) => {
       const n = new Set(s);
       if (n.has(id)) n.delete(id);
@@ -151,6 +190,7 @@ export default function LeadsPage() {
     });
   }
   function toggleAll() {
+    setAllMatching(false);
     setSelected((s) =>
       s.size === leads.length ? new Set() : new Set(leads.map((l) => l.id)),
     );
@@ -342,8 +382,16 @@ export default function LeadsPage() {
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-accent-soft2 bg-accent-soft p-2.5 text-sm">
           <Tag size={15} className="text-accent" />
           <span className="font-medium text-ink2">
-            {selected.size} selected
+            {allMatching ? `All ${total} matching leads selected` : `${selected.size} selected`}
           </span>
+          {!allMatching && selected.size === leads.length && total > leads.length && (
+            <button
+              onClick={() => setAllMatching(true)}
+              className="text-accent underline hover:text-accent-hover"
+            >
+              Select all {total}
+            </button>
+          )}
           <select
             value={bulkTagId}
             onChange={(e) => setBulkTagId(e.target.value)}
@@ -394,8 +442,23 @@ export default function LeadsPage() {
               </button>
             </>
           )}
+          {canManage(role) && (
+            <>
+              <span className="mx-1 h-5 w-px bg-line-mid" />
+              <button
+                disabled={bulkBusy}
+                onClick={() => void deleteSelected()}
+                className="flex items-center gap-1.5 rounded border border-danger-text/40 px-3 py-1.5 font-medium text-danger-text hover:bg-danger-bg disabled:opacity-40"
+              >
+                <Trash2 size={14} /> Delete
+              </button>
+            </>
+          )}
           <button
-            onClick={() => setSelected(new Set())}
+            onClick={() => {
+              setSelected(new Set());
+              setAllMatching(false);
+            }}
             className="text-muted hover:text-ink"
           >
             Clear
@@ -457,8 +520,12 @@ export default function LeadsPage() {
                         "—"}
                     </Link>
                   </td>
-                  <td className="px-4 py-2.5 text-muted">{l.company || "—"}</td>
-                  <td className="px-4 py-2.5 text-muted">{l.email || "—"}</td>
+                  <td className="max-w-[16rem] truncate px-4 py-2.5 text-muted" title={l.company ?? undefined}>
+                    {l.company || "—"}
+                  </td>
+                  <td className="max-w-[16rem] truncate px-4 py-2.5 text-muted" title={l.email ?? undefined}>
+                    {l.email || "—"}
+                  </td>
                   <td className="px-4 py-2.5">
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-neut-bg px-2 py-0.5 text-tiny capitalize text-muted">
                       <StatusDot color={colorOf(l.status)} />

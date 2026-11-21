@@ -177,7 +177,7 @@ export function IntegrationsSection({ canManage }: { canManage: boolean }) {
           </div>
           <p className="mt-1.5 text-tiny text-muted">
             {gs.available
-              ? "Import leads from a sheet and keep them in sync every hour. View-only access: SuperSaaS never edits your sheets."
+              ? "Import leads from a sheet and keep them in sync every hour. View-only access: Expelly never edits your sheets."
               : "Not available on this server yet (Google OAuth credentials missing)."}
           </p>
 

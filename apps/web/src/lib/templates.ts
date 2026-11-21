@@ -42,6 +42,9 @@ export const TEMPLATE_VARS = [
   "email",
   "phone",
   "sender_name",
+  "sender_email",
+  "sender_company",
+  "sender_website",
 ] as const;
 
 const SAMPLE: Record<string, string> = {
@@ -53,6 +56,9 @@ const SAMPLE: Record<string, string> = {
   email: "alex@acme.com",
   phone: "+1 555 0142",
   sender_name: "Jordan Lee",
+  sender_email: "jordan@yourcompany.com",
+  sender_company: "Your Company",
+  sender_website: "https://yourcompany.com",
 };
 
 // Client-side live-preview render (sample data). The server endpoint is the

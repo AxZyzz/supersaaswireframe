@@ -1,17 +1,26 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Pool, PoolClient } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { UsageService } from '../usage/usage.service';
+import { deriveLeadAttrs } from './lead-attributes';
+import { MailProviderService } from './mail-provider.service';
 import type {
   CreateLeadDto,
   CreateNoteDto,
+  LeadFilter,
   ListLeadsQuery,
   UpdateLeadDto,
 } from './dto/lead.dto';
 
 const LEAD_COLS = `id, email, first_name, last_name, company, title, phone,
-  status, score, source, custom, created_at, updated_at`;
+  status, score, source, custom, company_key, mail_provider, timezone, city, region,
+  country, created_at, updated_at`;
 
 export interface LeadRow {
   id: string;
@@ -25,6 +34,12 @@ export interface LeadRow {
   score: 'hot' | 'warm' | 'cold' | null;
   source: string | null;
   custom: Record<string, unknown>;
+  company_key: string | null;
+  mail_provider: string | null;
+  timezone: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -54,11 +69,35 @@ const SORT_COLUMN: Record<string, string> = {
   last_name: 'last_name',
 };
 
+/** The lead-list filters (search, status, score, source, tag) as SQL
+ *  conditions; shared by list, export and bulk delete so they always agree. */
+function filterWhere(
+  q: LeadFilter,
+  where: string[],
+  add: (v: unknown) => string,
+) {
+  if (q.search) {
+    const p = add(`%${q.search}%`);
+    where.push(
+      `(email ILIKE ${p} OR first_name ILIKE ${p} OR last_name ILIKE ${p} OR company ILIKE ${p})`,
+    );
+  }
+  if (q.status) where.push(`status = ${add(q.status)}`);
+  if (q.score) where.push(`score = ${add(q.score)}`);
+  if (q.source) where.push(`source = ${add(q.source)}`);
+  if (q.tagId) {
+    where.push(
+      `id IN (SELECT lead_id FROM lead_tags WHERE tag_id = ${add(q.tagId)})`,
+    );
+  }
+}
+
 @Injectable()
 export class LeadsService {
   constructor(
     @Inject(PG_POOL) private readonly pool: Pool,
     private readonly usage: UsageService,
+    private readonly mailProvider: MailProviderService,
   ) {}
 
   private run<T>(orgId: string, fn: (c: PoolClient) => Promise<T>) {
@@ -75,20 +114,7 @@ export class LeadsService {
       return `$${params.length}`;
     };
 
-    if (q.search) {
-      const p = add(`%${q.search}%`);
-      where.push(
-        `(email ILIKE ${p} OR first_name ILIKE ${p} OR last_name ILIKE ${p} OR company ILIKE ${p})`,
-      );
-    }
-    if (q.status) where.push(`status = ${add(q.status)}`);
-    if (q.score) where.push(`score = ${add(q.score)}`);
-    if (q.source) where.push(`source = ${add(q.source)}`);
-    if (q.tagId) {
-      where.push(
-        `id IN (SELECT lead_id FROM lead_tags WHERE tag_id = ${add(q.tagId)})`,
-      );
-    }
+    filterWhere(q, where, add);
 
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const sortCol = SORT_COLUMN[q.sort ?? 'created_at'];
@@ -126,20 +152,7 @@ export class LeadsService {
       params.push(v);
       return `$${params.length}`;
     };
-    if (q.search) {
-      const p = add(`%${q.search}%`);
-      where.push(
-        `(email ILIKE ${p} OR first_name ILIKE ${p} OR last_name ILIKE ${p} OR company ILIKE ${p})`,
-      );
-    }
-    if (q.status) where.push(`status = ${add(q.status)}`);
-    if (q.score) where.push(`score = ${add(q.score)}`);
-    if (q.source) where.push(`source = ${add(q.source)}`);
-    if (q.tagId) {
-      where.push(
-        `id IN (SELECT lead_id FROM lead_tags WHERE tag_id = ${add(q.tagId)})`,
-      );
-    }
+    filterWhere(q, where, add);
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     return this.run(orgId, async (c) => {
       const res = await c.query<LeadRow>(
@@ -154,11 +167,14 @@ export class LeadsService {
   async create(orgId: string, dto: CreateLeadDto) {
     return this.run(orgId, async (c) => {
       await this.usage.assertCanAdd(c, orgId, 'leads');
+      const a = deriveLeadAttrs({ email: dto.email, custom: dto.custom });
       const res = await c.query<LeadRow>(
         `INSERT INTO leads
            (org_id, email, first_name, last_name, company, title, phone,
-            status, score, source, custom)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,'new'),$9,$10,COALESCE($11,'{}'::jsonb))
+            status, score, source, custom,
+            company_key, city, region, country, timezone)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,'new'),$9,$10,COALESCE($11,'{}'::jsonb),
+                 $12,$13,$14,$15,$16)
          RETURNING ${LEAD_COLS}`,
         [
           orgId,
@@ -172,6 +188,11 @@ export class LeadsService {
           dto.score ?? null,
           dto.source ?? null,
           dto.custom ? JSON.stringify(dto.custom) : null,
+          a.companyKey,
+          a.city,
+          a.region,
+          a.country,
+          a.timezone,
         ],
       );
       const lead = res.rows[0];
@@ -181,13 +202,18 @@ export class LeadsService {
         [orgId, lead.id],
       );
       return lead;
+    }).then(async (lead) => {
+      // mail provider is filled in the background, after the request
+      if (lead.email) await this.mailProvider.enqueue(orgId);
+      return lead;
     });
   }
 
   // Public REST API upsert-by-email. Used by the API-key-guarded /v1 route so
   // external systems can sync leads idempotently.
   async apiUpsert(orgId: string, dto: CreateLeadDto) {
-    return this.run(orgId, async (c) => {
+    const a = deriveLeadAttrs({ email: dto.email, custom: dto.custom });
+    const out = await this.run(orgId, async (c) => {
       if (dto.email) {
         const existing = await c.query<{ id: string }>(
           `SELECT id FROM leads WHERE lower(email) = lower($1) LIMIT 1`,
@@ -205,6 +231,11 @@ export class LeadsService {
                status     = COALESCE($7, status),
                score      = COALESCE($8, score),
                source     = COALESCE($9, source),
+               company_key = COALESCE($10, company_key),
+               city       = COALESCE($11, city),
+               region     = COALESCE($12, region),
+               country    = COALESCE($13, country),
+               timezone   = COALESCE($14, timezone),
                updated_at = now()
              WHERE id = $1 RETURNING ${LEAD_COLS}`,
             [
@@ -217,6 +248,11 @@ export class LeadsService {
               dto.status ?? null,
               dto.score ?? null,
               dto.source ?? null,
+              a.companyKey,
+              a.city,
+              a.region,
+              a.country,
+              a.timezone,
             ],
           );
           await c.query(
@@ -229,8 +265,10 @@ export class LeadsService {
       await this.usage.assertCanAdd(c, orgId, 'leads');
       const res = await c.query<LeadRow>(
         `INSERT INTO leads
-           (org_id, email, first_name, last_name, company, title, phone, status, score, source)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,'new'),$9,COALESCE($10,'api'))
+           (org_id, email, first_name, last_name, company, title, phone, status, score, source,
+            company_key, city, region, country, timezone)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE($8,'new'),$9,COALESCE($10,'api'),
+                 $11,$12,$13,$14,$15)
          RETURNING ${LEAD_COLS}`,
         [
           orgId,
@@ -243,6 +281,11 @@ export class LeadsService {
           dto.status ?? null,
           dto.score ?? null,
           dto.source ?? null,
+          a.companyKey,
+          a.city,
+          a.region,
+          a.country,
+          a.timezone,
         ],
       );
       await c.query(
@@ -251,6 +294,8 @@ export class LeadsService {
       );
       return { lead: res.rows[0], created: true };
     });
+    if (out.created && out.lead.email) await this.mailProvider.enqueue(orgId);
+    return out;
   }
 
   async findOne(orgId: string, id: string) {
@@ -302,7 +347,39 @@ export class LeadsService {
     if (dto.source !== undefined) add('source', dto.source);
     if (dto.custom !== undefined) add('custom', JSON.stringify(dto.custom));
 
-    return this.run(orgId, async (c) => {
+    let emailChanged = false;
+    const out = await this.run(orgId, async (c) => {
+      if (
+        sets.length > 0 &&
+        (dto.email !== undefined || dto.custom !== undefined)
+      ) {
+        // The company key follows the email and website, so re-derive it
+        // from the merged record. Location is only ever filled, never wiped.
+        const cur = await c.query<{
+          email: string | null;
+          custom: Record<string, unknown>;
+        }>(`SELECT email, custom FROM leads WHERE id = $1 FOR UPDATE`, [id]);
+        if (cur.rowCount === 0) throw new NotFoundException('Lead not found');
+        const email = dto.email !== undefined ? dto.email : cur.rows[0].email;
+        const a = deriveLeadAttrs({
+          email,
+          custom: dto.custom ?? cur.rows[0].custom,
+        });
+        add('company_key', a.companyKey);
+        if (a.city) add('city', a.city);
+        if (a.region) add('region', a.region);
+        if (a.country) add('country', a.country);
+        if (a.timezone) add('timezone', a.timezone);
+        if (
+          dto.email !== undefined &&
+          (dto.email ?? '').toLowerCase() !==
+            (cur.rows[0].email ?? '').toLowerCase()
+        ) {
+          // new mailbox: forget the old provider, the background job refills it
+          sets.push('mail_provider = NULL');
+          emailChanged = !!dto.email;
+        }
+      }
       if (sets.length > 0) {
         sets.push(`updated_at = now()`);
         params.push(id);
@@ -326,10 +403,41 @@ export class LeadsService {
       if (res.rowCount === 0) throw new NotFoundException('Lead not found');
       return res.rows[0];
     });
+    if (emailChanged) await this.mailProvider.enqueue(orgId);
+    return out;
   }
 
   /** forget = GDPR erasure: delete the person's data but keep their address
    *  on the suppression list, so they're never contacted again. */
+  /**
+   * Bulk delete: the given ids, or (allMatching) every lead matching the
+   * list filters. Same as deleting one by one: activity, notes, tags and
+   * campaign enrolments go with the lead; sent-email history stays.
+   */
+  async bulkRemove(
+    orgId: string,
+    dto: { leadIds?: string[]; allMatching?: boolean; filters?: LeadFilter },
+  ) {
+    const where: string[] = [];
+    const params: unknown[] = [];
+    const add = (v: unknown) => {
+      params.push(v);
+      return `$${params.length}`;
+    };
+    if (dto.leadIds?.length) {
+      where.push(`id = ANY(${add(dto.leadIds)}::uuid[])`);
+    } else if (dto.allMatching === true) {
+      filterWhere(dto.filters ?? {}, where, add);
+    } else {
+      throw new BadRequestException('Pick leads, or confirm allMatching');
+    }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    return this.run(orgId, async (c) => {
+      const res = await c.query(`DELETE FROM leads ${whereSql}`, params);
+      return { deleted: res.rowCount ?? 0 };
+    });
+  }
+
   async remove(orgId: string, id: string, forget = false) {
     return this.run(orgId, async (c) => {
       if (forget) {
@@ -432,6 +540,12 @@ export class LeadsService {
            phone = COALESCE(p.phone, m.phone),
            score = COALESCE(p.score, m.score),
            source = COALESCE(p.source, m.source),
+           company_key = COALESCE(p.company_key, m.company_key),
+           mail_provider = COALESCE(p.mail_provider, m.mail_provider),
+           timezone = COALESCE(p.timezone, m.timezone),
+           city = COALESCE(p.city, m.city),
+           region = COALESCE(p.region, m.region),
+           country = COALESCE(p.country, m.country),
            updated_at = now()
          FROM (
            SELECT * FROM leads WHERE id = ANY($2::uuid[])

@@ -1,0 +1,21 @@
+{
+  "runId": "run-2",
+  "mode": "targeted",
+  "candidates": [
+    {
+      "name": "Mumbai Clinic",
+      "domain": "mumbai-clinic.example",
+      "companyKey": "mumbai-clinic.example",
+      "isRealBusinessSite": true,
+      "evidence": [
+        { "quote": "Our clinic is open six days a week in Mumbai", "url": "https://mumbai-clinic.example/" }
+      ],
+      "attributes": { "city": "Mumbai", "country": "India" },
+      "triggers": [],
+      "emailsSeen": [],
+      "scores": { "icp": 20, "opportunity": 15, "timing": 5, "commercial": 10 },
+      "matchedPreference": true
+    }
+  ],
+  "stats": { "proposed": 4, "fetched": 4, "verified": 1, "droppedUnverified": 3, "droppedSafety": 0, "preferenceId": "pref-1", "preferenceRevision": 1 }
+}

@@ -24,6 +24,46 @@ describe('validateEnv', () => {
     ).toThrow(/64 hex/);
   });
 
+  it('AI_DRIVER=gemini needs a key, or a project on Vertex AI', () => {
+    const dev = { DATABASE_URL: 'x', AI_DRIVER: 'gemini' };
+    expect(() => validateEnv(dev)).toThrow(/GEMINI_API_KEY/);
+    expect(() => validateEnv({ ...dev, GEMINI_API_KEY: 'k' })).not.toThrow();
+    expect(() => validateEnv({ ...dev, GEMINI_USE_VERTEX: 'true' })).toThrow(
+      /GOOGLE_CLOUD_PROJECT/,
+    );
+    expect(() =>
+      validateEnv({
+        ...dev,
+        GEMINI_USE_VERTEX: 'true',
+        GOOGLE_CLOUD_PROJECT: 'p',
+      }),
+    ).not.toThrow();
+  });
+
+  it('T09: agent switches need their address, and reject unknown values', () => {
+    const dev = { DATABASE_URL: 'x' };
+    expect(() => validateEnv({ ...dev, REVIEW_EXPLAINER: 'agent' })).toThrow(
+      /REVIEW_ANALYST_URL/,
+    );
+    expect(() =>
+      validateEnv({
+        ...dev,
+        REVIEW_EXPLAINER: 'agent',
+        REVIEW_ANALYST_URL: 'http://localhost:8101',
+      }),
+    ).not.toThrow();
+    expect(() => validateEnv({ ...dev, COPYWRITER_DRIVER: 'agent' })).toThrow(
+      /COPYWRITER_URL/,
+    );
+    expect(() => validateEnv({ ...dev, REVIEW_EXPLAINER: 'robot' })).toThrow(
+      /REVIEW_EXPLAINER must be/,
+    );
+    // blank values (as in .env.example) mean "off"
+    expect(() =>
+      validateEnv({ ...dev, REVIEW_EXPLAINER: '', COPYWRITER_DRIVER: '' }),
+    ).not.toThrow();
+  });
+
   it('accepts a complete production env', () => {
     expect(() => validateEnv(prod)).not.toThrow();
   });

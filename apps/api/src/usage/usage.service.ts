@@ -50,6 +50,8 @@ const COUNTS: Record<Exclude<Resource, 'stepsPerCampaign'>, string> = {
   aiGenerationsPerMonth: `SELECT count(*)::int AS n FROM ai_usage
                           WHERE feature = '${AI_GENERATION_FEATURE}'
                             AND created_at >= date_trunc('month', now())`,
+  prospectSearchesPerMonth: `SELECT count(*)::int AS n FROM prospect_runs
+                             WHERE created_at >= date_trunc('month', now())`,
 };
 
 /**

@@ -12,6 +12,13 @@ export interface Lead {
   score: "hot" | "warm" | "cold" | null;
   source: string | null;
   custom: Record<string, unknown>;
+  /** Learning Loop T01: the company this lead belongs to (website domain, or email:<address> for free mail). */
+  company_key: string | null;
+  mail_provider: "google" | "microsoft" | "zoho" | "other" | "unknown" | null;
+  timezone: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -138,13 +145,42 @@ export const IMPORTABLE_FIELDS = [
   "email",
   "firstName",
   "lastName",
+  "fullName",
   "company",
   "title",
   "phone",
   "status",
   "score",
   "source",
+  "city",
+  "region",
+  "country",
+  "website",
 ] as const;
+
+export const FIELD_LABELS: Record<(typeof IMPORTABLE_FIELDS)[number], string> = {
+  email: "Email",
+  firstName: "First name",
+  lastName: "Last name",
+  fullName: "Full name (split into first + last)",
+  company: "Company",
+  title: "Job title",
+  phone: "Phone",
+  status: "Lead status",
+  score: "Score (hot / warm / cold)",
+  source: "Source",
+  city: "City",
+  region: "State / region",
+  country: "Country",
+  website: "Company website",
+};
+
+/** Column -> field suggestions: AI when available, else rules (server decides). */
+export const suggestMapping = (headers: string[], rows: string[][]) =>
+  api<{ mapping: Record<string, string>; source: "ai" | "rules" }>(
+    "/leads/import/suggest-mapping",
+    { method: "POST", body: JSON.stringify({ headers, rows }) },
+  );
 
 
 // Multipart upload — separate from the JSON api() helper.
@@ -200,6 +236,17 @@ export const SCORE_STYLES: Record<string, string> = {
 };
 
 /** forget = GDPR erasure: delete the lead, keep the address suppressed. */
+/** Delete the given leads, or every lead matching the filters. */
+export const bulkDeleteLeads = (
+  body:
+    | { leadIds: string[] }
+    | { allMatching: true; filters: Omit<LeadFilters, "limit" | "offset"> },
+) =>
+  api<{ deleted: number }>("/leads/bulk-delete", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
 export const deleteLead = (id: string, forget = false) =>
   api<{ deleted: boolean }>(`/leads/${id}${forget ? "?forget=true" : ""}`, {
     method: "DELETE",

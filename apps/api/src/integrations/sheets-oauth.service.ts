@@ -111,7 +111,7 @@ export class SheetsOAuthService {
       }
       if (!tokens.refresh_token) {
         throw new ConnectError(
-          'Google did not grant offline access. Remove SuperSaaS under your Google Account → Security → Third-party access, then reconnect.',
+          'Google did not grant offline access. Remove Expelly under your Google Account → Security → Third-party access, then reconnect.',
         );
       }
       const email = emailFromIdToken(tokens.id_token);

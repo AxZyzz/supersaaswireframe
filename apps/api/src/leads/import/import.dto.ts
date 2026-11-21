@@ -5,12 +5,18 @@ export const IMPORTABLE_FIELDS = [
   'email',
   'firstName',
   'lastName',
+  'fullName', // split into first + last at import
   'company',
   'title',
   'phone',
   'status',
   'score',
   'source',
+  // Learning Loop T01: where the company is, and its website (company key)
+  'city',
+  'region',
+  'country',
+  'website',
 ] as const;
 
 export type ImportableField = (typeof IMPORTABLE_FIELDS)[number];

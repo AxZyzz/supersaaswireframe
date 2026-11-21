@@ -62,9 +62,10 @@ export function buildEmail(args: BuildArgs): BuiltEmail {
   });
 
   const pixel = `<img src="${baseUrl}/t/o/${trackingId}" width="1" height="1" alt="" style="display:none" />`;
-  const footer = `<p style="font-size:12px;color:#888;margin-top:24px">${
+  // Quiet, theme-matching footer (same font stack as the starter templates).
+  const footer = `<p style="font-family:Inter,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#818181;margin:24px 0 0;text-align:center">${
     identity ? `${escapeHtml(identity)}<br>` : ''
-  }Don't want these emails? <a href="${unsubUrl}">Unsubscribe</a>.</p>`;
+  }Don't want these emails? <a href="${unsubUrl}" style="color:#818181;text-decoration:underline">Unsubscribe</a>.</p>`;
   html = `${html}${footer}${pixel}`;
 
   const bodyText = renderTemplate(bodyHtml, vars)

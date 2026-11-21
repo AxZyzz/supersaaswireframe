@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Controller,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Post,
@@ -15,6 +16,7 @@ import type { AuthUser } from '../../auth/types';
 import type { ImportableField } from './import.dto';
 import { ImportService } from './import.service';
 import { Roles } from '../../auth/decorators/roles.decorator';
+import { Throttle } from '@nestjs/throttler';
 
 interface MulterFile {
   buffer: Buffer;
@@ -53,6 +55,19 @@ export class ImportController {
       mapping,
       dup,
     );
+  }
+
+  /** Column -> field suggestions (AI or rules) from headers + sample rows. */
+  @Roles('admin', 'manager')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Post('suggest-mapping')
+  @HttpCode(200)
+  suggestMapping(
+    @CurrentUser() user: AuthUser,
+    @Body('headers') headers: unknown,
+    @Body('rows') rows: unknown,
+  ) {
+    return this.imports.suggestMapping(user.orgId, headers, rows);
   }
 
   @Get(':id')

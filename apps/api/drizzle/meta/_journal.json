@@ -316,6 +316,111 @@
       "when": 1785603600000,
       "tag": "0044_google_sheets",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1785603660000,
+      "tag": "0045_gmail_reply_sync",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1785603720000,
+      "tag": "0046_owner_rls_bypass",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1785603780000,
+      "tag": "0047_starter_templates_html",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1785603840000,
+      "tag": "0048_email_verification",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1785603900000,
+      "tag": "0049_supabase_lockdown",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1785603960000,
+      "tag": "0050_prospecting",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1785604020000,
+      "tag": "0051_ab_winner_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1785604080000,
+      "tag": "0052_company_key_attributes",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1785604140000,
+      "tag": "0053_offers_experiments_assignments",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1785604200000,
+      "tag": "0054_outcome_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1785604260000,
+      "tag": "0055_reviews",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1785604320000,
+      "tag": "0056_review_actions",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1785604380000,
+      "tag": "0057_ai_safety_routing",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1785604440000,
+      "tag": "0058_search_preferences",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1785604500000,
+      "tag": "0059_cron_runs",
+      "breakpoints": true
     }
   ]
 }

@@ -15,6 +15,7 @@ export interface Campaign {
   name: string;
   status: CampaignStatus;
   segment_id: string | null;
+  offer_id: string | null;
   sender_ids: string[];
   scheduled_at: string | null;
   started_at: string | null;
@@ -51,7 +52,11 @@ export const listCampaigns = () => api<Campaign[]>("/campaigns");
 export const getCampaign = (id: string) =>
   api<CampaignDetail>(`/campaigns/${id}`);
 
-export const createCampaign = (body: { name: string; segmentId?: string }) =>
+export const createCampaign = (body: {
+  name: string;
+  segmentId?: string;
+  offerId?: string;
+}) =>
   api<Campaign>("/campaigns", { method: "POST", body: JSON.stringify(body) });
 
 export const updateCampaign = (
@@ -60,6 +65,7 @@ export const updateCampaign = (
     name: string;
     status: CampaignStatus;
     segmentId: string | null;
+    offerId: string | null;
     senderIds: string[];
   }>,
 ) => api<Campaign>(`/campaigns/${id}`, {
@@ -131,3 +137,84 @@ export const addStep = (
 
 export const removeStep = (stepId: string) =>
   api<{ deleted: boolean }>(`/campaigns/steps/${stepId}`, { method: "DELETE" });
+
+// ── Learning Loop T02: Company-level subject experiments ─────────────────
+export interface ExperimentVariant {
+  id: string;
+  experiment_id: string;
+  label: string;
+  subject: string;
+  template_id: string | null;
+  template_version: number;
+  is_control: boolean;
+  status: "draft" | "active" | "paused";
+  assigned_companies?: number;
+  sent_count?: number;
+}
+
+export interface Experiment {
+  id: string;
+  campaign_id: string;
+  step_id: string;
+  kind: string;
+  status: "draft" | "running" | "decided" | "stopped";
+  unit: string;
+  primary_metric: string;
+  secondary_metric: string;
+  baseline_rate: number;
+  min_lift_pp: number;
+  target_n_per_arm: number | null;
+  response_window_days: number;
+  decision_date: string | null;
+  guardrails: { bounce?: number; unsubscribe?: number; complaint?: number };
+  offer_ref: string | null;
+  started_at: string | null;
+  stopped_at: string | null;
+  variants: ExperimentVariant[];
+  assigned_companies: number;
+  ineligible_count: number;
+}
+
+export const listCampaignExperiments = (campaignId: string) =>
+  api<Experiment[]>(`/campaigns/${campaignId}/experiments`);
+
+export const createCampaignExperiment = (
+  campaignId: string,
+  body: {
+    stepId?: string;
+    variants: { label?: string; subject: string }[];
+    primaryMetric?: "qualified_reply" | "booked_call";
+    secondaryMetric?: "booked_call" | "qualified_reply";
+    baselineRate?: number;
+    minLiftPp?: number;
+    targetNPerArm?: number | null;
+    responseWindowDays?: number;
+    decisionDate?: string | null;
+  },
+) =>
+  api<Experiment>(`/campaigns/${campaignId}/experiments`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+export const updateExperiment = (
+  id: string,
+  body: Partial<{
+    variants: { label?: string; subject: string }[];
+    baselineRate: number;
+    minLiftPp: number;
+    targetNPerArm: number | null;
+    responseWindowDays: number;
+    decisionDate: string | null;
+  }>,
+) =>
+  api<Experiment>(`/experiments/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+
+export const startExperiment = (id: string) =>
+  api<Experiment>(`/experiments/${id}/start`, { method: "POST" });
+
+export const stopExperiment = (id: string) =>
+  api<Experiment>(`/experiments/${id}/stop`, { method: "POST" });

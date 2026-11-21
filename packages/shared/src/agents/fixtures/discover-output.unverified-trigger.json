@@ -1,0 +1,23 @@
+{
+  "runId": "run-1",
+  "mode": "baseline",
+  "candidates": [
+    {
+      "name": "Invented Clinic",
+      "domain": "invented-clinic.example",
+      "companyKey": "invented-clinic.example",
+      "isRealBusinessSite": true,
+      "evidence": [
+        { "quote": "Our clinic is open six days a week in Pune", "url": "https://invented-clinic.example/" }
+      ],
+      "attributes": { "city": "Pune" },
+      "triggers": [
+        { "type": "funding", "quote": "We just raised a huge Series B round", "url": "https://invented-clinic.example/news" }
+      ],
+      "emailsSeen": [],
+      "scores": { "icp": 20, "opportunity": 15, "timing": 10, "commercial": 10 },
+      "matchedPreference": false
+    }
+  ],
+  "stats": { "proposed": 1, "fetched": 1, "verified": 1, "droppedUnverified": 0, "droppedSafety": 0 }
+}

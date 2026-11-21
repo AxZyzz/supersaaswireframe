@@ -1,10 +1,11 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Fragment, Suspense, useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Check,
   Mail,
+  Pencil,
   Plus,
   Search,
   Send,
@@ -26,6 +27,7 @@ import {
   gmailStatus,
 } from "@/lib/senders";
 import { errorMessage } from "@/lib/api";
+import { timeAgo } from "@/lib/analytics";
 import { HelpLink } from "@/components/help-link";
 
 // Gmail isn't added by hand: it connects through Google sign-in (T3.3).
@@ -34,7 +36,10 @@ type Provider = "ses" | "smtp";
 export function SendersSection({
   showDnsCheck = true,
   readOnly = false,
+  returnTo = "/settings",
 }: {
+  /** Where Google sends the browser back to after Connect Gmail. */
+  returnTo?: "/settings" | "/onboarding";
   /** Onboarding has its own domain step, so it hides the inline checker. */
   showDnsCheck?: boolean;
   /** Agents can see senders but not add, verify, test or delete them. */
@@ -47,6 +52,16 @@ export function SendersSection({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
   const [gmailEnabled, setGmailEnabled] = useState(false);
+  // Name recipients see for a newly connected Gmail sender.
+  const [gmailName, setGmailName] = useState("");
+  // Inline editor for a sender's display name, reply-to and signature.
+  const [editing, setEditing] = useState<{
+    id: string;
+    fromName: string;
+    replyTo: string;
+    signature: string;
+  } | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   // `loading` starts true; reloads keep the table on screen instead of
   // flashing "Loading…".
@@ -68,7 +83,7 @@ export function SendersSection({
     setBusyId("gmail");
     setNote(null);
     try {
-      const { url } = await gmailConnect();
+      const { url } = await gmailConnect(gmailName.trim() || undefined, returnTo);
       window.location.assign(url);
     } catch (e) {
       setNote({ ok: false, text: errorMessage(e, "Couldn't start Gmail sign-in.") });
@@ -79,6 +94,26 @@ export function SendersSection({
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function saveEdit() {
+    if (!editing || !editing.fromName.trim()) return;
+    setSavingEdit(true);
+    setNote(null);
+    try {
+      await updateSender(editing.id, {
+        fromName: editing.fromName.trim(),
+        replyTo: editing.replyTo.trim() || null,
+        signature: editing.signature.trim() || null,
+      });
+      setEditing(null);
+      setNote({ ok: true, text: "Sender updated. New emails use the new details." });
+      await load();
+    } catch (e) {
+      setNote({ ok: false, text: errorMessage(e, "Couldn't update the sender.") });
+    } finally {
+      setSavingEdit(false);
+    }
+  }
 
   async function add(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -145,6 +180,16 @@ export function SendersSection({
         </h2>
         <HelpLink slug="senders" />
         <div className="flex-1" />
+        {!readOnly && gmailEnabled && (
+          <input
+            value={gmailName}
+            onChange={(e) => setGmailName(e.target.value)}
+            placeholder="Name recipients see (e.g. Aman Xavier)"
+            aria-label="Display name for the Gmail sender"
+            maxLength={120}
+            className={`${field} hidden w-56 py-1 sm:block`}
+          />
+        )}
         {!readOnly && gmailEnabled && (
           <button
             onClick={() => void connectGmail()}
@@ -288,7 +333,8 @@ export function SendersSection({
               </tr>
             ) : (
               senders.map((s) => (
-                <tr key={s.id} className="border-b border-line last:border-0">
+                <Fragment key={s.id}>
+                <tr className="border-b border-line last:border-0">
                   <td className="px-4 py-2.5">
                     <div className="font-medium text-ink">{s.from_name}</div>
                     <div className="text-tiny text-muted">{s.from_email}</div>
@@ -355,11 +401,53 @@ export function SendersSection({
                           reconnect
                         </button>
                       )}
+                    {s.provider === "gmail" && s.status === "verified" && (
+                      <div
+                        className={`mt-1 text-tiny ${s.reply_sync_error ? "text-danger-text" : "text-faint"}`}
+                        title={s.reply_sync_error ?? undefined}
+                      >
+                        {!s.reply_sync_enabled ? (
+                          <>
+                            Replies: off{" "}
+                            {gmailEnabled && !readOnly && (
+                              <button
+                                onClick={() => void connectGmail()}
+                                className="underline hover:text-ink"
+                                title="Reconnect and allow reading email so replies and bounces show up in the Inbox"
+                              >
+                                reconnect to read replies
+                              </button>
+                            )}
+                          </>
+                        ) : s.reply_sync_error ? (
+                          "Replies: sync failed"
+                        ) : s.reply_sync_at ? (
+                          `Replies: synced ${timeAgo(s.reply_sync_at)}`
+                        ) : (
+                          "Replies: waiting for first sync"
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-2.5">
                     <div
                       className={`flex items-center justify-end gap-3 ${readOnly ? "hidden" : ""}`}
                     >
+                      <button
+                        onClick={() =>
+                          setEditing({
+                            id: s.id,
+                            fromName: s.from_name,
+                            replyTo: s.reply_to ?? "",
+                            signature: s.signature ?? "",
+                          })
+                        }
+                        title="Edit name, reply-to and signature"
+                        aria-label={`Edit ${s.from_email}`}
+                        className="text-faint hover:text-accent"
+                      >
+                        <Pencil size={14} />
+                      </button>
                       <button
                         onClick={() => void verify(s.id)}
                         disabled={busyId === s.id}
@@ -389,6 +477,60 @@ export function SendersSection({
                     </div>
                   </td>
                 </tr>
+                {editing?.id === s.id && (
+                  <tr className="border-b border-line bg-panel">
+                    <td colSpan={5} className="px-4 py-3">
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <label className="text-tiny text-muted">
+                          Name recipients see
+                          <input
+                            autoFocus
+                            value={editing.fromName}
+                            onChange={(e) => setEditing({ ...editing, fromName: e.target.value })}
+                            onKeyDown={(e) => e.key === "Enter" && void saveEdit()}
+                            maxLength={120}
+                            className={`${field} mt-1 w-full`}
+                          />
+                        </label>
+                        <label className="text-tiny text-muted">
+                          Reply-to (optional)
+                          <input
+                            type="email"
+                            value={editing.replyTo}
+                            onChange={(e) => setEditing({ ...editing, replyTo: e.target.value })}
+                            placeholder={s.from_email}
+                            className={`${field} mt-1 w-full`}
+                          />
+                        </label>
+                        <label className="text-tiny text-muted sm:col-span-2">
+                          Signature (optional, added to inbox replies)
+                          <textarea
+                            rows={2}
+                            value={editing.signature}
+                            onChange={(e) => setEditing({ ...editing, signature: e.target.value })}
+                            className={`${field} mt-1 w-full`}
+                          />
+                        </label>
+                      </div>
+                      <div className="mt-2 flex justify-end gap-2">
+                        <button
+                          onClick={() => setEditing(null)}
+                          className="rounded px-3 py-1.5 text-sm text-muted hover:text-ink"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => void saveEdit()}
+                          disabled={savingEdit || !editing.fromName.trim()}
+                          className="rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+                        >
+                          {savingEdit ? "Saving…" : "Save"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))
             )}
           </tbody>

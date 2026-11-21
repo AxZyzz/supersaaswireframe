@@ -17,6 +17,8 @@ import { Public } from './decorators/public.decorator';
 import {
   DeleteAccountDto,
   ForgotPasswordDto,
+  ResendVerificationDto,
+  VerifyEmailDto,
   LoginDto,
   ResetPasswordDto,
   SignupDto,
@@ -78,6 +80,24 @@ export class AuthController {
   @Post('reset-password')
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.auth.resetPassword(dto.token, dto.password);
+  }
+
+  // Email confirmation. The link signs the user in (token pair -> cookie).
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(200)
+  @Post('verify-email')
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.auth.verifyEmail(dto.token);
+  }
+
+  // Each call can send an email: 3 per 10 minutes per IP.
+  @Public()
+  @Throttle({ default: { limit: 3, ttl: 600_000 } })
+  @HttpCode(200)
+  @Post('resend-verification')
+  resendVerification(@Body() dto: ResendVerificationDto) {
+    return this.auth.resendVerification(dto.email);
   }
 
   @Public()

@@ -4,7 +4,12 @@ import { useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import { getAccessToken } from "./api";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+// The socket always talks to the API host itself (token auth, no cookies),
+// even when REST goes through the web app's /api proxy (hosted setup).
+const API_URL =
+  process.env.NEXT_PUBLIC_API_PUBLIC_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  "http://localhost:4000";
 
 export type LiveTopic = "inbox" | "notifications" | "campaigns" | "team";
 export interface LiveEvent {

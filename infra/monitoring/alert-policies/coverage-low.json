@@ -1,0 +1,25 @@
+{
+  "displayName": "Expelly: outcome coverage low for 24 hours",
+  "documentation": {
+    "content": "Fewer than 80% of replying companies in a running test have a confirmed outcome, on every check for 24 hours. Reviews cannot call a winner until people confirm the replies. Open Review > Replies to confirm.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "coverage_min < 0.8 on 4 or more checks in 24 hours",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/expelly_loop_coverage_low\" AND resource.type=\"cloud_run_revision\"",
+        "aggregations": [
+          { "alignmentPeriod": "86400s", "perSeriesAligner": "ALIGN_SUM", "crossSeriesReducer": "REDUCE_SUM" }
+        ],
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 3,
+        "duration": "0s",
+        "trigger": { "count": 1 }
+      }
+    }
+  ],
+  "notificationChannels": ["CHANNEL_NAME"],
+  "enabled": true
+}

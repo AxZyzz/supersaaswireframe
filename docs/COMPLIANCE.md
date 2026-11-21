@@ -39,7 +39,7 @@ reviewed before general availability.
 | Data minimisation of exports | ✅ | Export omits password hashes, sender secrets, token hashes |
 | Security of processing | ✅ | RLS tenant isolation, encrypted sender creds, hashed passwords, role matrix (`docs/AUTHZ-MATRIX.md`) |
 | Processor agreement (DPA) for customers | ⬜ | Needed before GA; customers are controllers of their lead data |
-| Sub-processor list | 🟡 | Named in the privacy policy; finalise after hosting decision (D-C) |
+| Sub-processor list | 🟡 | Named in the privacy policy; finalise after hosting decision (D-C). AI processor depends on `AI_DRIVER`: AWS (Bedrock, Claude) or Google (Gemini, google-stack branch). Use Gemini's **paid** tier or Vertex AI for real customer data: Google may use free-tier inputs to improve its products |
 | Records of processing / retention policy | ⬜ | Write once infra + backups exist (T10.4) |
 | Cookie consent | ✅ | Not required: no analytics/ad cookies; the only cookie is the httpOnly session cookie (strictly necessary) |
 

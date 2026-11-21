@@ -17,6 +17,15 @@ import { map, Observable } from 'rxjs';
 export const REFRESH_COOKIE = 'ss_rt';
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // matches REFRESH_TTL_DAYS
 
+/**
+ * Path prefix the browser sees in front of API routes. Blank locally (the
+ * browser calls the API directly). When the web app proxies the API under
+ * its own origin (hosted: web/api/* -> API, so cookies are first-party),
+ * set COOKIE_PATH_PREFIX=/api so cookies scope to the paths the browser uses.
+ */
+export const cookiePath = (p: string) =>
+  `${(process.env.COOKIE_PATH_PREFIX ?? '').replace(/\/$/, '')}${p}`;
+
 export function refreshCookieOptions(): CookieOptions {
   const sameSite = (process.env.COOKIE_SAMESITE ?? 'lax') as
     'lax' | 'strict' | 'none';
@@ -29,7 +38,7 @@ export function refreshCookieOptions(): CookieOptions {
       sameSite === 'none',
     sameSite,
     // Only the refresh/logout endpoints ever need it.
-    path: '/auth',
+    path: cookiePath('/auth'),
     domain: process.env.COOKIE_DOMAIN || undefined,
   };
 }

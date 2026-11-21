@@ -9,6 +9,7 @@ export const NOTIFICATION_TYPES = {
   reply: 'A lead replies to a campaign',
   assigned: 'A conversation is assigned to me',
   member_joined: 'Someone joins the workspace',
+  search_preference: 'A search preference ends or is switched off',
 } as const;
 export type NotificationType = keyof typeof NOTIFICATION_TYPES;
 

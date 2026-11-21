@@ -246,11 +246,11 @@ export class TeamService {
         'An account with this email already exists — sign in to accept.',
       );
     }
-    const user = await this.auth.createUser({
-      email: inv.email,
-      password,
-      name,
-    });
+    // The invite link went to this address, so it's already proven.
+    const user = await this.auth.createUser(
+      { email: inv.email, password, name },
+      { verified: true },
+    );
     await this.join(inv, user.id);
     const tokens = await this.auth.switchOrg(user.id, inv.org_id);
     return { user, org: { id: inv.org_id, name: inv.org_name }, ...tokens };

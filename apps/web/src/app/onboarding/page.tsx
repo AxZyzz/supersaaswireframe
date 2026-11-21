@@ -29,7 +29,7 @@ import {
 import { dnsCheck, DnsCheckResult, listSenders } from "@/lib/senders";
 import { SendersSection } from "@/components/senders-section";
 import { BrandingFields } from "@/components/workspace-section";
-import { Toaster } from "@/components/feedback";
+import { toast, Toaster } from "@/components/feedback";
 
 const STEPS = ["Workspace", "AI memory", "Sender", "Domain", "Done"];
 
@@ -63,6 +63,21 @@ export default function OnboardingPage() {
         }
         applyBrand(o.brand_color);
         setOrg(o);
+        // Back from Google's Connect Gmail screen: reopen the Sender step and
+        // say what happened (the result arrives as ?gmail=...).
+        const q = new URLSearchParams(window.location.search);
+        const gmail = q.get("gmail");
+        if (gmail) {
+          setStep(2);
+          if (gmail === "error") {
+            toast(q.get("reason") || "Connecting Gmail failed. Try again.", "error");
+          } else {
+            toast(
+              `Gmail ${gmail === "reconnected" ? "reconnected" : "connected"}${q.get("email") ? `: ${q.get("email")}` : ""}`,
+            );
+          }
+          window.history.replaceState(null, "", "/onboarding");
+        }
       })
       .catch((e) => {
         // only an auth failure means "sign in again" (see (app)/layout)
@@ -73,8 +88,13 @@ export default function OnboardingPage() {
 
   async function finish() {
     setFinishing(true);
-    await completeOnboarding();
-    router.replace("/dashboard");
+    try {
+      await completeOnboarding();
+      router.replace("/dashboard");
+    } catch (e) {
+      toast(errorMessage(e, "Couldn't finish setup. Try again."), "error");
+      setFinishing(false);
+    }
   }
 
   if (!org) {
@@ -148,7 +168,7 @@ export default function OnboardingPage() {
                 The mailbox your campaigns send from. You can add more later in
                 Settings.
               </p>
-              <SendersSection showDnsCheck={false} />
+              <SendersSection showDnsCheck={false} returnTo="/onboarding" />
             </Card>
           )}
           {step === 3 && <DomainStep />}
@@ -357,10 +377,19 @@ function MemoryStep({ onDone }: { onDone: () => void }) {
     void getKnowledge().then((k) => setKb(k ?? {}));
   }, []);
 
+  const [err, setErr] = useState<string | null>(null);
+
   async function save() {
     setBusy(true);
-    await saveKnowledge(kb ?? {});
-    onDone();
+    setErr(null);
+    try {
+      await saveKnowledge(kb ?? {});
+      onDone();
+    } catch (e) {
+      // Before: a failed save left the button on "Saving…" forever.
+      setErr(errorMessage(e, "Couldn't save. Check your connection and try again."));
+      setBusy(false);
+    }
   }
 
   return (
@@ -387,6 +416,9 @@ function MemoryStep({ onDone }: { onDone: () => void }) {
             </label>
           ))}
         </div>
+      )}
+      {err && (
+        <p className="mt-4 rounded bg-danger-bg px-3 py-2 text-sm text-danger-text">{err}</p>
       )}
       <div className="mt-7 flex justify-end gap-3">
         <button onClick={onDone} className="text-sm text-muted hover:text-ink">
