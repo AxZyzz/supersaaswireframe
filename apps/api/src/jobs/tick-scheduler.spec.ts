@@ -17,6 +17,8 @@ describe('TickSchedulerService', () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
+      {} as never,
     );
     (svc as unknown as { redis: Redis }).redis = redis;
     return svc;
@@ -182,6 +184,8 @@ describe('TickSchedulerService', () => {
       'gmail-reply-sync': 120,
       'sheet-sync': 900,
       'search-preferences': 900,
+      'weekly-review': 900,
+      'loop-health': 21600,
       'weekly-summary': 900,
     });
   });

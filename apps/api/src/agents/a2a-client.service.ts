@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes, randomUUID } from 'crypto';
 import { GoogleAuth } from 'google-auth-library';
+import { currentTraceparent, withSpan } from '../tracing/spans';
 import type { Client } from '@a2a-js/sdk/client';
 import {
   CircuitBreaker,
@@ -219,13 +220,23 @@ export class A2aClientService implements OnModuleDestroy {
     return parseJsonAnswer(text);
   }
 
-  async call(agent: AgentName, payload: unknown): Promise<A2aResult> {
+  /** One span per agent call (a no-op with tracing off). */
+  call(agent: AgentName, payload: unknown): Promise<A2aResult> {
+    return withSpan(`a2a.${agent}`, () => this.callTraced(agent, payload));
+  }
+
+  private async callTraced(
+    agent: AgentName,
+    payload: unknown,
+  ): Promise<A2aResult> {
     const url = this.urlFor(agent);
     if (!url) {
       throw new A2aUnavailableError(`${ENV_URL[agent]} is not set`);
     }
     const key = `a2a:${agent}`;
-    const { header, traceId } = traceparent();
+    // with tracing on this is the live trace (API -> agent -> model in one
+    // Cloud Trace); with it off, a fresh random id as before
+    const { header, traceId } = currentTraceparent() ?? traceparent();
     if (await this.circuit().isOpen(key)) {
       throw new A2aUnavailableError(`${agent} circuit is open`, traceId);
     }

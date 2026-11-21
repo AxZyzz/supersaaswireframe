@@ -1,0 +1,5 @@
+{
+  "name": "expelly_ai_circuit_open",
+  "description": "Times the AI model router opened a circuit (T08 ai_circuit_open lines)",
+  "filter": "resource.type=\"cloud_run_revision\" AND jsonPayload.event=\"ai_circuit_open\""
+}

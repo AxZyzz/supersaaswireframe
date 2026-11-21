@@ -33,6 +33,8 @@ async function main() {
       process.env.DATABASE_URL ??
       'postgresql://supersaas_app:supersaas_app@localhost:5432/supersaas',
   });
+  // `stuck`: also leave one review action requested 20 minutes ago and never applied
+  const stuck = process.argv[2] === 'stuck';
   const tag = randomUUID().slice(0, 8);
   const email = `review-actions-${tag}@supersaas.local`;
   const campaignName = `Actions demo ${tag}: clinic follow-up`;
@@ -156,6 +158,20 @@ async function main() {
           sentAt,
         ],
       );
+      if (stuck && n === 0) {
+        const rv = await c.query<{ id: string }>(
+          `INSERT INTO reviews (org_id, experiment_id, revision, policy_version, simulated,
+              inputs_hash, inputs, result, explanation)
+           VALUES ($1,$2,90,'v1',false,'seed-stuck','{}'::jsonb,'{}'::jsonb,'{}'::jsonb) RETURNING id`,
+          [orgId, experimentId],
+        );
+        await c.query(
+          `INSERT INTO review_actions (org_id, review_id, experiment_id, revision, action_id, type,
+              status, requested_by, idempotency_key, requested_at)
+           VALUES ($1,$2,$3,90,'seed-stuck','pause_variant','requested',$4,$5, now() - interval '20 minutes')`,
+          [orgId, rv.rows[0].id, experimentId, userId, `seed-stuck-${tag}`],
+        );
+      }
       const qualified = (arm === 0 ? QUALIFIED_A : QUALIFIED_B).includes(n);
       if (!qualified) continue;
       for (const type of ['reply', 'qualified_reply']) {

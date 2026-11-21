@@ -15,6 +15,8 @@ import { InboxModule } from './inbox/inbox.module';
 import { OutcomesModule } from './outcomes/outcomes.module';
 import { InsightsModule } from './insights/insights.module';
 import { SearchPreferencesModule } from './search-preferences/search-preferences.module';
+import { InternalModule } from './internal/internal.module';
+import { LoopHealthModule } from './loop-health/loop-health.module';
 import { ReviewModule } from './review/review.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { JobsModule } from './jobs/jobs.module';
@@ -65,6 +67,8 @@ import { UsageModule } from './usage/usage.module';
     ReviewModule,
     InsightsModule,
     SearchPreferencesModule,
+    LoopHealthModule,
+    InternalModule,
     NotificationsModule,
     OperatorModule,
   ],

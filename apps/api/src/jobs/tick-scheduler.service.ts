@@ -12,6 +12,9 @@ import { WeeklySummaryService } from '../analytics/weekly-summary.service';
 import { GmailReplySyncService } from '../inbox/gmail-reply-sync.service';
 import { SheetsService } from '../integrations/sheets.service';
 import { NotificationEmailService } from '../notifications/notification-email.service';
+import { WeeklyReviewService } from '../internal/weekly-review.service';
+import { isoWeek } from '../loop-health/loop-health-logic';
+import { LoopHealthService } from '../loop-health/loop-health.service';
 import { SearchPreferencesService } from '../search-preferences/search-preferences.service';
 import { SendService } from '../sending/send.service';
 
@@ -22,6 +25,11 @@ interface Tick {
   group: 'send' | 'jobs';
   /** Lock key for this run; default one slot per interval. */
   slot?: () => string | null;
+  /**
+   * Time-based loop jobs Cloud Scheduler owns when CRON_MODE=scheduler
+   * (production). In the default CRON_MODE=internal they run from here.
+   */
+  cronOwned?: boolean;
   run: () => Promise<unknown>;
 }
 
@@ -68,11 +76,14 @@ export class TickSchedulerService
     private readonly sheets: SheetsService,
     private readonly gmailReplies: GmailReplySyncService,
     private readonly searchPrefs: SearchPreferencesService,
+    private readonly weeklyReview: WeeklyReviewService,
+    private readonly loopHealth: LoopHealthService,
   ) {}
 
-  private enabled(group: Tick['group']): boolean {
+  private enabled(t: Pick<Tick, 'group' | 'cronOwned'>): boolean {
     if (process.env.NODE_ENV === 'test') return false;
-    const sw = group === 'send' ? 'SEND_SCHEDULER' : 'JOBS_SCHEDULER';
+    if (t.cronOwned && process.env.CRON_MODE === 'scheduler') return false;
+    const sw = t.group === 'send' ? 'SEND_SCHEDULER' : 'JOBS_SCHEDULER';
     return process.env[sw] !== 'off';
   }
 
@@ -108,7 +119,24 @@ export class TickSchedulerService
         name: 'search-preferences',
         everyMs: 15 * 60_000,
         group: 'jobs',
+        cronOwned: true,
         run: () => this.searchPrefs.runDue(),
+      },
+      {
+        // weekly auto-review: Mondays (UTC), once per ISO week per instance lock
+        name: 'weekly-review',
+        everyMs: 15 * 60_000,
+        group: 'jobs',
+        cronOwned: true,
+        slot: () => weeklyReviewSlot(new Date()),
+        run: () => this.weeklyReview.run(),
+      },
+      {
+        name: 'loop-health',
+        everyMs: 6 * 3_600_000,
+        group: 'jobs',
+        cronOwned: true,
+        run: () => this.loopHealth.runAll(),
       },
       {
         name: 'weekly-summary',
@@ -121,7 +149,7 @@ export class TickSchedulerService
   }
 
   onApplicationBootstrap() {
-    const active = this.ticks().filter((t) => this.enabled(t.group));
+    const active = this.ticks().filter((t) => this.enabled(t));
     if (active.length === 0) return;
     this.redis = new Redis(
       this.config.get<string>('REDIS_URL', 'redis://localhost:6379'),
@@ -243,4 +271,11 @@ export function weeklySlot(now: Date): string | null {
   const yearStart = Date.UTC(d.getUTCFullYear(), 0, 1);
   const week = Math.ceil(((d.getTime() - yearStart) / 86400000 + 1) / 7);
   return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+/** "2026-W47" on Mondays (UTC) from 00:30, else null: the in-process fallback of the weekly review. */
+export function weeklyReviewSlot(now: Date): string | null {
+  if (now.getUTCDay() !== 1) return null;
+  if (now.getUTCHours() === 0 && now.getUTCMinutes() < 30) return null;
+  return isoWeek(now);
 }

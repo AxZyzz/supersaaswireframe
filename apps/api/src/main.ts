@@ -1,3 +1,5 @@
+// first: tracing has to hook http/express/pg before they are loaded
+import './tracing/register';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';

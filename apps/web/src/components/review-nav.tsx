@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { LoopHealthStrip } from "@/components/loop-health-strip";
 
 const TABS = [
   { href: "/review/insights", label: "Insights" },
@@ -12,6 +13,7 @@ const TABS = [
 export function ReviewNav() {
   const path = usePathname();
   return (
+    <>
     <nav className="flex gap-1 border-b border-line" aria-label="Review">
       {TABS.map((t) => (
         <Link
@@ -28,5 +30,7 @@ export function ReviewNav() {
         </Link>
       ))}
     </nav>
+    <LoopHealthStrip />
+    </>
   );
 }

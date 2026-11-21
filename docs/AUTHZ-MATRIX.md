@@ -83,6 +83,9 @@
 | `DELETE /integrations/google-sheets` | login | ✅ | ✅ | ⛔ |
 | `POST /integrations/google-sheets/connect` | login | ✅ | ✅ | ⛔ |
 | `POST /integrations/google-sheets/preview` | login | ✅ | ✅ | ⛔ |
+| `POST /internal/cron/expire-preferences` | public | — | — | — |
+| `POST /internal/cron/loop-health` | public | — | — | — |
+| `POST /internal/cron/weekly-review` | public | — | — | — |
 | `GET /invites/:token` | public | — | — | — |
 | `POST /invites/:token/accept` | login | ✅ | ✅ | ✅ |
 | `POST /invites/:token/register` | public | — | — | — |
@@ -150,6 +153,7 @@
 | `POST /prospects/runs` | login | ✅ | ✅ | ⛔ |
 | `GET /prospects/runs/:id` | login | ✅ | ✅ | ✅ |
 | `POST /review-actions/:id/revert` | login | ✅ | ✅ | ⛔ |
+| `GET /review/health` | login | ✅ | ✅ | ✅ |
 | `GET /review/rubric` | login | ✅ | ✅ | ✅ |
 | `PUT /review/rubric` | login | ✅ | ✅ | ⛔ |
 | `GET /review/scenarios` | login | ✅ | ✅ | ✅ |

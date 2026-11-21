@@ -213,6 +213,20 @@ export class ReviewService {
     };
   }
 
+  /**
+   * The weekly auto-review (T13): recompute one experiment's review. A new
+   * revision is saved only when the numbers moved. No refresh cooldown: the
+   * caller is a scheduled job, not a person clicking.
+   */
+  async refreshForExperiment(
+    orgId: string,
+    userId: string | null,
+    experimentId: string,
+  ): Promise<{ revision: number; changed: boolean }> {
+    const { row, changed } = await this.compute(orgId, userId, experimentId);
+    return { revision: row.revision, changed };
+  }
+
   private async compute(
     orgId: string,
     userId: string | null,

@@ -1,0 +1,19 @@
+{
+  "displayName": "Expelly: weekly review failed",
+  "documentation": {
+    "content": "The Monday auto-review failed: either the Cloud Scheduler job expelly-weekly-review logged an error, or the API logged weekly_review_failed for a workspace. The next call retries that workspace; check the API logs for the reason.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "Scheduler job error or weekly_review_failed",
+      "conditionMatchedLog": {
+        "filter": "(resource.type=\"cloud_scheduler_job\" AND resource.labels.job_id=\"expelly-weekly-review\" AND severity>=ERROR) OR (resource.type=\"cloud_run_revision\" AND jsonPayload.event=\"weekly_review_failed\")"
+      }
+    }
+  ],
+  "alertStrategy": { "notificationRateLimit": { "period": "3600s" } },
+  "notificationChannels": ["CHANNEL_NAME"],
+  "enabled": true
+}

@@ -55,6 +55,10 @@ const PUBLIC_ALLOWLIST = [
   'GET /beta/mode',
   'POST /waitlist',
   'GET /auth/google/callback', // Google redirect; signed `state` names the workspace
+  // Cloud Scheduler only: CronAuthGuard verifies its signed ID token (T13)
+  'POST /internal/cron/weekly-review',
+  'POST /internal/cron/expire-preferences',
+  'POST /internal/cron/loop-health',
 ];
 
 interface RouteInfo {

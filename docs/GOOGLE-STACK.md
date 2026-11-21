@@ -343,3 +343,15 @@ SMTP. A Workspace mailbox allows roughly 2,000 sends a day, far above the warm-u
 caps (20–100/day per mailbox) cold email should use anyway. Platform emails
 (password reset, notifications) can use Google Workspace's SMTP relay via
 `SYSTEM_SMTP_*`.
+
+
+---
+
+## Scheduled jobs, monitoring and tracing (T13; code done, Google Cloud setup not run)
+
+The loop's time-based jobs (weekly review, preference expiry, loop-health log line) can run from **Cloud Scheduler**
+calling `/internal/cron/*` with a Google-signed token (`CRON_MODE=scheduler`, `CRON_AUDIENCE`, `CRON_SA_EMAIL`); the default
+`CRON_MODE=internal` keeps the API's own timers. **Cloud Monitoring** log-based metrics and four alert policies read the
+`loop_health`, `ai_circuit_open` and `weekly_review_failed` log lines. **Cloud Trace** is on with `TRACING=on` (the runtime
+service account needs `roles/cloudtrace.agent`); the A2A calls carry the live trace context. Commands and policy files:
+`infra/scheduler/README.md`, `infra/monitoring/README.md`. None of it has been run: it waits for the T08, T09, T10 and T13 deploy.

@@ -9,6 +9,8 @@ import { SystemJobsProcessor } from './system-jobs.processor';
 import { TickSchedulerService } from './tick-scheduler.service';
 import { SendingModule } from '../sending/sending.module';
 import { SearchPreferencesModule } from '../search-preferences/search-preferences.module';
+import { InternalModule } from '../internal/internal.module';
+import { LoopHealthModule } from '../loop-health/loop-health.module';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { SearchPreferencesModule } from '../search-preferences/search-preference
     InboxModule,
     SendingModule,
     SearchPreferencesModule,
+    InternalModule,
+    LoopHealthModule,
   ],
   providers: [SystemJobsProcessor, TickSchedulerService],
 })

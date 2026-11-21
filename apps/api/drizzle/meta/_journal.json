@@ -414,6 +414,13 @@
       "when": 1785604440000,
       "tag": "0058_search_preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1785604500000,
+      "tag": "0059_cron_runs",
+      "breakpoints": true
     }
   ]
 }

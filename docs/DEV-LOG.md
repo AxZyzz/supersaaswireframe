@@ -13,6 +13,56 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ## Sessions
 
+### 2026-11-21 — Learning Loop T13: weekly auto-review, scheduled jobs, loop health, tracing
+
+Built on `ll/T13` from `ll/T12` `160d534` (T12 is pushed but not merged, so this sits on T08, T09, T11 and T12). Migration `0059`,
+applied locally only. **No Google Cloud command was run**: the Scheduler jobs, the alerts and Cloud Trace wait until T08, T09, T10 and
+T13 are deployed (Aman, 2026-11-21); the commands and policy files are in `infra/scheduler/` and `infra/monitoring/`.
+
+- **Internal cron endpoints (`apps/api/src/internal/`):** `POST /internal/cron/weekly-review`, `/expire-preferences`, `/loop-health`.
+  `CronAuthGuard` accepts only a Google-signed ID token whose audience is `CRON_AUDIENCE` and whose verified email is
+  `CRON_SA_EMAIL` (checked with `google-auth-library`); an `X-Cron-Secret` works only when `NODE_ENV=development`. Nothing else, not
+  even a signed-in admin, gets in (401). The routes are public to the login guard on purpose, so they are on the authz matrix
+  allow-list.
+- **Weekly review (`WeeklyReviewService`):** every workspace with a running experiment or an active preference (found with the new
+  `loop_workspaces()` definer function) gets its review recomputed (a new revision only if the numbers moved; no 30 s cooldown, it is
+  a job) and its preference results computed. Once per ISO week per workspace: a claim row in `cron_runs` (unique on org, job,
+  period) makes a Scheduler retry or two instances harmless; a workspace that fails gives its claim back so the next call retries it,
+  and never stops the others.
+- **`CRON_MODE`:** `internal` (default) keeps the in-process timers, now including `weekly-review` (Mondays UTC) and `loop-health`
+  (6 h); `scheduler` switches off those two and T12's `search-preferences` timer so Cloud Scheduler is the only caller. The Monday
+  summary email timer stays in-process. Boot fails with `CRON_MODE=scheduler` without `CRON_AUDIENCE` and `CRON_SA_EMAIL`.
+- **Loop health (`apps/api/src/loop-health/`, `GET /review/health`, all roles):** per workspace and running test: split-check
+  p-value (switched off while a version is paused, because new companies then all go to one version), outcome coverage (T03 helper),
+  failed gates from the latest stored review; workspace level: unattributed replies (7 days), stuck actions (requested/approved and
+  not applied for > 10 min), Discover allocation vs target (average `targetedKept / cap`), preferences ending within 48 h. Pure rules
+  (`loop-health-logic.ts`) decide red/amber (coverage < 90%, split p < 0.001, stuck > 0 are red) and write the `loop_health` JSON line
+  the alerts count. Variants are ordered control-first, because the two versions of a test are created in one transaction and have
+  the same timestamp.
+- **UI:** a "Loop health" strip under the Review tabs on every Review page (hidden until there is a running test), red items link to
+  what to fix.
+- **Weekly summary:** the Monday email gets a "Campaign Review" section: one line per running (or recently replaced) test with what
+  Review says, and one per active preference (found vs reserved, days left), with links. Simulated reviews belong to no experiment,
+  so they cannot appear.
+- **Cloud Trace:** OpenTelemetry (`sdk-node` 0.203 + the Google Cloud Trace exporter; versions pinned so the OpenTelemetry API stays
+  below 1.10 as the exporter requires). Off unless `TRACING=on`. A root span is sampled by route (always for `/internal/*`, review,
+  discover, search preferences, insights, experiments; `TRACING_SAMPLE_RATE`, default 10%, for the rest); a child follows its
+  parent. `weekly_review`, `expire_preferences`, `loop_health` and every agent call (`a2a.<agent>`) are spans, and the A2A client now
+  sends the live trace context as `traceparent` (a random id as before when tracing is off), so one trace can span API -> agent ->
+  model.
+- **Infra files (not run):** `infra/scheduler/README.md` (3 jobs, a service account, `run.invoker`, settings, check and rollback),
+  `infra/monitoring/` (4 log-based metrics, 4 alert policies as JSON, the notification channel left for Aman).
+- **Tests:** `loop-health-logic.spec` (8), `route-sampler.spec` (3), `cron-auth.guard.spec` (4), `cron.integration.spec` (6: auth with
+  every wrong identity, once-per-week + repeat no-op, failing workspace retried, health on fixtures incl. stuck action / 60%
+  coverage / 90-10 split / expiring preference / paused version / other workspace sees nothing, the structured log line, the weekly
+  email section with no simulated data), tick cadence spec updated; Playwright `loop-health.spec.ts` (OK state and a red stuck
+  action; `npm run seed:review-actions -- stuck`). Full API suite: 750 pass, 1 skipped, 2 failed: `gemini.provider.spec` (fails on
+  the unmodified base tree: real network call) and `warmup.integration.spec` (passes alone, flaky under the full run).
+- **Not done / not verified:** every Google Cloud step (Scheduler job list and a run log, an alert firing, one Cloud Trace spanning the
+  API and an agent): those are acceptance criteria 1 to 3 and need the deployed API. Tracing was only tested with it off (spans are
+  no-ops) and for the sampler rules; the exporter has never talked to Google.
+- **Deploy note:** this adds migration `0059` and new dependencies; deploy with T08 `0057` and T12 `0058`.
+
 ### 2026-11-21 — Learning Loop T12: search preferences (who to find more of)
 
 Built on `ll/T12` from `google-stack` `fd43ebc` (so it sits on top of T08 and T09, which are merged but not deployed). Migration

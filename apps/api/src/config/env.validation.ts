@@ -38,6 +38,19 @@ export function validateEnv(
     }
   }
 
+  // Scheduled jobs (T13): CRON_MODE=scheduler hands the loop jobs to Cloud
+  // Scheduler, which can only call in with a verifiable identity.
+  const cm = str('CRON_MODE').toLowerCase();
+  if (cm && !['internal', 'scheduler'].includes(cm)) {
+    errors.push('CRON_MODE must be "internal" or "scheduler"');
+  }
+  if (cm === 'scheduler' && (!str('CRON_AUDIENCE') || !str('CRON_SA_EMAIL'))) {
+    errors.push('CRON_MODE=scheduler needs CRON_AUDIENCE and CRON_SA_EMAIL');
+  }
+  if (str('TRACING') && !['on', 'off'].includes(str('TRACING').toLowerCase())) {
+    errors.push('TRACING must be "on" or "off"');
+  }
+
   // ADK agents (T09): a switch set to "agent" needs the agent's address.
   const re = str('REVIEW_EXPLAINER').toLowerCase();
   if (re && !['template', 'agent', 'gemini'].includes(re)) {

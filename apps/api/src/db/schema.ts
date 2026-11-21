@@ -1459,3 +1459,23 @@ export const searchPreferenceRevisions = pgTable(
     ),
   ],
 );
+
+// ── Learning Loop T13: scheduled-job runs ────────────────────────────────
+// One row per (workspace, job, period): a job that runs twice in one period
+// (a Cloud Scheduler retry, two API instances) does its work once.
+export const cronRuns = pgTable(
+  'cron_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    job: text('job').notNull(),
+    period: text('period').notNull(),
+    ranAt: timestamp('ran_at', { withTimezone: true }).notNull().defaultNow(),
+    result: jsonb('result'),
+  },
+  (t) => [
+    uniqueIndex('cron_runs_org_job_period_idx').on(t.orgId, t.job, t.period),
+  ],
+);
