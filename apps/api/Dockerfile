@@ -26,6 +26,8 @@ FROM node:22-bookworm-slim
 ENV NODE_ENV=production
 WORKDIR /repo
 COPY --from=prod-deps /repo/node_modules node_modules
+# npm nests a package here when the root holds another major (ajv 8 vs the root's ajv 6, T09); without it the API can't boot.
+COPY --from=prod-deps /repo/apps/api/node_modules apps/api/node_modules
 COPY --from=build /repo/apps/api/package.json apps/api/package.json
 COPY --from=build /repo/apps/api/dist apps/api/dist
 COPY --from=build /repo/apps/api/drizzle apps/api/drizzle
