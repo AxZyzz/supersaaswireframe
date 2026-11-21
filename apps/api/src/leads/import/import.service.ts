@@ -74,11 +74,10 @@ export class ImportService {
       return { mapping: rules, source: 'rules' };
     }
     try {
-      const res = await this.ai.generate(
-        orgId,
-        'map-columns',
-        mappingPrompt(headers, rows),
-      );
+      const res = await this.ai.generate(orgId, 'map-columns', {
+        ...mappingPrompt(headers, rows),
+        task: 'import_column_match',
+      });
       const parsed = JSON.parse(res.text) as { mapping?: unknown };
       const proposed: Record<string, unknown> = {};
       for (const m of Array.isArray(parsed.mapping) ? parsed.mapping : []) {

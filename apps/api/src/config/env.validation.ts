@@ -38,6 +38,33 @@ export function validateEnv(
     }
   }
 
+  // Model Armor (T08): needs a template to call.
+  if (
+    str('SAFETY_DRIVER') &&
+    !['off', 'modelarmor'].includes(str('SAFETY_DRIVER'))
+  ) {
+    errors.push('SAFETY_DRIVER must be "off" or "modelarmor"');
+  }
+  if (str('SAFETY_DRIVER') === 'modelarmor') {
+    if (!str('MODEL_ARMOR_TEMPLATE')) {
+      errors.push('SAFETY_DRIVER=modelarmor needs MODEL_ARMOR_TEMPLATE');
+    }
+    if (
+      !str('MODEL_ARMOR_TEMPLATE').startsWith('projects/') &&
+      !str('GOOGLE_CLOUD_PROJECT')
+    ) {
+      errors.push(
+        'SAFETY_DRIVER=modelarmor needs GOOGLE_CLOUD_PROJECT (or a full projects/... template name)',
+      );
+    }
+  }
+  if (
+    str('SAFETY_FAIL_MODE') &&
+    !['open', 'closed'].includes(str('SAFETY_FAIL_MODE'))
+  ) {
+    errors.push('SAFETY_FAIL_MODE must be "open" or "closed"');
+  }
+
   if (
     str('COOKIE_SAMESITE') &&
     !['lax', 'strict', 'none'].includes(str('COOKIE_SAMESITE'))

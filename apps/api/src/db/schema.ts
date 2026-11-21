@@ -1045,6 +1045,8 @@ export const conversationMessages = pgTable(
     inReplyTo: text('in_reply_to'),
     classification: text('classification'),
     confidence: real('confidence'),
+    // Model Armor flagged/blocked this inbound message (T08): no AI draft.
+    safetyFlag: boolean('safety_flag').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

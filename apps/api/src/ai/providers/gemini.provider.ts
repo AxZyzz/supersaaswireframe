@@ -85,9 +85,10 @@ export class GeminiAIProvider implements AIProvider {
     return map[tier];
   }
 
-  private timeoutMs(): number {
+  private timeoutMs(override?: number): number {
     const v = Number(this.config.get<string>('GEMINI_TIMEOUT_MS'));
-    return Number.isFinite(v) && v > 0 ? v : DEFAULT_TIMEOUT_MS;
+    if (Number.isFinite(v) && v > 0) return v;
+    return override && override > 0 ? override : DEFAULT_TIMEOUT_MS;
   }
 
   private client(): GenerateFn {
@@ -127,6 +128,8 @@ export class GeminiAIProvider implements AIProvider {
   }
 
   async generate(opts: AIGenerateOptions): Promise<AIResult> {
+    // The ModelRouter chose the model and owns fallback: do exactly that.
+    if (opts.model) return this.generateWith(opts.model, opts);
     const model = this.tierModel(opts.tier ?? 'balanced');
     const fallback = this.config.get<string>(
       'GEMINI_FALLBACK_MODEL',
@@ -156,7 +159,7 @@ export class GeminiAIProvider implements AIProvider {
       const name = (err as { name?: string })?.name;
       if (name === 'AbortError' || name === 'RequestAbortedError') {
         throw new Error(
-          `Gemini timed out after ${Math.round(this.timeoutMs() / 1000)}s (${model})`,
+          `Gemini timed out after ${Math.round(this.timeoutMs(opts.timeoutMs) / 1000)}s (${model})`,
         );
       }
       throw err;
@@ -173,6 +176,9 @@ export class GeminiAIProvider implements AIProvider {
         parts: [{ text: m.content }],
       })),
       config: {
+        ...(opts.timeoutMs
+          ? { httpOptions: { timeout: this.timeoutMs(opts.timeoutMs) } }
+          : {}),
         ...(opts.system ? { systemInstruction: opts.system } : {}),
         maxOutputTokens: (opts.maxTokens ?? 1024) + THINKING_HEADROOM,
         ...(opts.jsonSchema

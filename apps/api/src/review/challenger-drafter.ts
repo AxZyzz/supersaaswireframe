@@ -164,6 +164,7 @@ export class AiChallengerDrafter implements ChallengerDrafter {
         maxTokens: 400,
         jsonSchema: CHALLENGER_SCHEMA,
         promptVersion: CHALLENGER_PROMPT_VERSION,
+        task: 'challenger_draft',
       });
       const parsed = JSON.parse(result.text) as { subjects?: unknown };
       aiSubjects = validateSubjects(parsed.subjects, input.avoid);

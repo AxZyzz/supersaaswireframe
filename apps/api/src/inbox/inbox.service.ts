@@ -4,10 +4,16 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Pool } from 'pg';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AiService } from '../ai/ai.service';
+import {
+  SAFETY_SCREEN,
+  screenInputChunked,
+  type SafetyScreen,
+} from '../ai/safety/safety-screen';
 import {
   classifyReply,
   OrgKnowledge,
@@ -98,6 +104,8 @@ export interface ThreadRow {
   created_at: Date;
   classification: string | null;
   confidence: number | null;
+  /** Model Armor flagged this inbound message: no AI draft is offered. */
+  safety_flag: boolean;
 }
 
 interface MatchedSend {
@@ -125,6 +133,9 @@ export class InboxService {
     private readonly realtime: RealtimeService,
     private readonly senders: SendersService,
     private readonly outcomes: OutcomesService,
+    @Optional()
+    @Inject(SAFETY_SCREEN)
+    private readonly safety?: SafetyScreen,
   ) {}
 
   /**
@@ -309,9 +320,14 @@ export class InboxService {
     );
 
     // Phase 2: classify outside any transaction (may be a network call).
-    const { classification, confidence } = input.classification
-      ? { classification: input.classification, confidence: 1 }
-      : await this.classify(orgId, input, kb);
+    // Untrusted text: Model Armor looks at it before any AI does. A flagged
+    // or blocked reply goes to manual review and no AI ever reads it.
+    const safetyFlag = await this.replyIsUnsafe(input.body);
+    const { classification, confidence } = safetyFlag
+      ? { classification: 'manual_review' as ReplyClass, confidence: 0 }
+      : input.classification
+        ? { classification: input.classification, confidence: 1 }
+        : await this.classify(orgId, input, kb);
 
     // Phase 3: thread + record + automations.
     const result = await withOrgContext(this.pool, orgId, async (c) => {
@@ -342,8 +358,8 @@ export class InboxService {
       const msg = await c.query<{ id: string }>(
         `INSERT INTO conversation_messages
            (org_id, conversation_id, direction, from_email, subject, body_text,
-            message_id, in_reply_to, classification, confidence)
-         VALUES ($1,$2,'inbound',$3,$4,$5,$6,$7,$8,$9)
+            message_id, in_reply_to, classification, confidence, safety_flag)
+         VALUES ($1,$2,'inbound',$3,$4,$5,$6,$7,$8,$9,$10)
          RETURNING id`,
         [
           orgId,
@@ -355,6 +371,7 @@ export class InboxService {
           input.inReplyTo ?? null,
           classification,
           confidence,
+          safetyFlag,
         ],
       );
       await c.query(
@@ -451,17 +468,36 @@ export class InboxService {
     return result;
   }
 
+  /** True when the reply is flagged/blocked (or can't be checked, fail-closed). */
+  private async replyIsUnsafe(body: string): Promise<boolean> {
+    if (!this.safety) return false;
+    try {
+      const r = await screenInputChunked(this.safety, body, 'inbound_reply');
+      return r.verdict !== 'ok';
+    } catch (err) {
+      this.logger.warn(
+        `safety check unavailable, reply sent to manual review: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return true;
+    }
+  }
+
   private async classify(
     orgId: string,
     input: IngestReplyInput,
     kb: OrgKnowledge | null,
   ): Promise<{ classification: ReplyClass; confidence: number }> {
     try {
-      const res = await this.ai.generate(
-        orgId,
-        'reply-classify',
-        classifyReply({ replyBody: input.body, subject: input.subject, kb }),
-      );
+      const res = await this.ai.generate(orgId, 'reply-classify', {
+        ...classifyReply({
+          replyBody: input.body,
+          subject: input.subject,
+          kb,
+        }),
+        task: 'reply_classify',
+      });
       const parsed = JSON.parse(res.text) as {
         classification?: string;
         confidence?: number;
@@ -631,7 +667,8 @@ export class InboxService {
       const outbound = await c.query<ThreadRow>(
         `SELECT 'outbound' AS direction, se.subject, NULL AS body_text,
            s.from_email, se.to_email, se.sent_at AS created_at,
-           NULL AS classification, NULL::real AS confidence
+           NULL AS classification, NULL::real AS confidence,
+           false AS safety_flag
          FROM sent_emails se
          LEFT JOIN sender_accounts s ON s.id = se.sender_id
          WHERE se.lead_id = $1 AND se.campaign_id IS NOT DISTINCT FROM $2
@@ -640,7 +677,7 @@ export class InboxService {
       );
       const inbound = await c.query<ThreadRow>(
         `SELECT direction, subject, body_text, from_email, to_email, created_at,
-           classification, confidence
+           classification, confidence, safety_flag
          FROM conversation_messages WHERE conversation_id = $1`,
         [id],
       );

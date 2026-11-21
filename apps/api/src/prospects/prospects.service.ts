@@ -6,11 +6,17 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { Pool, PoolClient } from 'pg';
 import { AiService } from '../ai/ai.service';
+import {
+  SAFETY_SCREEN,
+  screenInputChunked,
+  type SafetyScreen,
+} from '../ai/safety/safety-screen';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { companyKey, FREE_MAIL } from '../leads/company-key';
@@ -128,7 +134,24 @@ export class ProspectsService {
     private readonly usage: UsageService,
     private readonly mailProviders: MailProviderService,
     private readonly offers: OffersService,
+    @Optional()
+    @Inject(SAFETY_SCREEN)
+    private readonly safety?: SafetyScreen,
   ) {}
+
+  /** True when Model Armor blocks this page text (or can't be asked, fail-closed). */
+  private async pageIsUnsafe(text: string): Promise<boolean> {
+    if (!this.safety) return false;
+    try {
+      const r = await screenInputChunked(this.safety, text, 'web_page');
+      return r.verdict === 'blocked';
+    } catch (e) {
+      this.logger.warn(
+        `safety check unavailable, page skipped: ${e instanceof Error ? e.message : String(e)}`,
+      );
+      return true;
+    }
+  }
 
   /**
    * Searches left queued/running by a restart or crash never finish on their
@@ -403,11 +426,14 @@ export class ProspectsService {
         await this.finishRun(orgId, runId);
         return;
       }
-      const res = await this.ai.generate(
-        orgId,
-        'prospect-icp',
-        icpAndCandidatesPrompt(run.goal, offer, Math.ceil(run.requested * 1.5)),
-      );
+      const res = await this.ai.generate(orgId, 'prospect-icp', {
+        ...icpAndCandidatesPrompt(
+          run.goal,
+          offer,
+          Math.ceil(run.requested * 1.5),
+        ),
+        task: 'discover_plan',
+      });
       const parsed = JSON.parse(res.text) as {
         icp?: Record<string, unknown>;
         candidates?: { name?: unknown; domain?: unknown; reason?: unknown }[];
@@ -656,7 +682,7 @@ export class ProspectsService {
     }
 
     let budget = TOTAL_TEXT_LIMIT;
-    const pages = fetched
+    const readable = fetched
       .map((f) => {
         const head = [pageTitle(f.html), metaDescription(f.html)]
           .filter(Boolean)
@@ -669,6 +695,27 @@ export class ProspectsService {
         return { url: f.url, text };
       })
       .filter((pg) => pg.text.trim().length > 40);
+
+    // Model Armor: a page with prompt injection never reaches Gemini. A
+    // blocked page is dropped from the evidence and counted on the prospect.
+    const pages: typeof readable = [];
+    let skippedPages = 0;
+    for (const pg of readable) {
+      if (await this.pageIsUnsafe(pg.text)) skippedPages += 1;
+      else pages.push(pg);
+    }
+    const skippedNote =
+      skippedPages > 0
+        ? `${skippedPages} page${skippedPages === 1 ? '' : 's'} skipped by safety check`
+        : null;
+    if (skippedPages > 0 && pages.length === 0) {
+      return this.save(orgId, p.id, {
+        status: 'unverified',
+        website_url: home.url,
+        pages: fetched.map((f) => f.url),
+        error: skippedNote,
+      });
+    }
 
     // Real emails only: exactly as they appear on the company's pages.
     const host = p.domain;
@@ -704,17 +751,16 @@ export class ProspectsService {
     let analysis: Record<string, unknown>;
     let model = '';
     try {
-      const res = await this.ai.generate(
-        orgId,
-        'prospect-research',
-        researchPrompt({
+      const res = await this.ai.generate(orgId, 'prospect-research', {
+        ...researchPrompt({
           goal: run.goal,
           icpSummary,
           offer,
           domain: p.domain,
           pages,
         }),
-      );
+        task: 'discover_verify_extract',
+      });
       analysis = JSON.parse(res.text) as Record<string, unknown>;
       model = res.model;
     } catch (e) {
@@ -757,7 +803,10 @@ export class ProspectsService {
       attr_prompt_version: ATTR_PROMPT_VERSION,
       evidence,
       opportunity: cleanOpportunity(analysis.opportunity),
-      unknowns: cleanUnknowns(analysis.unknowns),
+      unknowns: [
+        ...cleanUnknowns(analysis.unknowns),
+        ...(skippedNote ? [skippedNote] : []),
+      ],
       emails,
       pages: fetched.map((f) => f.url),
       fit_score: real ? score.total : null,
