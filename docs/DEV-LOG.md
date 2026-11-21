@@ -13,6 +13,45 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ## Sessions
 
+### 2026-11-21 — Learning Loop T08: model router and Model Armor
+
+Built on `ll/T08` from `google-stack` `6a605a1` (AI lane, nothing stacked). Migration `0057`. **No cloud commands were run**: the
+Model Armor template is written down (`infra/model-armor/`) but not created, so `SAFETY_DRIVER` stays off until Aman says go.
+
+- **Router (`apps/api/src/ai/router/`):** every `ai.generate` call now passes a `task` (9 in the catalogue, `tasks.ts`). The router picks
+  the tier (call-site tier wins, then the task default), lowers it when the workspace is over `AI_DAILY_TOKEN_CAP_PER_ORG`
+  (2,000,000/day; powerful -> balanced -> fast; over 2x = clear 429 for everything but `reply_classify`), builds the model list from the
+  same `GEMINI_MODEL_*` / `GEMINI_FALLBACK_MODEL` vars, skips models whose **circuit is open** (3 failures in 2 min -> 5 min; Redis
+  keys `ai:cb:<model>`, `ai:cbf:<model>`, 15 s in-memory cache), falls back, retries with the old backoff, and writes one JSON line
+  per call (`event: ai_route`, task, chosen_model, reason, attempt, latency_ms, tokens). The Gemini adapter now honours an explicit
+  `model` and `timeoutMs` and skips its own fallback when the router chose. `AiService` keeps working without a router (the unit tests
+  construct it with two arguments), and a call with no task logs a warning and takes the old path. A static test fails the build if any
+  `ai.generate` call lacks a task. `ai_usage.feature` keeps its old strings (plan limits count `sequence-gen`); the card maps them.
+- **Model Armor (`apps/api/src/ai/safety/`):** `SafetyScreen` with `NoopSafetyScreen` (default) and `ModelArmorSafetyScreen`
+  (REST + `google-auth-library`, no new package). `SAFETY_DRIVER`, `MODEL_ARMOR_TEMPLATE`, `MODEL_ARMOR_LOCATION`, `SAFETY_FAIL_MODE`.
+  **Discover:** each page's text is screened in overlapping chunks before Gemini; blocked pages are dropped and the company gets
+  "N page(s) skipped by safety check" (all dropped = unverified). **Inbound replies:** screened before classification; blocked or flagged
+  -> `manual_review`, no AI call, `conversation_messages.safety_flag` (migration `0057`), "Safety check flagged this message" label in the
+  inbox, `POST /ai/reply-draft` answers 400 and the button is disabled. **AI output** of `reply_draft`, `template_edit`, `campaign_build`,
+  `challenger_draft`, `review_explain` is screened inside `AiService`: blocked = 422 "AI output withheld by safety check". Prompt injection,
+  malicious URL, RAI = blocked; sensitive data alone = flagged. Fail-open by default (ERROR log + counter), fail-closed refuses cleanly.
+- **Operator card:** `GET /operator/ai-routing` + a card on `/operator`: last 24 h per task -> model, calls, tokens from a new aggregates-only
+  SECURITY DEFINER function `operator_ai_usage(hours)` (same pattern as 0034), plus fallbacks / circuit events / budget downgrades from an
+  in-memory ring of the last 500 route decisions (per API instance, labelled as such on the card).
+- **Decisions:** (1) the brief said no migrations, but the inbox label needs a place to store the flag and the card needs a cross-tenant
+  read (ai_usage is row-level secured), so `0057` is two small additive statements; Aman said "go" after seeing this. (2) Model Armor in
+  `us-central1`: Mumbai has limited filter support (no malicious-URL filter). (3) Challenger drafts keep their existing `fast` tier at the
+  call site (catalogue says powerful); with the default env all tiers use the same model, so nothing changes until `GEMINI_MODEL_*` is set.
+  (4) Blank values in `.env` (`GEMINI_FALLBACK_MODEL=`, `AI_DAILY_TOKEN_CAP_PER_ORG=`) mean "default".
+- **Tests:** new `model-router.spec.ts` (circuit opens after 503s then the fallback answers and later calls skip the sick model, budget
+  downgrade, 429, tier/token defaults, blank env), `safety.spec.ts` (parsing, blocked/flagged, fail-open and fail-closed, chunk overlap,
+  real client never built in Jest), `call-sites.spec.ts`, plus an inbox integration test (flagged reply -> manual_review, AI not called,
+  draft refused) and a Discover integration test (injected page dropped, never sent to the model). Existing AI tests unchanged.
+  `gemini.provider.spec.ts` "explains what to set when no key" fails on this machine **before and after** this change (the local `.env` has a
+  real `GEMINI_API_KEY`); unrelated.
+- **Not done / not verified:** the real Model Armor call (needs the template; proof line is in `infra/model-armor/README.md`), migration
+  0057 on Cloud SQL, deploy.
+
 ### 2026-11-21 — Learning Loop T11: approvals (keep, pause, resume, challenger)
 
 Built on `ll/T11` from `google-stack` `b6229d6` (T02 to T06 were already merged, so nothing stacked). Migration `0056`. No cloud, no

@@ -230,6 +230,76 @@ hosting); SMTP and SES senders have no reply reading (Gmail only).
 
 ---
 
+## Model router (Learning Loop T08)
+
+**What it does, in plain words:** every AI call now says what it is for (a *task*, e.g. `reply_classify`,
+`campaign_build`). The router looks the task up, picks the model for it, skips a model that is currently
+failing, falls back to another one, keeps one workspace from burning the whole AI budget, and writes one
+log line saying *why* it picked what it picked. The default result is the same as before: with no
+settings changed, every task still runs on the same models.
+
+| Task | Default tier | Output screened by Model Armor |
+|---|---|---|
+| `reply_classify` | fast | no |
+| `reply_draft`, `template_edit` | balanced | yes |
+| `campaign_build`, `challenger_draft` | powerful | yes |
+| `discover_plan`, `review_explain` | balanced | review_explain yes |
+| `discover_verify_extract`, `import_column_match` | fast | no |
+
+(`ai_usage.feature` keeps its old names, e.g. `sequence-gen`, because plan limits count them. The card
+translates them to tasks.) Code: `apps/api/src/ai/router/` (`tasks.ts`, `policy.ts`, `circuit-breaker.ts`,
+`budget.ts`, `model-router.ts`).
+
+**Rules**
+- **Models per tier:** the same env vars as before (`GEMINI_MODEL_FAST|BALANCED|POWERFUL`, then
+  `GEMINI_FALLBACK_MODEL`). The router owns fallback now (it tries the tier model, then the fallback).
+- **Circuit breaker:** 3 failures (timeout, 429, 503) on one model within 2 minutes -> that model is skipped
+  for 5 minutes. State is in Redis (`ai:cb:<model>` open flag, `ai:cbf:<model>` failure count), so all Cloud
+  Run instances agree. Redis cost: one INCR (+ one EXPIRE on the first failure, + one SET when it trips) per
+  failure, and about one EXISTS per model per 15 s per instance (the answer is cached in memory for 15 s).
+  If Redis is down the breaker simply does nothing.
+- **Budget:** `AI_DAILY_TOKEN_CAP_PER_ORG` (default 2,000,000 tokens a day per workspace, `0` = no cap).
+  Over the cap -> `powerful` runs on the `balanced` model and `balanced` on the `fast` model. Over twice the
+  cap -> a clear 429 "AI daily limit reached" for everything except reply classification, which never blocks.
+  Usage comes from `ai_usage`, cached 60 s.
+- **Decision log:** one JSON line per call, which Cloud Logging indexes:
+  `{"event":"ai_route","task":"campaign_build","chosen_model":"...","reason":"policy|fallback_timeout|circuit_open|budget_downgrade","attempt":1,"latency_ms":820,"tokens":1530}`.
+  Failed attempts log the same line with `"error":true`. A tripped circuit logs `{"event":"ai_circuit_open","model":"..."}`.
+
+**Reading the "AI routing" card** (Operator console, `/operator`, A2B staff only): the table shows, for the
+last 24 hours, each task -> model with calls and tokens (from `ai_usage`, all instances). Under it, fallbacks,
+circuit skips, budget downgrades and circuit-open events come from an in-memory ring of the last 500 calls
+on the **one API instance you reached**, so on Cloud Run with several instances they are a sample. For the
+full picture use Cloud Logging: filter `jsonPayload.event="ai_route"`.
+
+## Model Armor (Learning Loop T08)
+
+**What it does, in plain words:** web pages Discover reads and replies from strangers are text we do not
+control, and either could say "ignore your instructions and ...". Google Cloud **Model Armor** checks that
+text *before* an AI sees it, and checks AI text again before a person sees or sends it.
+
+| Where | What happens when Model Armor says "blocked" |
+|---|---|
+| Discover, each fetched page (chunked, only what we send is screened) | The page is dropped from the evidence. The company shows "1 page skipped by safety check". If every page is dropped the company is left "unverified". |
+| Inbound reply, before AI classification | The reply becomes **Needs review**, the AI never reads it, no AI draft is offered (button disabled, server refuses), and the inbox shows "Safety check flagged this message". Flagged (e.g. a card number in the reply) behaves the same. |
+| AI output (reply drafts, template edits, campaign builder, challenger drafts, review explanations) | The text is withheld: the user sees "AI output withheld by safety check" (HTTP 422) and a line is logged. |
+
+**Turn it on** (off by default; nothing changes until you do): create the template once
+(`infra/model-armor/README.md`, **needs Aman's go**), then set
+`SAFETY_DRIVER=modelarmor`, `MODEL_ARMOR_TEMPLATE=expelly-safety`, `MODEL_ARMOR_LOCATION=us-central1`,
+`GOOGLE_CLOUD_PROJECT=<id>`, and give the service account `roles/modelarmor.user`.
+`SAFETY_FAIL_MODE=open` (default: if Model Armor is down, log an `ERROR` line and carry on, availability
+first) or `closed` (refuse: replies go to manual review, pages are skipped, AI output returns a 503).
+The app refuses to boot with `SAFETY_DRIVER=modelarmor` and no template.
+
+**Cost:** free for the first 2 million tokens a month, then $0.10 per million tokens (checked 2026-11-21 on
+Google's pricing page). Beta volume costs cents. Region `us-central1` (Mumbai has limited filter support).
+
+**Proof line** (what a blocked page logs): `{"severity":"WARNING","event":"safety_screen","direction":"input","context":"web_page","verdict":"blocked","findings":["pi_and_jailbreak"],"provider":"modelarmor"}`.
+Code: `apps/api/src/ai/safety/`. Tests never call Google: they use a fake client.
+
+---
+
 ## Later phases
 
 | Phase | What | Notes |
