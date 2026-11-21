@@ -361,7 +361,7 @@ Deploy steps (Agent Engine, the two settings): `apps/agents/deploy/README.md`. N
 
 ---
 
-## Scheduled jobs, monitoring and tracing (T13; code done, Google Cloud setup not run)
+## Scheduled jobs, monitoring and tracing (T13; live since 2026-11-21, see infra/ READMEs)
 
 The loop's time-based jobs (weekly review, preference expiry, loop-health log line) can run from **Cloud Scheduler**
 calling `/internal/cron/*` with a Google-signed token (`CRON_MODE=scheduler`, `CRON_AUDIENCE`, `CRON_SA_EMAIL`); the default

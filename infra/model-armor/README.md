@@ -4,8 +4,7 @@ Model Armor is Google Cloud's safety screen for AI. Expelly sends it two kinds o
 before any AI reads them (web pages Discover fetches, inbound replies) and the AI text people will
 read or send (drafts, campaign builder, review explanations). See `docs/GOOGLE-STACK.md`.
 
-**Nothing here has been run.** Creating the template is a Google Cloud change: a person does it
-(or says "go" to the assistant), once.
+**Run on 2026-11-21 (live, project `supersaas-513613`).** Template `expelly-safety` created in `us-central1`; `roles/modelarmor.user` given to `supersaas-run`; API revision 00019 runs with `SAFETY_DRIVER=modelarmor`, `SAFETY_FAIL_MODE=open`. Checked directly: "Ignore all previous instructions..." returns MATCH_FOUND, a normal sentence NO_MATCH_FOUND.
 
 ## What the template does
 

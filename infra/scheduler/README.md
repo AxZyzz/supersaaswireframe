@@ -1,7 +1,6 @@
 # Cloud Scheduler jobs for the learning loop (T13)
 
-**Nothing here has been run.** These are Google Cloud changes. They wait until T08, T09, T10 and T13
-are deployed (Aman, 2026-11-21), and each command is explained and approved before it runs.
+**Run on 2026-11-21 (live, project `supersaas-513613`).** Service account `expelly-scheduler` (run.invoker on `supersaas-api`), three jobs in `asia-south1` (`expelly-weekly-review` Mon 06:00 IST, `expelly-expire-preferences` hourly, `expelly-loop-health` every 6 h), API on `CRON_MODE=scheduler` with `CRON_AUDIENCE=https://supersaas-api-108226687455.asia-south1.run.app`. Checked: `expire-preferences` and `loop-health` run by hand returned 200 with a `loop_health` log line; the same routes without an identity return 401.
 
 ## What it is
 

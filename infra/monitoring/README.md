@@ -1,7 +1,6 @@
 # Cloud Monitoring for the learning loop (T13)
 
-**Nothing here has been run.** These are Google Cloud changes. They wait until T08, T09, T10 and T13
-are deployed (Aman, 2026-11-21), and each command is explained and approved before it runs.
+**Run on 2026-11-21 (live, project `supersaas-513613`).** Email channel `Expelly alerts` (amanxavier271@gmail.com), 4 log-based metrics, 4 alert policies (policy files with the channel filled in were created from temp copies; the repo files keep the `CHANNEL_NAME` placeholder). Cloud Trace API on, `roles/cloudtrace.agent` on `supersaas-run`, `TRACING=on`: a request with a known trace id was found in Cloud Trace (`/internal/cron/loop-health`, revision 00019). The trace listing call returned empty while lookup by id worked, so look traces up by id or in the console. Not verified: an alert actually emailing, and a trace that continues into an agent (needs Agent Engine).
 
 ## What it is
 
