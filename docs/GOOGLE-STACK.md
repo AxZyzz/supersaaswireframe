@@ -300,6 +300,36 @@ Code: `apps/api/src/ai/safety/`. Tests never call Google: they use a fake client
 
 ---
 
+## ADK agents over A2A (Learning Loop T09)
+
+**What it does, in plain words:** two small Python AI "agents" (`apps/agents`, built with Google's
+Agent Development Kit) help the Review. The **Review analyst** explains a campaign review in plain
+English, and every sentence cites the finding ids it relies on. The **Copywriter** drafts three
+challenger subject lines. The API talks to them over the **A2A protocol** and treats them as
+untrusted: it re-checks every finding id, number and "winner"-style word in the explanation, and if
+anything fails it shows the built-in template text and stores why (`explanation_source='template'`,
+`explanation.fallbackReason`). The decision itself is still made by code; nobody applies anything
+without a person approving it. Neither agent ever receives lead data.
+
+**Switches** (all default off; nothing changes until you set them):
+`REVIEW_EXPLAINER=template|agent|gemini`, `COPYWRITER_DRIVER=gemini|agent|mock`,
+`REVIEW_ANALYST_URL`, `COPYWRITER_URL`, `A2A_AUTH`, `A2A_CARD_PATH` (see `.env.example`).
+`gemini` mode is the same instruction as a direct Gemini call (no agent server needed); `mock`
+returns fixed template subjects.
+
+**Where the pieces are:** contracts (JSON Schemas + shared test fixtures) in
+`packages/shared/src/agents/`; the API side in `apps/api/src/agents/` (A2A client with 30 s timeout,
+one retry and the T08 circuit breaker, the explanation validator, the Copywriter drafter that plugs
+into T11's `CHALLENGER_DRAFTER`); the agents in `apps/agents/`. The Review card shows "Explained by
+Expelly Review agent" with each point linked to its number (hover highlights it). One log line per
+agent call carries a `trace_id`, the same W3C trace id sent to the agent, for Cloud Trace.
+
+**Run and deploy:** `apps/agents/README.md` (local) and `apps/agents/deploy/README.md` (Agent Engine:
+region, cost, service account, Agent Registry; not run yet). Try it locally with
+`npm run try:agents -w apps/api`.
+
+---
+
 ## Later phases
 
 | Phase | What | Notes |

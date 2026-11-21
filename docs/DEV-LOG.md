@@ -13,6 +13,46 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ## Sessions
 
+### 2026-11-21 — Learning Loop T09: ADK agents (Review analyst + Copywriter) over A2A
+
+Built on `ll/T09` from `google-stack` `589a9bc` (T08 was merged, nothing stacked). **No migration, no new endpoints, no `gcloud`
+command run.** Agent Engine deploy and Agent Registry are written down but not done (needs Aman's go on cost and region).
+
+- **Python service `apps/agents/`** (`google-adk==2.15.0`, `a2a-sdk==1.3.1`, Python 3.13 tested, `>=3.12`): `review_analyst` and
+  `copywriter` ADK `LlmAgent`s with structured output, served over A2A with `to_a2a` (Agent Cards at `/.well-known/agent-card.json`,
+  ports 8101/8102). Models follow the T08 catalogue (`review_explain` = balanced, `challenger_draft` = powerful). The Gemini
+  `response_schema` rejects `additionalProperties`, so the model sees lenient twin models and the strict JSON Schemas are enforced on
+  the API side. `discover/` is an empty placeholder for T10. `deploy/deploy_agent_engine.py` is a dry run unless `--apply`.
+- **Contracts:** JSON Schemas + shared fixtures in `packages/shared/src/agents/` are the source of truth; pydantic (Python) and Ajv
+  (API copies in `src/agents/contracts/`, `npm run contracts:sync -w apps/api`) validate the SAME fixtures, and a Jest test fails if the copies
+  drift. The pytest contract test already caught one drift (finding-id pattern missing in pydantic).
+- **API `apps/api/src/agents/`:** `a2a-client.service.ts` (official `@a2a-js/sdk` client, loaded lazily because its CJS build needs
+  `jose`, which is ESM-only: fine on Node 22, stubbed in Jest; 30 s timeout, one retry, T08 `CircuitBreaker` key `a2a:<agent>`, Google
+  ADC token for non-local URLs, W3C `traceparent` per call, one `a2a_call` log line with the trace id);
+  `explanation-validator.ts` (schema, ids exist, every number matches a cited finding within 0.1 including fractions as percentages,
+  claim words only when `promote` or negated, next step allowed, summary <= 80 words); `review-explainer.service.ts`
+  (`REVIEW_EXPLAINER=template|agent|gemini`, default template; any failure -> template + `fallbackReason`; simulated reviews never
+  go to an AI; agent output screened by Model Armor); `copywriter-drafter.ts` (`COPYWRITER_DRIVER=gemini|agent|mock`, default gemini = today's
+  behaviour; validates length <= 60, merge tokens, duplicates, Model Armor; always tops up to 3 with templates; falls back to the Gemini
+  drafter). `ReviewService.compute()` explains only when the numbers changed, and stores `explanation_source` (`agent`/`gemini`/`template`,
+  already allowed by the 0055 constraint). `.env` values that are blank mean off; `agent` without its URL fails at boot.
+- **Reused T11, did not duplicate it:** the brief's `/experiments/:id/challenger-drafts` endpoints already exist as T11's
+  `/reviews/:id/challenger-drafts` (+ approve). The Copywriter is a second implementation of `CHALLENGER_DRAFTER`; drafts land in
+  `challenger_drafts` (source `agent`), nothing is allocated until a person approves in T11's drawer. The org knowledge base now goes to the drafter.
+- **Web:** the Review recommendation card says "Explained by Expelly Review agent", each point shows its finding ids, and hovering a point
+  highlights the version row or lift card it relies on.
+- **Proof:** with real Gemini and both agents running locally, `npm run try:agents -w apps/api` returned a valid Review analyst answer
+  (the API validator accepted it) and exactly 3 Copywriter candidates; in the app (seeded workspace, `REVIEW_EXPLAINER=agent`,
+  `COPYWRITER_DRIVER=agent`) the Review card showed the agent's explanation with finding chips and the challenger drawer showed 3
+  Copywriter drafts stored with source `agent`. Prompt tightened after the first run (it wrote "rate of 0.025"; now percentages).
+- **Tests:** pytest 20 (agents with a mock model, contracts, deploy dry run); Jest: validator (bad id, hallucinated number, premature
+  "winner", unknown action, schema, long summary), A2A client against a fake A2A server over real HTTP (trace header, retry, circuit
+  open, non-JSON), explainer modes and every fallback, drafter modes and every fallback, prompt text identical in TS and Python, env
+  checks, and a Review integration test (new revision stores source + trace; unchanged refresh never calls the explainer).
+- **Not done / not verified:** Agent Engine deploy, Agent Registry listing and the Cloud Trace screenshot (acceptance 2) need Aman's
+  go; Agent Engine's exact A2A endpoint auth and card path are unconfirmed (Pre-GA, renamed "Agent Platform"); the Copywriter's rationale is
+  returned but not stored (no column; the drawer shows only the subject).
+
 ### 2026-11-21 — Learning Loop T08: model router and Model Armor
 
 Built on `ll/T08` from `google-stack` `6a605a1` (AI lane, nothing stacked). Migration `0057`. **No cloud commands were run**: the
