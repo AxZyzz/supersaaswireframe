@@ -53,6 +53,21 @@ export function validateEnv(
     }
   }
 
+  // Insights source (T07): BigQuery needs a project to bill and read from.
+  const is = str('INSIGHTS_SOURCE').toLowerCase();
+  if (is && !['postgres', 'bigquery'].includes(is)) {
+    errors.push('INSIGHTS_SOURCE must be "postgres" or "bigquery"');
+  }
+  if (
+    is === 'bigquery' &&
+    !str('BIGQUERY_PROJECT') &&
+    !str('GOOGLE_CLOUD_PROJECT')
+  ) {
+    errors.push(
+      'INSIGHTS_SOURCE=bigquery needs BIGQUERY_PROJECT (or GOOGLE_CLOUD_PROJECT)',
+    );
+  }
+
   // Scheduled jobs (T13): CRON_MODE=scheduler hands the loop jobs to Cloud
   // Scheduler, which can only call in with a verifiable identity.
   const cm = str('CRON_MODE').toLowerCase();

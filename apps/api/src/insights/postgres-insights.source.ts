@@ -1,15 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Pool } from 'pg';
-import { roleBucket } from '../campaigns/snapshot';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import {
   aggregateInsights,
-  type FactorValues,
   type InsightCompany,
   type InsightProspect,
-  unknownIfEmpty,
 } from './aggregate-insights';
+import { type CompanyRow, toInsightCompany } from './company-row';
+import { loadProspects, loadWorkspaceTz } from './postgres-side-data';
 import type {
   BucketRow,
   FactorId,
@@ -18,41 +17,6 @@ import type {
   InsightsQuery,
   InsightsSource,
 } from './types';
-
-interface CompanySql {
-  company_key: string;
-  first_sent: Date;
-  snap: Record<string, unknown> | null;
-  lead_city: string | null;
-  lead_region: string | null;
-  lead_country: string | null;
-  lead_mail_provider: string | null;
-  lead_source: string | null;
-  lead_title: string | null;
-  sender_email: string | null;
-  subject: string | null;
-  template_subject: string | null;
-  variant_label: string | null;
-  bounced: boolean | null;
-  opened: boolean;
-  replied: boolean | null;
-  positive: boolean | null;
-  qualified: boolean | null;
-  booked: boolean | null;
-  unsubscribed: boolean | null;
-  first_reply_at: Date | null;
-  reply_step: number | null;
-}
-
-const MERGE_TOKEN = /\{\{[^}]+\}\}|\{[a-zA-Z_][\w.]*\}/;
-
-const subjectLength = (s: string | null): string => {
-  const n = (s ?? '').length;
-  return n <= 30 ? 'up to 30' : n <= 50 ? '31-50' : '51+';
-};
-
-const snapText = (snap: Record<string, unknown> | null, key: string) =>
-  snap && typeof snap[key] === 'string' ? snap[key] : '';
 
 /**
  * Insights straight from Postgres: enrollment snapshots, step-1 sends, real
@@ -88,7 +52,7 @@ export class PostgresInsightsSource implements InsightsSource {
           q.from ?? null,
           q.to ?? null,
         ];
-        const rows = await c.query<CompanySql>(
+        const rows = await c.query<CompanyRow>(
           `WITH scope AS (
              SELECT cp.id AS campaign_id FROM campaigns cp
               WHERE ($1::uuid IS NULL OR cp.offer_id = $1)
@@ -152,98 +116,15 @@ export class PostgresInsightsSource implements InsightsSource {
           params,
         );
 
-        const pr = await c.query<{
-          country: string | null;
-          region: string | null;
-          city: string | null;
-          industry: string | null;
-          size_band: string | null;
-          trigger: string | null;
-          eligible: boolean;
-        }>(
-          `SELECT p.country, p.region, p.city, p.industry, p.size_band,
-                  p.triggers->0->>'type' AS trigger,
-                  EXISTS (SELECT 1 FROM jsonb_array_elements(p.emails) e
-                           WHERE (e->>'mx')::boolean) AS eligible
-             FROM prospects p
-             JOIN prospect_runs r ON r.id = p.run_id
-            WHERE p.status = 'verified'
-              AND ($1::uuid IS NULL OR r.offer_id = $1)
-              AND ($2::timestamptz IS NULL OR p.created_at >= $2)
-              AND ($3::timestamptz IS NULL OR p.created_at < $3)`,
-          // (no campaign filter here: prospects belong to an offer, not a campaign)
-          [params[0], params[2], params[3]],
-        );
+        const prospects: InsightProspect[] = await loadProspects(c, q);
+        const workspaceTz = await loadWorkspaceTz(c, q.orgId);
 
-        const org = await c.query<{ timezone: string | null }>(
-          `SELECT timezone FROM orgs WHERE id = $1`,
-          [q.orgId],
-        );
-
-        const companies: InsightCompany[] = rows.rows.map((r) => {
-          const snap = r.snap;
-          const pick = (key: string, fallback: string | null) =>
-            unknownIfEmpty(snapText(snap, key) || fallback);
-          const stars =
-            snap && typeof snap.stars === 'number'
-              ? String(snap.stars)
-              : 'not_scored';
-          const factors: FactorValues = {
-            country: pick('country', r.lead_country),
-            region: pick('region', r.lead_region),
-            city: pick('city', r.lead_city),
-            industry: pick('industry', null),
-            size_band: pick('size_band', null),
-            trigger: pick('primary_trigger', null),
-            role: unknownIfEmpty(
-              snapText(snap, 'role_bucket') || roleBucket(r.lead_title),
-            ),
-            lead_source: pick('source', r.lead_source),
-            stars,
-            mail_provider: pick('mail_provider', r.lead_mail_provider),
-            variant: r.variant_label
-              ? `Version ${r.variant_label}`
-              : 'no A/B test',
-            sender: unknownIfEmpty(r.sender_email),
-            subject_length: subjectLength(r.subject),
-            personalised: MERGE_TOKEN.test(r.template_subject ?? '')
-              ? 'personalised'
-              : 'not personalised',
-          };
-          return {
-            companyKey: r.company_key,
-            firstSentAt: r.first_sent,
-            recipientTz: snapText(snap, 'timezone') || null,
-            bounced: !!r.bounced,
-            opened: r.opened,
-            replied: !!r.replied,
-            positive: !!r.positive,
-            qualified: !!r.qualified,
-            booked: !!r.booked,
-            unsubscribed: !!r.unsubscribed,
-            hoursToFirstReply: r.first_reply_at
-              ? (r.first_reply_at.getTime() - r.first_sent.getTime()) /
-                3_600_000
-              : null,
-            replyStep: r.reply_step,
-            factors,
-          };
-        });
-
-        const prospects: InsightProspect[] = pr.rows.map((p) => ({
-          country: unknownIfEmpty(p.country),
-          region: unknownIfEmpty(p.region),
-          city: unknownIfEmpty(p.city),
-          industry: unknownIfEmpty(p.industry),
-          size_band: unknownIfEmpty(p.size_band),
-          trigger: unknownIfEmpty(p.trigger),
-          eligible: p.eligible,
-        }));
+        const companies: InsightCompany[] = rows.rows.map(toInsightCompany);
 
         return {
           companies,
           prospects,
-          workspaceTz: org.rows[0]?.timezone || 'UTC',
+          workspaceTz,
         };
       },
     );

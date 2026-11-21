@@ -46,6 +46,8 @@ export interface FactorView {
 
 export interface InsightsResponse {
   source: string;
+  /** BigQuery only: newest change from this workspace that has reached BigQuery (ISO), else null. */
+  dataAsOf: string | null;
   generatedAt: string;
   cached: boolean;
   filters: {
@@ -81,7 +83,7 @@ const CACHE_TTL_SECONDS = 600;
  * Bump whenever the response shape changes: a cached copy of the old shape
  * would otherwise be served to the new code for up to 10 minutes after a deploy.
  */
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 
 /**
  * Insights (Learning Loop T06): turns a source's bucket rows into plain
@@ -122,6 +124,8 @@ export class InsightsService implements OnModuleDestroy {
 
   private key(orgId: string, f: InsightsFilters): string {
     const norm = {
+      // the source is part of the key: flipping INSIGHTS_SOURCE must not serve the other source's copy
+      s: this.source.name,
       o: f.offerId ?? null,
       c: [...(f.campaignIds ?? [])].sort(),
       f: f.from?.toISOString() ?? null,
@@ -205,7 +209,8 @@ export class InsightsService implements OnModuleDestroy {
         : null;
 
     return {
-      source: this.source.name,
+      source: data.source ?? this.source.name,
+      dataAsOf: data.dataAsOf ? data.dataAsOf.toISOString() : null,
       generatedAt: new Date().toISOString(),
       cached: false,
       filters: {

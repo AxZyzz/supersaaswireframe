@@ -258,9 +258,16 @@ export interface InsightsData {
   sendBlocksUsed: number[];
   /** Overall counts for the scope. */
   totals: Omit<BucketRow, 'factor' | 'bucket' | 'dominant'>;
+  /**
+   * BigQuery only: the newest database change from this workspace that has
+   * reached BigQuery ("Data as of"). Absent for Postgres (always live).
+   */
+  dataAsOf?: Date | null;
+  /** Set by a source that answered for another one (e.g. BigQuery was down, Postgres answered). */
+  source?: string;
 }
 
-/** Where insight numbers come from. Postgres now; BigQuery in T07 returns the same rows. */
+/** Where insight numbers come from: Postgres (live) or BigQuery (T07); both return the same rows. */
 export interface InsightsSource {
   readonly name: string;
   factorFunnel(q: InsightsQuery, factor: FactorId): Promise<BucketRow[]>;

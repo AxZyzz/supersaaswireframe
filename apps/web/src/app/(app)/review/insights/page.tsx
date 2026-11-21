@@ -239,6 +239,14 @@ function Summary({ data }: { data: InsightsResponse }) {
       <span className="font-medium text-ink">{t.qualified}</span> confirmed qualified
       {cov !== null && ` (${pct(cov, 0)} of interested replies are confirmed)`} ·{" "}
       <span className="font-medium text-ink">{t.booked}</span> booked a call
+      {data.source === "bigquery" && (
+        <p className="mt-1 text-tiny text-faint" data-testid="insights-data-as-of">
+          {data.dataAsOf
+            ? `Data as of ${new Date(data.dataAsOf).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}`
+            : "Data as of: nothing from this workspace has reached BigQuery yet"}
+          {" "}(BigQuery copy of the database, refreshed about every 15 minutes)
+        </p>
+      )}
     </div>
   );
 }

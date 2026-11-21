@@ -104,6 +104,8 @@ export interface GridRow {
 
 export interface InsightsResponse {
   source: string;
+  /** BigQuery only: newest change from this workspace that has reached BigQuery (ISO), else null. */
+  dataAsOf: string | null;
   generatedAt: string;
   cached: boolean;
   totals: BucketRow;

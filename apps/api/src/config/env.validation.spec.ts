@@ -40,6 +40,33 @@ describe('validateEnv', () => {
     ).not.toThrow();
   });
 
+  it('T07: INSIGHTS_SOURCE is postgres or bigquery, and bigquery needs a project', () => {
+    const dev = { DATABASE_URL: 'x' };
+    expect(() =>
+      validateEnv({ ...dev, INSIGHTS_SOURCE: 'postgres' }),
+    ).not.toThrow();
+    expect(() => validateEnv({ ...dev, INSIGHTS_SOURCE: 'excel' })).toThrow(
+      /INSIGHTS_SOURCE must be/,
+    );
+    expect(() => validateEnv({ ...dev, INSIGHTS_SOURCE: 'bigquery' })).toThrow(
+      /BIGQUERY_PROJECT/,
+    );
+    expect(() =>
+      validateEnv({
+        ...dev,
+        INSIGHTS_SOURCE: 'bigquery',
+        GOOGLE_CLOUD_PROJECT: 'p',
+      }),
+    ).not.toThrow();
+    expect(() =>
+      validateEnv({
+        ...dev,
+        INSIGHTS_SOURCE: 'BigQuery',
+        BIGQUERY_PROJECT: 'p',
+      }),
+    ).not.toThrow();
+  });
+
   it('T09: agent switches need their address, and reject unknown values', () => {
     const dev = { DATABASE_URL: 'x' };
     expect(() => validateEnv({ ...dev, REVIEW_EXPLAINER: 'agent' })).toThrow(

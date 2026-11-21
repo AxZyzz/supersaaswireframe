@@ -8,3 +8,5 @@ process.env.EMAIL_DRIVER = 'mock';
 process.env.AI_DRIVER = 'mock';
 // Private BullMQ namespace per test process (see queue.module.ts).
 process.env.QUEUE_PREFIX = `test-${process.pid}`;
+// Tests never read BigQuery: Insights come from Postgres (T07).
+process.env.INSIGHTS_SOURCE = 'postgres';
