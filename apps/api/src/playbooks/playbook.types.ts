@@ -38,6 +38,8 @@ export interface PlaybookEvidence {
   reviewId?: string;
   revision?: number;
   experimentId?: string;
+  /** The campaign the test ran in (for the link back to its Review). */
+  campaignId?: string;
   preferenceId?: string;
   decision?: string;
   /** Finding ids of the review the numbers come from (F1, F2, ...). */

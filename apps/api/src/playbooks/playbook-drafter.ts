@@ -38,6 +38,7 @@ export interface ReviewDraftInput {
   reviewId: string;
   revision: number;
   experimentId: string;
+  campaignId: string;
   decision: string;
   winner: ArmReport;
   control: ArmReport;
@@ -99,6 +100,7 @@ export function buildReviewDraft(i: ReviewDraftInput): Built {
       reviewId: i.reviewId,
       revision: i.revision,
       experimentId: i.experimentId,
+      campaignId: i.campaignId,
       decision: i.decision,
       findingIds: i.findings
         .filter((f) => f.kind === 'rate' || f.kind === 'lift')
@@ -229,10 +231,14 @@ export class PlaybookDrafter {
       if (typeof parsed.title !== 'string' || typeof parsed.body !== 'string') {
         return template;
       }
+      const title = parsed.title.trim();
+      const body = parsed.body.trim();
+      // Unchanged wording is the template, not an "AI rewording": say so honestly.
+      if (title === template.title && body === template.body) return template;
       const candidate: PlaybookDraft = {
         ...template,
-        title: parsed.title.trim(),
-        body: parsed.body.trim(),
+        title,
+        body,
         source: provider === 'mock' ? 'mock' : 'gemini',
       };
       const check = checkDraftText(candidate);

@@ -38,6 +38,7 @@ const REVIEW: ReviewDraftInput = {
   reviewId: 'rev-1',
   revision: 3,
   experimentId: 'exp-1',
+  campaignId: 'camp-1',
   decision: 'promote',
   winner: arm({
     variantId: 'w',
@@ -97,6 +98,7 @@ describe('playbook text built by code (T14)', () => {
       reviewId: 'rev-1',
       revision: 3,
       experimentId: 'exp-1',
+      campaignId: 'camp-1',
       decision: 'promote',
       findingIds: ['F1', 'F2'], // only rate and lift findings
     });
@@ -221,6 +223,13 @@ describe('PlaybookDrafter.polish (T14)', () => {
       ),
     ).polish('org', message);
     expect(d.source).toBe('mock');
+  });
+
+  it('an unchanged wording is labelled as the template, not as an AI rewording', async () => {
+    const d = await new PlaybookDrafter(
+      ai(JSON.stringify({ title: message.title, body: message.body })),
+    ).polish('org', message);
+    expect(d.source).toBe('template');
   });
 
   it('falls back to the template when the AI invents a number', async () => {

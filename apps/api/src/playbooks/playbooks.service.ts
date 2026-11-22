@@ -291,11 +291,12 @@ export class PlaybooksService {
       result: ReviewResult;
       computed_at: Date;
       experiment_id: string;
+      campaign_id: string;
       offer_ref: string | null;
       campaign_offer_id: string | null;
     }>(
       `SELECT r.id, r.revision, r.simulated, r.result, r.computed_at, e.id AS experiment_id,
-              e.offer_ref, cp.offer_id AS campaign_offer_id
+              e.campaign_id, e.offer_ref, cp.offer_id AS campaign_offer_id
          FROM reviews r
          JOIN experiments e ON e.id = r.experiment_id
          JOIN campaigns cp ON cp.id = e.campaign_id
@@ -357,6 +358,7 @@ export class PlaybooksService {
       reviewId: rv.id,
       revision: rv.revision,
       experimentId: rv.experiment_id,
+      campaignId: rv.campaign_id,
       decision: res.decision,
       winner,
       control,

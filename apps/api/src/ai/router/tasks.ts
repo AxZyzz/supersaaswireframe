@@ -58,7 +58,8 @@ export const TASK_CATALOGUE: Record<AiTask, TaskSpec> = {
   review_explain: spec('balanced', 1200, { screenOutput: true }),
   challenger_draft: spec('powerful', 400, { screenOutput: true }),
   // T14: rewording of a playbook a person will read, edit and save (screened like other drafts)
-  playbook_draft: spec('fast', 500, { screenOutput: true }),
+  // A person is waiting in a dialog, and the template is the fallback: fail fast.
+  playbook_draft: spec('fast', 500, { screenOutput: true, timeoutMs: 8_000 }),
   import_column_match: spec('fast', 1000),
 };
 
