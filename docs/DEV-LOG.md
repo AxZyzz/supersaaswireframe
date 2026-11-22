@@ -13,6 +13,48 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ## Sessions
 
+### 2026-11-22 — Learning Loop T07: BigQuery learning plane, Datastream, Knowledge Catalog
+
+Built on `ll/T07` from `google-stack` `3d10fd0` (8 commits `78f6896`..`d529394`). **Not pushed, not merged, not deployed.** The cloud
+pipeline is live; `INSIGHTS_SOURCE` stays `postgres` in production until Aman says to flip it.
+
+- **Pipeline (project `supersaas-513613`, `asia-south1`):** APIs on (Datastream, BigQuery, Data Lineage, Dataplex); datasets `expelly_raw`
+  (locked: only Datastream writes it, only the `expelly_learning` views read it, the API's service account cannot) and `expelly_learning`;
+  Cloud SQL flag `cloudsql.logical_decoding=on` (restart, about 45 s, Aman chose the time); role `datastream_reader` (REPLICATION + BYPASSRLS,
+  **column-level** SELECT only), publication `expelly_bq` with the same column lists, slot `expelly_bq_slot`; the five Datastream IPs for
+  asia-south1 on Cloud SQL's authorized networks (no private networking, $0); connection profiles + stream `expelly-learning-stream` (merge,
+  15 min freshness, backfill all). 17 tables backfilled, no errors. Datastream's own "backfill permissions" pre-check fails because of the
+  column-level grants, so the stream was created with `--force`; the real backfill works with column-level access.
+- **What is copied:** only what `infra/bigquery/replication-set.json` lists (the source of truth; `generate.js` builds the Postgres setup SQL and
+  the Datastream include list from it; a Jest spec fails the build on a PII-looking column, on stale generated files, or on a view reading a table
+  that is not replicated). No `to_email`, no subjects, no message text, no lead names, no `prospects.emails`, no `leads` table. Honest limits: JSON
+  columns (`campaign_leads.snapshot`, `prospects.triggers`) can hold evidence quotes and free-mail keys (`email:<address>`), so `expelly_raw` is
+  locked and the views expose only whitelisted keys and hash free-mail keys (`safe_company_key`).
+- **Views (`infra/bigquery/views/*.sql`, `apply.sh`):** `outcomes_current`, `sends_enriched`, `company_reach`, `factor_funnel`, `send_time_grid`,
+  `discovery_funnel`, `data_freshness` applied; `search_policy_compare` and `review_history` wait for the first row in `reviews` /
+  `search_preferences` (Datastream creates a table on its first row; `apply.sh` skips them and says so). Every view and column has a description.
+- **App:** `BigQueryInsightsSource` reads `company_reach` (always `org_id = @org_id`, parameterised, 1 GiB cap) and feeds the same mapper and
+  aggregation as the Postgres source (`company-row.ts`, `aggregate-insights.ts`). The Discover funnel's eligible count, sender labels and the
+  workspace timezone still come from Postgres (`postgres-side-data.ts`). BigQuery failure falls back to Postgres (logged). New response field
+  `dataAsOf`, cache key includes the source (version 3), the Insights page shows "Data as of <time>" (`docs/bigquery-screenshots/`).
+- **Knowledge Catalog:** glossary "Expelly metrics" (10 terms, definitions copied from the Build Brief) in `asia-south1`, 19 links to view
+  columns (`infra/bigquery/glossary.js`, idempotent; 5 links wait for the two pending views). Lineage is recorded:
+  `public_outcome_events` -> `outcomes_current` -> `company_reach` -> `factor_funnel`.
+- **Bugs found and fixed on the way:**
+  1. **T06 first-touch bug (live in production):** the app numbers campaign steps from 0, but the Postgres Insights query treated `step_order = 1`
+     as the first email, so real data showed nothing. Fixtures now use 0 (9 of 15 integration tests failed before the fix), and the first touch is the
+     campaign's first step in both sources (`7268d02`).
+  2. **Empty campaign list returned 0 rows in BigQuery:** the client sends an empty array as NULL (`ARRAY_LENGTH(NULL) = 0` is NULL). Found only by the
+     production compare; fixed with `COALESCE` and pinned by a test (`d529394`).
+  3. **`.dockerignore` `scripts` hid `apps/api/scripts` from Cloud Build**, so `dist/scripts` (`operator.js`, `bq-smoke.js`) was missing from the API
+     image; anchored to `/scripts` (`e79c5a2`).
+- **Production compare (`npm run bq:smoke -- --compare`, run as a temporary Cloud Run job on image `t07-d529394`, deleted afterwards):** workspace
+  `5fc942ef…` matches Postgres on every count (only `subject_length`, expected, differs); `factor_funnel` spot-checks (city, industry, country) match.
+  Workspaces `e205a201…` (1 of 5 sends) and `884e7326…` (6 of 6) differ because those enrollments have no snapshot and the BigQuery copy has no
+  leads table: known and documented, new enrollments are fine.
+- **Checks:** see the final report. Cost: Datastream bills per GB (cents to a few dollars a month); BigQuery in the free tier; Cloud Build free
+  tier. **Not done:** lineage screenshot (needs a Google sign-in in the browser pane), push, merge, deploy, flipping `INSIGHTS_SOURCE`.
+
 ### 2026-11-21 — Learning Loop T10: Discover as an ADK agent with a typed contract
 
 Built on `ll/T10` from `ll/T13` `f27ed09` (T12 and T13 are pushed, not merged). **No Google Cloud command was run and nothing is
