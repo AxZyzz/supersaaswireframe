@@ -223,15 +223,18 @@ describe('BigQuery vector store (T14)', () => {
       validTo: new Date('2027-01-01T00:00:00Z'),
     });
     const { params, types } = calls[0];
+    type TypeHint = Parameters<typeof BigQuery.valueToQueryParameter_>[1];
     for (const [name, value] of Object.entries(params)) {
-      const p = BigQuery.valueToQueryParameter_(value, types[name]);
+      const p = BigQuery.valueToQueryParameter_(value, types[name] as TypeHint);
       const sent = p.parameterValue?.arrayValues ?? p.parameterValue?.value;
       expect({ name, sent }).not.toEqual({ name, sent: null });
       expect({ name, sent }).not.toEqual({ name, sent: undefined });
     }
     expect(
-      BigQuery.valueToQueryParameter_(params.valid_to, types.valid_to)
-        .parameterValue?.value,
+      BigQuery.valueToQueryParameter_(
+        params.valid_to,
+        types.valid_to as TypeHint,
+      ).parameterValue?.value,
     ).toBe('2027-01-01T00:00:00.000Z');
   });
 
