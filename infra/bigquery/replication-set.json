@@ -1,0 +1,326 @@
+{
+  "_about": "The ONLY tables and columns that leave Postgres for BigQuery (Learning Loop T07). Source of truth: generate.js turns this into postgres-setup.sql (grants + publication) and datastream-include.json. A column that is not listed here never reaches BigQuery. Adding a column later (new migration) does NOT replicate it until it is added here on purpose.",
+  "schema": "public",
+  "tables": {
+    "orgs": [
+      "id",
+      "timezone"
+    ],
+    "offers": [
+      "id",
+      "org_id",
+      "name"
+    ],
+    "templates": [
+      "id",
+      "org_id",
+      "subject"
+    ],
+    "campaigns": [
+      "id",
+      "org_id",
+      "offer_id",
+      "status",
+      "started_at",
+      "created_at"
+    ],
+    "campaign_steps": [
+      "id",
+      "org_id",
+      "campaign_id",
+      "step_order",
+      "template_id",
+      "delay_hours"
+    ],
+    "campaign_leads": [
+      "id",
+      "org_id",
+      "campaign_id",
+      "status",
+      "stop_reason",
+      "snapshot",
+      "created_at"
+    ],
+    "sent_emails": [
+      "id",
+      "org_id",
+      "campaign_id",
+      "campaign_lead_id",
+      "step_id",
+      "sender_id",
+      "status",
+      "experiment_id",
+      "variant_id",
+      "sent_at"
+    ],
+    "email_events": [
+      "id",
+      "org_id",
+      "sent_email_id",
+      "campaign_id",
+      "type",
+      "created_at"
+    ],
+    "outcome_events": [
+      "id",
+      "org_id",
+      "campaign_lead_id",
+      "company_key",
+      "experiment_id",
+      "variant_id",
+      "sent_email_id",
+      "type",
+      "source",
+      "verification",
+      "occurred_at",
+      "created_at",
+      "verified_at",
+      "supersedes_id"
+    ],
+    "experiments": [
+      "id",
+      "org_id",
+      "campaign_id",
+      "step_id",
+      "kind",
+      "status",
+      "unit",
+      "primary_metric",
+      "secondary_metric",
+      "baseline_rate",
+      "min_lift_pp",
+      "target_n_per_arm",
+      "response_window_days",
+      "policy_version",
+      "offer_ref",
+      "previous_experiment_id",
+      "started_at",
+      "stopped_at",
+      "decided_at",
+      "created_at"
+    ],
+    "experiment_variants": [
+      "id",
+      "org_id",
+      "experiment_id",
+      "label",
+      "subject",
+      "template_id",
+      "template_version",
+      "is_control",
+      "status",
+      "created_at"
+    ],
+    "experiment_assignments": [
+      "id",
+      "org_id",
+      "experiment_id",
+      "company_key",
+      "variant_id",
+      "assigned_at"
+    ],
+    "reviews": [
+      "id",
+      "org_id",
+      "experiment_id",
+      "revision",
+      "policy_version",
+      "simulated",
+      "computed_at",
+      "result",
+      "explanation_source"
+    ],
+    "review_actions": [
+      "id",
+      "org_id",
+      "review_id",
+      "experiment_id",
+      "revision",
+      "action_id",
+      "type",
+      "status",
+      "requested_at",
+      "applied_at",
+      "reverted_at",
+      "reverts_action_id"
+    ],
+    "search_preferences": [
+      "id",
+      "org_id",
+      "offer_id",
+      "factor",
+      "value",
+      "label",
+      "mode",
+      "cap_share",
+      "starts_at",
+      "expires_at",
+      "status",
+      "revision",
+      "ended_at",
+      "ended_reason",
+      "created_at"
+    ],
+    "prospect_runs": [
+      "id",
+      "org_id",
+      "offer_id",
+      "status",
+      "requested",
+      "total",
+      "done",
+      "verified",
+      "preference_id",
+      "preference_revision",
+      "allocation",
+      "created_at",
+      "finished_at"
+    ],
+    "prospects": [
+      "id",
+      "org_id",
+      "run_id",
+      "company_key",
+      "city",
+      "region",
+      "country",
+      "industry",
+      "size_band",
+      "timezone",
+      "triggers",
+      "mail_provider",
+      "stars",
+      "fit_score",
+      "status",
+      "via_preference",
+      "lead_id",
+      "created_at"
+    ]
+  },
+  "neverReplicate": {
+    "_about": "Columns that must never appear above. The Jest test (replication-set.spec.ts) fails if one does. Lead PII, message content, free text and secrets.",
+    "columns": [
+      "to_email",
+      "from_email",
+      "email",
+      "emails",
+      "name",
+      "first_name",
+      "last_name",
+      "phone",
+      "body",
+      "body_html",
+      "body_text",
+      "message_id",
+      "data",
+      "reason",
+      "explanation",
+      "evidence",
+      "payload",
+      "before",
+      "after",
+      "goal",
+      "icp",
+      "summary",
+      "pages",
+      "opportunity",
+      "unknowns",
+      "company_name",
+      "domain",
+      "website_url",
+      "password",
+      "password_hash",
+      "token",
+      "secret",
+      "config",
+      "idempotency_key",
+      "inputs",
+      "filter",
+      "hash"
+    ],
+    "tables": [
+      "leads",
+      "users",
+      "sender_accounts",
+      "conversations",
+      "messages",
+      "lead_notes",
+      "segments",
+      "org_knowledge"
+    ],
+    "columnsByTable": {
+      "sent_emails": [
+        "subject",
+        "to_email",
+        "lead_id",
+        "message_id",
+        "tracking_id",
+        "error",
+        "provider"
+      ],
+      "email_events": [
+        "data",
+        "lead_id"
+      ],
+      "outcome_events": [
+        "lead_id",
+        "conversation_id",
+        "created_by",
+        "verified_by",
+        "reason",
+        "idempotency_key"
+      ],
+      "campaign_leads": [
+        "lead_id",
+        "unsub_token"
+      ],
+      "prospects": [
+        "emails",
+        "evidence",
+        "summary",
+        "reason",
+        "company_name",
+        "domain",
+        "website_url",
+        "pages",
+        "opportunity",
+        "unknowns",
+        "score_parts",
+        "location",
+        "error"
+      ],
+      "prospect_runs": [
+        "goal",
+        "icp",
+        "error",
+        "created_by"
+      ],
+      "reviews": [
+        "inputs",
+        "explanation",
+        "scenario",
+        "inputs_hash",
+        "created_by"
+      ],
+      "review_actions": [
+        "payload",
+        "before",
+        "after",
+        "reason",
+        "error",
+        "requested_by",
+        "approved_by",
+        "idempotency_key",
+        "reverted_by"
+      ],
+      "search_preferences": [
+        "filter",
+        "evidence",
+        "evidence_hash",
+        "prior_profile",
+        "approved_by",
+        "idempotency_key"
+      ]
+    }
+  }
+}
