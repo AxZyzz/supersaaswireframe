@@ -490,3 +490,89 @@ deletes its rows. It touches no real workspace and no Postgres.
 **Turn on / off.** On: create the dataset and table (`infra/bigquery/playbooks.sql`), give the API's service account write access to
 `expelly_memory` and `roles/aiplatform.user`, set `EMBEDDINGS_USE_VERTEX=true` and `PLAYBOOK_SEARCH=bigquery`, run **Rebuild search
 index** once. Off: `PLAYBOOK_SEARCH=postgres`.
+
+
+## Phase 6: Google Calendar booked calls and the Looker Studio dashboard (T16; code done, cloud steps listed below)
+
+Two small, independent pieces. Part A turns a meeting with a lead into a verified "booked call" automatically. Part B is a shareable
+Looker Studio dashboard on the T07 BigQuery views.
+
+### Part A: booked calls verified from Google Calendar
+
+**What it does.** A manager or admin can connect a Google Calendar (Settings > Integrations > Connect Google Calendar). Every 15 minutes
+the API reads the events that changed on that calendar. When an attendee is a lead we emailed (a delivered email, sent before the event was
+created and not longer ago than the response window), it records a `booked_call` outcome with source `calendar`, verification `verified`,
+linked to the enrollment, experiment and variant of that email. If the event is later cancelled, a superseding `rejected` row is added.
+Nobody has to click "Booked a call". Code decides; no AI is involved.
+
+**What it reads, and what it never does.**
+- Scope: `https://www.googleapis.com/auth/calendar.events.readonly` (view events on all calendars; no editing). It is a separate, optional
+  connect: the Gmail and Sheets connect screens never ask for it.
+- The request asks Google only for event id, status, created time, start and the attendee email addresses (a fields mask).
+  **Titles, descriptions, locations and organisers are never requested and never stored.** The outcome row keeps the event id (inside the
+  idempotency key), the start time (as the time of the outcome) and the matched lead.
+- Only the connected account's primary calendar is read. Declined attendees, the account itself and room resources are ignored.
+
+**How a match is decided** (`apps/api/src/integrations/calendar-logic.ts`, pure and tested):
+1. Attendee emails are lower-cased and looked up among the workspace's leads (row-level security, so another workspace's lead can never match).
+2. A lead matches when a delivered email to them (`sent_emails.status = 'sent'`) was sent before the event was created, and the event was
+   created no later than the response window afterwards: the experiment's `response_window_days`, default 14.
+3. Several matching emails: the most recent one is used (it carries the enrollment, experiment and variant).
+4. No match: nothing is recorded. It never guesses.
+5. Idempotency key `cal:<calendar account email>:<event id>`: a repeat sync, or a rescheduled event, never adds a second outcome. A cancel is
+   found by that key (Google sends a cancelled event without attendees) and adds `calcancel:<account>:<event id>`.
+
+**How it runs.** `CalendarSyncService.runDue()` is a tick (every 15 minutes, in-process like the Sheets and Gmail syncs; the API is always on).
+A SECURITY DEFINER function `due_calendar_syncs()` (migration `0061`, same pattern as `due_sheet_syncs`) is its one cross-workspace read.
+The first sync reads yesterday to 30 days ahead; later syncs read only what changed since the last good sync (5 minutes of overlap) with
+deleted events included. A failed sync keeps its cursor and shows the problem on the Settings card; a revoked or expired token
+(`invalid_grant` or HTTP 401) sets "Reconnect needed" and the job leaves that workspace alone until it is reconnected.
+
+**Changes.**
+- Migration `0061_google_calendar` (additive): `integrations.provider` may now also be `google_calendar`, plus `due_calendar_syncs()`.
+  No new table: the encrypted refresh token and the sync cursor live in `integrations.config`, like Sheets.
+- `OutcomesService.record()` gains `autoVerified` (verified by a system fact: `verified_at` set, `verified_by` empty) and
+  `recordCalendarCancel()` adds the superseding `rejected` row with source `calendar`.
+- New endpoints (in `docs/AUTHZ-MATRIX.md`): `POST /integrations/google-calendar/connect` and `DELETE /integrations/google-calendar`
+  (admin, manager). The shared callback `GET /auth/google/callback` now also routes `calendar-connect`.
+- The Inbox outcome label says "from Google Calendar" for such rows instead of "by the team".
+
+**Google verification impact (checked, 2026-11-22).** Google's own scope-verification page uses "reading events stored in Google Calendar"
+as its example of a **sensitive** scope; the exact flag for this scope is shown on the OAuth consent screen when it is added, so confirm it
+there. It is not a restricted scope (no security assessment on its own). While the OAuth app is in **Testing** mode it works only for
+accounts listed as test users, and a Testing-mode refresh token expires after 7 days (the card then says "Reconnect needed").
+Going public needs sensitive-scope verification (brand check, scope justification, demo video; days to weeks). `gmail.readonly`, already in use,
+is restricted and needs the heavier assessment, so the calendar scope adds little on top.
+
+**Cloud steps (each explained, with cost, and run only on Aman's go; project `supersaas-513613`).**
+1. Enable the Calendar API: `gcloud services enable calendar-json.googleapis.com` (free). Without it the sync records "Google Calendar error
+   (HTTP 403)" on the card and keeps trying.
+2. Run migration `0061` on Cloud SQL (migrate job; no core-lane chat may be running).
+3. Deploy the API and the web.
+4. Aman (console): add the `calendar.events.readonly` scope under OAuth consent screen > Data access, and the calendar's Google account as a
+   test user. Then Connect Google Calendar in Settings and make a test booking.
+
+**Turn on / off.** Nothing to switch on: it runs for a workspace once its calendar is connected. Off: Disconnect on the Settings card (outcomes
+already recorded stay, they are history).
+
+### Part B: Looker Studio learning dashboard
+
+**What it is.** A Looker Studio report with four pages (what works by factor, when to send, review history, targeted vs baseline search) plus
+a "Data as of" tile. Aman builds it by following `docs/LOOKER-STUDIO.md` (about 30 minutes). The operator console shows a **Learning dashboard**
+card with an **Open the dashboard** link once `LOOKER_DASHBOARD_URL` (an `https://lookerstudio.google.com/...` address, validated) is set on the API.
+
+**Why it cannot show another customer's data.** Looker reads only the dataset `expelly_demo`. Its five views (`demo_factor_funnel`,
+`demo_send_time_grid`, `demo_review_history`, `demo_search_policy_compare`, `demo_data_freshness`) each select from one `expelly_learning`
+view with `WHERE org_id = '<demo workspace id>'` and drop the `org_id` column. The id is passed to `infra/bigquery/apply-demo.sh` on the
+command line (it must be a UUID) and is never stored in git. A Jest guard (`apps/api/src/insights/demo-views.spec.ts`) fails the build if a
+demo view loses its filter, reads the raw dataset, writes anything, or if the script gets a default id. The dataset is made an authorized
+dataset on `expelly_learning` so a viewer who can read only `expelly_demo` can still query the views.
+
+**Cloud steps (each explained and run only on Aman's go).**
+1. `PROJECT=supersaas-513613 DEMO_ORG_ID=<demo workspace id> infra/bigquery/apply-demo.sh`: creates `expelly_demo` (free), creates the views
+   (free, scans nothing) and edits the `expelly_learning` access list to authorise the dataset (free). Two views are skipped until the first
+   Review revision and the first Search preference exist (same as T07's `review_history` and `search_policy_compare`).
+2. Aman builds the dashboard (`docs/LOOKER-STUDIO.md`) and shares the link.
+3. Set `LOOKER_DASHBOARD_URL` on the API (one new revision).
+
+**Cost.** None beyond what exists: the views cost nothing until queried; each dashboard refresh scans the (small) views inside the free tier.

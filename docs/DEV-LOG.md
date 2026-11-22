@@ -13,6 +13,60 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ## Sessions
 
+### 2026-11-22 — Learning Loop T16: Google Calendar booked calls + Looker Studio dashboard
+
+Built on `ll/T16` from `google-stack` `087f24b` (11 commits `3deb097`..`4ffe527` plus a docs commit, about 40 files). **Not pushed, not merged, not deployed.
+No Google Cloud command was run.** Aman asked for T16 after T14 (order: T07, T14, T16, one at a time); T15 was left out on purpose (it needs the
+agents deployed to Agent Engine first and is optional). Plan shown first, approved with "Go, defaults ok".
+
+- **Part A, what it does:** a manager or admin connects a Google Calendar (Settings > Integrations, optional, read-only `calendar.events.readonly`).
+  Every 15 minutes the API reads events changed since the last sync. An attendee who is a lead we emailed (delivered email sent before the event was
+  created, inside the response window: the experiment's `response_window_days`, default 14) becomes a `booked_call` outcome, source `calendar`,
+  `verified`, with the enrollment, experiment and variant of that email. A cancelled event adds a superseding `rejected` row. Nobody clicks "Booked a call".
+- **What it never touches:** the request carries a fields mask (event id, status, created, start, attendee emails), so titles, descriptions, locations and
+  organisers are never fetched or stored. A Jest test pins the mask. No AI is involved.
+- **Decisions (the defaults Aman approved):** the sync is an in-process 15-minute tick like Sheets and Gmail (no new Cloud Scheduler job); primary calendar only;
+  14-day window unless the experiment sets its own; calendar-verified rows have no person attached (`verified_by` empty, `verified_at` set, new `autoVerified`);
+  a rescheduled event keeps its first outcome (idempotency key `cal:<account>:<event>`); a manual and a calendar booking for the same enrollment still count once
+  (`v_outcomes_current` keeps one verdict per enrollment and type); a cancel is found by the event id, because Google sends cancelled events without attendees.
+  Beyond the plan: the operator console workspace list now shows each workspace id (select-all), which `apply-demo.sh` needs; the operator card shows a
+  how-to hint when `LOOKER_DASHBOARD_URL` is unset instead of hiding itself.
+- **Google verification impact (checked):** Google's verification page uses reading Calendar events as its example of a *sensitive* scope; the consent screen shows the
+  exact flag. Not restricted. In Testing mode it works only for test users and the token expires after 7 days; public launch needs sensitive-scope verification
+  (days to weeks). Details in `docs/GOOGLE-STACK.md` Phase 6.
+- **Part B:** five demo views in a new dataset `expelly_demo` (`demo_factor_funnel`, `demo_send_time_grid`, `demo_review_history`, `demo_search_policy_compare`,
+  `demo_data_freshness`), each `SELECT * EXCEPT (org_id)` from one `expelly_learning` view `WHERE org_id = '<demo workspace id>'`. `infra/bigquery/apply-demo.sh`
+  takes the id on the command line (must be a UUID; never stored in git), creates the dataset, applies the views and authorises the dataset on `expelly_learning`.
+  A Jest guard fails the build if a view loses its filter, reads the raw dataset, writes anything, or the script gets a default id (checked by removing a filter: 1 test
+  failed). `docs/LOOKER-STUDIO.md` is the step-by-step guide (four pages plus a "Data as of" tile, about 30 minutes). The operator console has a Learning dashboard card that
+  opens `LOOKER_DASHBOARD_URL` (only an https Looker Studio address is accepted).
+- **Changes:** migration `0061_google_calendar` (additive: `integrations.provider` may also be `google_calendar`, plus the SECURITY DEFINER `due_calendar_syncs()`);
+  `calendar-logic.ts` (pure rules), `calendar-oauth.service.ts`, `calendar-sync.service.ts`, `IntegrationsService` calendar methods, `OutcomesService`
+  (`autoVerified`, `recordCalendarCancel`), the tick `calendar-sync`, endpoints `POST /integrations/google-calendar/connect`, `DELETE /integrations/google-calendar`,
+  `GET /operator/learning-dashboard` (all in `docs/AUTHZ-MATRIX.md`); web: Google Calendar card, "from Google Calendar" outcome label, operator card.
+  Also fixed a type error in the T14 `playbook-search.spec.ts` (`tsc -p tsconfig.json` failed on it; Jest and the build never noticed).
+- **Checks (all on `ll/T16`, no rebase needed, `google-stack` had not moved):** API lint clean; API build and web build pass; `tsc` clean for both projects.
+  API suite: 99 of 100 suites pass, 912 tests pass, 1 fails, 1 skipped. The one failure is the known Gemini provider spec (it makes a real network call because a Gemini key
+  is in `.env`; it fails the same on the base tree). New: 14 Calendar integration tests (match, no match, outside window, booked before we emailed, declined attendee, other
+  workspace, repeat sync, upper-case attendee, cancel once, unknown cancel, revoked token, Calendar API errors keep the cursor, the 15-minute job, disconnect), 15 pure-rule
+  tests, 21 demo-view guard tests, 3 dashboard-link tests, plus the authz matrix regenerated twice.
+- **Proof (acceptance 1, locally):** `docs/calendar-screenshots/` has five click-through screenshots: not connected, connected ("Checked 4m ago · 1 booked call confirmed"),
+  reconnect needed, after a booking ("1 booked call confirmed from your calendar"), after a cancel ("0 booked calls"). The booking and cancel ran the real sync code against a
+  stubbed Google feed in the local database: one `booked_call` / `calendar` / `verified` row with no person attached, then a superseding `rejected` row.
+  **Not proven yet:** a real booking on a real Google Calendar (needs Aman's sign-in and the cloud steps below).
+- **Local-only, left tidy:** the local servers are stopped, a throwaway workspace ("T16 UI Co") remains in the local dev database, and two preview entries
+  (`supersaas-api-t16`, `supersaas-web-t16`) were added to the vault's `.claude/launch.json` (not in git). `nest start --watch` ran out of memory while compiling,
+  so the local API was run from the build instead.
+- **Not done / not verified:** nothing pushed, merged or deployed; the Calendar API is not enabled in the project and migration `0061` is not on Cloud SQL; the demo
+  dataset and views do not exist in BigQuery yet; the dashboard is not built (it is Aman's to build from the guide); no real Google OAuth consent was run, so the
+  consent-screen flag for the scope and the 7-day Testing-mode token expiry are from Google's documentation, not observed.
+
+**Cloud steps (each explained and run only on Aman's go; project `supersaas-513613`):** (1) `gcloud services enable calendar-json.googleapis.com` (free);
+(2) migration `0061` on Cloud SQL (migrate job; no core-lane chat may be running); (3) deploy API + web; (4) Aman: add the scope on the consent screen and the calendar
+account as a test user, Connect Google Calendar, make a test booking with an address that has received one of our emails; (5)
+`PROJECT=supersaas-513613 DEMO_ORG_ID=<demo workspace id> infra/bigquery/apply-demo.sh` (creates `expelly_demo`, free); (6) Aman builds the Looker Studio dashboard from
+`docs/LOOKER-STUDIO.md`; (7) set `LOOKER_DASHBOARD_URL` on the API.
+
 ### 2026-11-22 — Learning Loop T14: playbook memory (approved learnings, versioned, found by vector search)
 
 Built on `ll/T14` from `google-stack` `353da81` (15 commits `d157918`..`8c704ad`, 58 files). **Pushed and merged into `google-stack` (fast-forward, 2026-11-22, `8c704ad`); **deployed 2026-11-22: API `supersaas-api-00022-9zb`, web `supersaas-web-00013-4jq`.** Cloud steps 1 to 6 ran on 2026-11-22 on

@@ -150,3 +150,22 @@ It is written by the API, which is why it is not in `expelly_learning` (views on
 - Migration `0060` applied on Cloud SQL on 2026-11-22 (migrate job, now on image `api:t14-b78aa93`).
 - Deployed 2026-11-22 (API `supersaas-api-00022-9zb`, web `supersaas-web-00013-4jq`).
 - Switched on 2026-11-22: `PLAYBOOK_SEARCH=bigquery` + `EMBEDDINGS_USE_VERTEX=true` (API `supersaas-api-00023-zpm`). The first live save of a playbook is still to be tried. Details: `docs/GOOGLE-STACK.md` Phase 5.
+
+
+## Demo views for the Looker Studio dashboard (Learning Loop T16)
+
+`expelly_demo` (`asia-south1`) holds five views that the Looker Studio dashboard reads: `demo_factor_funnel`, `demo_send_time_grid`,
+`demo_review_history`, `demo_search_policy_compare`, `demo_data_freshness`. Each selects from one `expelly_learning` view with
+`WHERE org_id = '<demo workspace id>'` and drops the `org_id` column, so a shared dashboard can only ever show the demo workspace.
+
+```bash
+PROJECT=supersaas-513613 DEMO_ORG_ID=<the demo workspace id> infra/bigquery/apply-demo.sh
+```
+
+- The id is passed on the command line (must be a UUID) and is not stored in git; the operator console shows each workspace's id.
+- The script creates the dataset if missing, creates or replaces the views, and authorises `expelly_demo` on `expelly_learning` (`demo/authorize.js`
+  edits the access list the same way T07 did: `bq show --format=prettyjson` -> edit -> `bq update --source`). Safe to run again.
+- A view whose source is missing (`review_history`, `search_policy_compare` before their first rows) is skipped; run it again later.
+- `apps/api/src/insights/demo-views.spec.ts` fails the build if a view loses its filter, reads `expelly_raw`, writes anything, or if the script gets
+  a default id. Build the dashboard with `docs/LOOKER-STUDIO.md`.
+- Status: files written and tested; **nothing applied yet** (needs the demo workspace id and Aman's go).
