@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-require-imports */
 import { readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 

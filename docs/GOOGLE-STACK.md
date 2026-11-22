@@ -369,3 +369,50 @@ calling `/internal/cron/*` with a Google-signed token (`CRON_MODE=scheduler`, `C
 `loop_health`, `ai_circuit_open` and `weekly_review_failed` log lines. **Cloud Trace** is on with `TRACING=on` (the runtime
 service account needs `roles/cloudtrace.agent`); the A2A calls carry the live trace context. Commands and policy files:
 `infra/scheduler/README.md`, `infra/monitoring/README.md`. None of it has been run: it waits for the T08, T09, T10 and T13 deploy.
+
+---
+
+## Phase 4: BigQuery learning plane (T07)
+
+**What it is.** A read-only copy of the analytics tables in BigQuery, kept about 15 minutes behind Postgres by
+**Datastream**. The Insights page can read it (`INSIGHTS_SOURCE=bigquery`) and the search-policy comparison and
+dashboards (T16) sit on it. Postgres stays the source of truth: A/B decisions, approvals and search preferences
+never read BigQuery.
+
+```
+Cloud SQL ──Datastream──► BigQuery expelly_raw (locked) ──views──► expelly_learning ──► API (INSIGHTS_SOURCE=bigquery)
+```
+
+**What flows.** Only the tables and columns in `infra/bigquery/replication-set.json`
+(campaigns, steps, enrollments with their frozen snapshot, sent emails, email events, outcome events, experiments,
+variants, assignments, reviews, review actions, search preferences, Discover runs and prospects, plus offers,
+templates and the workspace timezone). Datastream creates one table per source table in `expelly_raw`
+(`public_<table>`); `infra/bigquery/views/*.sql` builds `company_reach`, `factor_funnel`, `send_time_grid`,
+`discovery_funnel`, `search_policy_compare`, `review_history` and `data_freshness` in `expelly_learning`, each
+with a description on the view and every column.
+
+**What is excluded, and why.** No email addresses (`sent_emails.to_email`, `prospects.emails`), no rendered
+subject lines (they can hold a recipient's name), no message text, no lead names or titles, no evidence quotes
+column, no free-text notes, no reason or explanation text, no idempotency keys or secrets. This is enforced three
+ways: the Postgres reader role has `SELECT` on listed columns only, the publication and the Datastream include
+list name the same columns, and a Jest test fails the build if a PII-looking column is added.
+Honest limits: JSON columns (`campaign_leads.snapshot`, `prospects.triggers`) can hold the website evidence quote of a
+buying trigger and free-mail company keys are email addresses; Datastream cannot trim inside JSON. So `expelly_raw`
+is locked (only Datastream writes it, only the `expelly_learning` views read it, the API's service account cannot read it)
+and the views expose only whitelisted keys and hash free-mail keys.
+
+**How the API uses it.** `BigQueryInsightsSource` reads the `company_reach` view with parameterised queries that
+always filter `org_id = @org_id` (a unit test fails if any SQL string in the file lacks it), a 1 GiB cap per query,
+and feeds the same mapping and aggregation code as the Postgres source, so the two sources keep the same contract.
+The Discover funnel's "eligible" count and the sender labels still come from Postgres (they need data we do not
+copy). If BigQuery fails the page answers from Postgres and logs a warning. The page shows "Data as of <time>".
+
+**Not identical to Postgres mode:** `subject_length` is measured on the template text; old enrollments with no
+snapshot show "unknown" for lead-level factors.
+
+**Cost.** Datastream bills per GB processed (cents to a few dollars a month at our volume; the backfill is one-time).
+BigQuery is inside the free tier. **Turn on:** `INSIGHTS_SOURCE=bigquery`. **Turn off:** `INSIGHTS_SOURCE=postgres`
+(default). Pause copying: `gcloud datastream streams update expelly-learning-stream --location=asia-south1 --state=PAUSED`.
+**Plan B** if Datastream is blocked: a BigQuery connection plus federated `EXTERNAL_QUERY` views with the same view names.
+
+Setup steps, commands and the exact state: `infra/bigquery/README.md`.

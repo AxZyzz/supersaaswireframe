@@ -88,11 +88,11 @@ const SNAP_TEXT_COLUMNS: Array<[column: string, snapKey: string]> = [
 
 const asDate = (v: unknown): Date | null => {
   if (v === null || v === undefined) return null;
-  const raw =
-    typeof v === 'object' && v !== null && 'value' in v
-      ? (v as { value: unknown }).value
-      : v;
-  const d = raw instanceof Date ? raw : new Date(String(raw));
+  // BigQuery's client wraps TIMESTAMPs as { value: '2026-...' }
+  const raw = typeof v === 'object' && 'value' in v ? v.value : v;
+  if (raw instanceof Date) return Number.isNaN(raw.getTime()) ? null : raw;
+  if (typeof raw !== 'string' && typeof raw !== 'number') return null;
+  const d = new Date(raw);
   return Number.isNaN(d.getTime()) ? null : d;
 };
 const asBool = (v: unknown): boolean | null =>
@@ -101,7 +101,7 @@ const asText = (v: unknown): string | null =>
   typeof v === 'string' && v !== '' ? v : null;
 const asInt = (v: unknown): number | null => {
   if (v === null || v === undefined) return null;
-  const n = typeof v === 'number' ? v : Number(String(v));
+  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
   return Number.isFinite(n) ? n : null;
 };
 

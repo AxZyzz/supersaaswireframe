@@ -26,15 +26,24 @@ LOCATION="${LOCATION:-asia-south1}"
 FILTER="${1:-}"
 
 count=0
+skipped=()
 for f in views/*.sql; do
   if [ -n "$FILTER" ] && [[ "$f" != *"$FILTER"* ]]; then continue; fi
   echo "== $f"
   # The SQL goes in through stdin: passing multi-line SQL as an argument breaks on Windows (bq.cmd).
-  sed -e "s|\${PROJECT}|${PROJECT}|g" -e "s|\${RAW}|${RAW}|g" -e "s|\${LEARN}|${LEARN}|g" "$f" \
-    | bq query --use_legacy_sql=false --project_id="$PROJECT" --location="$LOCATION" --quiet
-  count=$((count + 1))
+  if out=$(sed -e "s|\${PROJECT}|${PROJECT}|g" -e "s|\${RAW}|${RAW}|g" -e "s|\${LEARN}|${LEARN}|g" "$f"       | bq query --use_legacy_sql=false --project_id="$PROJECT" --location="$LOCATION" --quiet 2>&1); then
+    count=$((count + 1))
+  elif echo "$out" | grep -q "Not found: Table"; then
+    # Datastream only creates a table in expelly_raw when its first row arrives (e.g. no review has run yet).
+    echo "   skipped: a source table is not in ${RAW} yet (it appears with its first row); run apply.sh again later"
+    skipped+=("$f")
+  else
+    echo "$out" >&2
+    exit 1
+  fi
 done
 
 echo
 echo "applied $count file(s) to ${PROJECT}:${LEARN}"
+if [ "${#skipped[@]}" -gt 0 ]; then echo "waiting for data (skipped): ${skipped[*]}"; fi
 bq ls --project_id="$PROJECT" --location="$LOCATION" "${PROJECT}:${LEARN}"
