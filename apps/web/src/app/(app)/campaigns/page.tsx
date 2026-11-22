@@ -537,6 +537,32 @@ export default function CampaignsPage() {
               </div>
             )}
 
+            {/* send timing (T17): when emails go out, and the send-time test.
+                Above the sequence so it is found without scrolling past the steps. */}
+            <div
+              className="rounded-lg border border-line bg-surface p-4"
+              data-testid="send-timing-card"
+            >
+              <h3 className="text-sm font-semibold text-ink2">Send timing</h3>
+              <SendWindowPanel
+                key={`${selected.id}-${selected.updated_at}`}
+                campaign={selected}
+                canManage={canManage(role)}
+                frozen={activeExp?.status === "running"}
+                onSaved={() => void refresh(selected.id)}
+              />
+
+              {selected.steps[0] && (
+                <SendTimePanel
+                  key={`${selected.id}-${selected.steps[0].id}-time`}
+                  campaignId={selected.id}
+                  campaignStatus={selected.status}
+                  canManage={canManage(role)}
+                  onChanged={setTimeExp}
+                />
+              )}
+            </div>
+
             {/* sequence */}
             <div className="rounded-lg border border-line bg-surface p-4">
               <h3 className="mb-3 text-sm font-semibold text-ink2">Sequence</h3>
@@ -590,14 +616,6 @@ export default function CampaignsPage() {
                 )}
               </div>
 
-              <SendWindowPanel
-                key={`${selected.id}-${selected.updated_at}`}
-                campaign={selected}
-                canManage={canManage(role)}
-                frozen={activeExp?.status === "running"}
-                onSaved={() => void refresh(selected.id)}
-              />
-
               {selected.steps[0] && (
                 <ExperimentPanel
                   key={`${selected.id}-${selected.steps[0].id}`}
@@ -610,16 +628,6 @@ export default function CampaignsPage() {
                   }
                   canManage={canManage(role)}
                   onChanged={setSubjectExp}
-                />
-              )}
-
-              {selected.steps[0] && (
-                <SendTimePanel
-                  key={`${selected.id}-${selected.steps[0].id}-time`}
-                  campaignId={selected.id}
-                  campaignStatus={selected.status}
-                  canManage={canManage(role)}
-                  onChanged={setTimeExp}
                 />
               )}
 
