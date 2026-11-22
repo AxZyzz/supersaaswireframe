@@ -16,7 +16,8 @@ How to keep this up to date: every session appends a dated entry at the top of
 ### 2026-11-23 — Learning Loop T17: send windows + "Test two send times"
 
 Aman asked for T17 ("what time should we send?") as the last core-lane task. Plan shown first and approved with "Go". Built on `ll/T17` from `google-stack` `126645f`
-(commits `15385e3`, `7913585`, `8cc9edc`, `80c2752`, `97aa25b`, plus the docs commit that carries this entry). **Not pushed, not merged, not deployed** (waiting for Aman's go).
+(commits `15385e3`, `7913585`, `8cc9edc`, `80c2752`, `97aa25b`, plus the docs commit that carries this entry). **Pushed and merged into `google-stack` on Aman's "Push and merge"** (fast-forward `126645f` -> `be0e69a`, `google-stack` pushed; the main checkout was clean apart from the old untracked
+  `deploy/supabase-ca.crt`, and `google-stack` had not moved, so no rebase and the check results above still apply). **Not deployed.**
 
 - **What it does.** A campaign can have a **send window**: days (1 = Mon … 7 = Sun) and whole hours, read on the **recipient's clock** (their timezone from the enrollment snapshot, then the lead,
   then the workspace timezone, then UTC) or on the workspace clock. A step that comes due outside the window is not dropped: `next_send_at` moves to the next opening and is **spread** across that
