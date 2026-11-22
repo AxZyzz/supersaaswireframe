@@ -60,8 +60,11 @@ Aman asked for T17 ("what time should we send?") as the last core-lane task. Pla
   through the web proxy, `/`, `/login`, `/campaigns`, `/review/insights` 200, a request without a token 401, no errors on either new revision (the only warning-level line was my own 401 probe).
   No new monthly cost (a few cents for two more images). The images were built from `3274050`; later commits on `google-stack` are docs only.
 - **Not done / not verified.** Not looked at on the live site logged in (needs a login: Campaigns > Setup should show the Send window box and "Test two send times"). A real send-time test over
-  days with real replies, so the "which time wins" verdict has never been exercised on live data. Datastream will see two new columns on replicated tables on deploy (no T07 view reads them;
-  not checked live). The per-sender hour window still uses the server clock (unchanged).
+  days with real replies, so the "which time wins" verdict has never been exercised on live data. The per-sender hour window still uses the server clock (unchanged).
+- **Datastream checked after the deploy (2026-11-23, read-only).** It does NOT see the two new columns, by design: T07 replicates listed columns only (the Postgres `datastream_reader` grant, publication `expelly_bq`,
+  `datastream-include.json` and `replication-set.json` all name them), and `campaigns.send_window` / `experiment_variants.send_window` are on none of the four lists. A later task that wants a new column in
+  BigQuery must add it to all four (the `replication-set` spec guards that they agree). Stream `expelly-learning-stream` (`asia-south1`) is `RUNNING`, no errors, last state change 22 Nov 16:48 UTC (before the migration).
+  Not checked: the BigQuery raw tables themselves (`expelly_raw` is locked to the API account), so the stream's data flow after the migration is not seen directly.
 
 ### 2026-11-23 — T16 follow-up: the workspace id in Settings
 
