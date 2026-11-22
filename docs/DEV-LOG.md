@@ -15,7 +15,7 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ### 2026-11-22 — Learning Loop T07: BigQuery learning plane, Datastream, Knowledge Catalog
 
-Built on `ll/T07` from `google-stack` `3d10fd0` (8 commits `78f6896`..`d529394`). **Not pushed, not merged, not deployed.** The cloud
+Built on `ll/T07` from `google-stack` `3d10fd0` (9 commits `78f6896`..`fd1c98b`). **Pushed, not merged, not deployed.** The cloud
 pipeline is live; `INSIGHTS_SOURCE` stays `postgres` in production until Aman says to flip it.
 
 - **Pipeline (project `supersaas-513613`, `asia-south1`):** APIs on (Datastream, BigQuery, Data Lineage, Dataplex); datasets `expelly_raw`
