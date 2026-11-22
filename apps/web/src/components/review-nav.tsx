@@ -7,6 +7,7 @@ import { LoopHealthStrip } from "@/components/loop-health-strip";
 const TABS = [
   { href: "/review/insights", label: "Insights" },
   { href: "/review/outcomes", label: "Replies to confirm" },
+  { href: "/review/playbooks", label: "Playbooks" },
 ];
 
 /** Tabs shared by the Review pages (campaign Review lives on each campaign). */

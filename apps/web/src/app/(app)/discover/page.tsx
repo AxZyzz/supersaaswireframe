@@ -578,6 +578,19 @@ export default function DiscoverPage() {
               {run.allocation_line}
             </p>
           )}
+          {run.playbooks_used && run.playbooks_used.length > 0 && (
+            <p className="mt-2 text-tiny text-muted" data-testid="playbooks-used">
+              Used {run.playbooks_used.length} playbook{run.playbooks_used.length === 1 ? "" : "s"} as hints:{" "}
+              {run.playbooks_used.map((p, i) => (
+                <span key={p.id}>
+                  {i > 0 && ", "}
+                  <Link href={`/review/playbooks#pb-${p.id}`} className="text-accent hover:underline">
+                    {p.title}
+                  </Link>
+                </span>
+              ))}
+            </p>
+          )}
           {working && (
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-panel">
               <div

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Crosshair } from 'lucide-react';
 import { errorMessage } from '@/lib/api';
 import { toast } from '@/components/feedback';
+import { SavePlaybookDialog } from '@/components/playbook-dialogs';
 import {
   countdown,
   getPreference,
@@ -47,6 +48,7 @@ export function SearchProfilePanel({
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [reason, setReason] = useState('');
+  const [savePlaybook, setSavePlaybook] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -108,10 +110,20 @@ export function SearchProfilePanel({
         >
           {active ? 'Preference active' : `Preference ${pref.status}`}
         </span>
+        {canManage && (active || pref.status === 'expired') && (
+          // T14: keep the lesson so future searches can use it as a hint
+          <button
+            onClick={() => setSavePlaybook(true)}
+            data-testid="save-playbook"
+            className="ml-auto rounded border border-line-mid px-2.5 py-1 text-sm text-ink hover:bg-hover"
+          >
+            Save as playbook
+          </button>
+        )}
         {active && canManage && !confirming && (
           <button
             onClick={() => setConfirming(true)}
-            className="ml-auto rounded border border-line-mid px-2.5 py-1 text-sm text-ink hover:bg-hover"
+            className={`${active && canManage ? '' : 'ml-auto '}rounded border border-line-mid px-2.5 py-1 text-sm text-ink hover:bg-hover`}
           >
             Withdraw
           </button>
@@ -275,6 +287,17 @@ export function SearchProfilePanel({
             ))}
           </ul>
         </div>
+      )}
+
+      {savePlaybook && (
+        <SavePlaybookDialog
+          source={{ preferenceId: pref.id }}
+          onClose={() => setSavePlaybook(false)}
+          onSaved={() => {
+            setSavePlaybook(false);
+            toast('Saved as a playbook. Future searches can use it as a hint.', 'success');
+          }}
+        />
       )}
     </section>
   );

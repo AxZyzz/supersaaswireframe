@@ -28,6 +28,8 @@ export interface ProspectRun {
   allocation_line?: string | null;
   /** T10: what the Discover agent did (only when DISCOVER_DRIVER=agent). */
   agent_steps?: { at: string; text: string }[];
+  /** T14: the playbooks the search was planned with ("Used 2 playbooks"). */
+  playbooks_used?: { id: string; title: string }[];
 }
 
 export interface ProspectTrigger {

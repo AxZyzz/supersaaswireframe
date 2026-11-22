@@ -175,6 +175,8 @@ export interface ChallengerDraft {
   subject: string;
   source: string;
   createdAt: string;
+  /** T14: the playbooks this draft was written with ("Used 1 playbook"). */
+  playbooks?: { id: string; title: string }[];
 }
 
 /** Made when a confirm dialog opens: a repeat of the same request is a no-op. */

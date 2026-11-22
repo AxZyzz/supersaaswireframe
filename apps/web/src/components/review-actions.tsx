@@ -21,6 +21,7 @@ import {
 } from "@/lib/review";
 import { previewTemplate, renderSample } from "@/lib/templates";
 import { sanitizeEmailHtml } from "@/lib/sanitize-html";
+import { SavePlaybookDialog } from "@/components/playbook-dialogs";
 
 /**
  * Learning Loop T11: what a manager can do with a review. Every button opens a
@@ -275,6 +276,17 @@ function ChallengerDrawer({
                     <span className="text-tiny text-faint">
                       {d.source === "template" ? "Built from a template" : "AI draft"}
                     </span>
+                    {d.playbooks && d.playbooks.length > 0 && (
+                      <Link
+                        href={`/review/playbooks#pb-${d.playbooks[0].id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        title={d.playbooks.map((p) => p.title).join(" · ")}
+                        data-testid="draft-playbooks"
+                        className="ml-2 text-tiny text-accent hover:underline"
+                      >
+                        Used {d.playbooks.length} playbook{d.playbooks.length === 1 ? "" : "s"}
+                      </Link>
+                    )}
                   </span>
                 </label>
               </li>
@@ -367,6 +379,7 @@ export function ReviewActions({
   const [history, setHistory] = useState<ActionRecord[]>([]);
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [drawer, setDrawer] = useState<ReviewAction | null>(null);
+  const [savePlaybook, setSavePlaybook] = useState(false);
 
   const loadHistory = useCallback(async () => {
     if (!campaignId || simulated) {
@@ -479,6 +492,17 @@ export function ReviewActions({
             Review a challenger
           </button>
         )}
+        {showButtons && review.result.decision === "promote" && paused.length > 0 && (
+          // T14: the promotion was approved (the loser is paused): keep what was learned
+          <button
+            onClick={() => setSavePlaybook(true)}
+            className={btn}
+            data-testid="save-playbook"
+            title="Keep what this test taught, so future searches and subject drafts can use it as a hint"
+          >
+            Save as playbook
+          </button>
+        )}
         {showButtons && (
           // the "who to find more of" loop starts from Insights (T12)
           <Link
@@ -520,6 +544,17 @@ export function ReviewActions({
             ))}
           </ul>
         </div>
+      )}
+
+      {savePlaybook && (
+        <SavePlaybookDialog
+          source={{ reviewId: review.id }}
+          onClose={() => setSavePlaybook(false)}
+          onSaved={() => {
+            setSavePlaybook(false);
+            toast("Saved as a playbook. Future drafts can use it as a hint.", "success");
+          }}
+        />
       )}
 
       {dialog?.kind === "keep" && (

@@ -117,6 +117,17 @@ export default function CampaignsPage() {
     [refresh],
   );
 
+  // A link from a playbook's evidence: /campaigns?open=<id>&tab=review
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const id = p.get("open");
+    if (id && /^[0-9a-f-]{36}$/i.test(id)) {
+      void open(id).then(() => {
+        if (p.get("tab") === "review") setTab("review");
+      });
+    }
+  }, [open]);
+
   // Live: sends, pauses and resumes from anywhere update this page.
   useLive("campaigns", () => {
     void loadList();
