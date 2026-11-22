@@ -28,6 +28,7 @@
     "operator": "ts-node scripts/operator.ts",
     "contracts:sync": "node scripts/sync-agent-contracts.js",
     "try:agents": "ts-node scripts/try-agents.ts",
+    "bq:smoke": "ts-node scripts/bq-smoke.ts",
     "eval": "ts-node scripts/eval.ts",
     "db:migrate:prod": "ts-node src/db/migrate.ts"
   },

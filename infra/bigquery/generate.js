@@ -58,8 +58,13 @@ SELECT 'CREATE PUBLICATION ${PUBLICATION}'
 ALTER PUBLICATION ${PUBLICATION} SET TABLE
 ${publicationTables};
 
+-- A replication slot needs the REPLICATION attribute. On Cloud SQL the postgres user does not
+-- have it, so the slot is created while acting as the reader role itself.
+GRANT ${ROLE} TO CURRENT_USER WITH SET TRUE;
+SET ROLE ${ROLE};
 SELECT pg_create_logical_replication_slot('${SLOT}', 'pgoutput')
  WHERE NOT EXISTS (SELECT 1 FROM pg_replication_slots WHERE slot_name = '${SLOT}');
+RESET ROLE;
 `;
 
   const include = {

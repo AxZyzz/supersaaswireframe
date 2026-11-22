@@ -61,5 +61,10 @@ ALTER PUBLICATION expelly_bq SET TABLE
   "public"."prospect_runs" ("id", "org_id", "offer_id", "status", "requested", "total", "done", "verified", "preference_id", "preference_revision", "allocation", "created_at", "finished_at"),
   "public"."prospects" ("id", "org_id", "run_id", "company_key", "city", "region", "country", "industry", "size_band", "timezone", "triggers", "mail_provider", "stars", "fit_score", "status", "via_preference", "lead_id", "created_at");
 
+-- A replication slot needs the REPLICATION attribute. On Cloud SQL the postgres user does not
+-- have it, so the slot is created while acting as the reader role itself.
+GRANT datastream_reader TO CURRENT_USER WITH SET TRUE;
+SET ROLE datastream_reader;
 SELECT pg_create_logical_replication_slot('expelly_bq_slot', 'pgoutput')
  WHERE NOT EXISTS (SELECT 1 FROM pg_replication_slots WHERE slot_name = 'expelly_bq_slot');
+RESET ROLE;
