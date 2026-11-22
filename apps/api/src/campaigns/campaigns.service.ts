@@ -19,9 +19,29 @@ import { adviseWinner, type VariantStats } from './ab-winner';
 import { assertCampaignNotFrozenInTx } from './experiments.service';
 import { OffersService } from './offers.service';
 import { buildEnrollmentSnapshot } from './snapshot';
+import {
+  parseSendWindow,
+  sendWindowError,
+  type SendWindow,
+} from '../sending/send-window';
 
-const CAMPAIGN_COLS = `id, name, status, segment_id, offer_id, sender_ids, scheduled_at,
+const CAMPAIGN_COLS = `id, name, status, segment_id, offer_id, sender_ids, send_window, scheduled_at,
   started_at, archived_at, created_at, updated_at`;
+
+/** A window from a request, or a 400 that says what is wrong. null = no window. */
+function checkedWindow(raw: unknown): SendWindow | null {
+  if (raw === null || raw === undefined) return null;
+  const why = sendWindowError(raw);
+  const w = why ? null : parseSendWindow(raw);
+  if (!w) {
+    throw new BadRequestException({
+      statusCode: 400,
+      error: 'invalid_send_window',
+      message: why ?? 'That send window is not valid.',
+    });
+  }
+  return w;
+}
 const STEP_COLS = `id, campaign_id, step_order, template_id, delay_hours,
   condition, subject_variants, created_at`;
 
@@ -32,6 +52,8 @@ export interface CampaignRow {
   segment_id: string | null;
   offer_id: string | null;
   sender_ids: string[];
+  /** T17: when this campaign may send; null = no window. */
+  send_window: SendWindow | null;
   scheduled_at: Date | null;
   started_at: Date | null;
   archived_at: Date | null;
@@ -91,9 +113,10 @@ export class CampaignsService {
         orgId,
         dto.offerId,
       );
+      const sendWindow = checkedWindow(dto.sendWindow);
       const res = await c.query<CampaignRow>(
-        `INSERT INTO campaigns (org_id, name, segment_id, offer_id, sender_ids)
-         VALUES ($1, $2, $3, $4, COALESCE($5,'[]')::jsonb)
+        `INSERT INTO campaigns (org_id, name, segment_id, offer_id, sender_ids, send_window)
+         VALUES ($1, $2, $3, $4, COALESCE($5,'[]')::jsonb, $6::jsonb)
          RETURNING ${CAMPAIGN_COLS}`,
         [
           orgId,
@@ -101,6 +124,7 @@ export class CampaignsService {
           dto.segmentId ?? null,
           offerId,
           dto.senderIds ? JSON.stringify(dto.senderIds) : null,
+          sendWindow ? JSON.stringify(sendWindow) : null,
         ],
       );
       return res.rows[0];
@@ -132,10 +156,14 @@ export class CampaignsService {
       sets.push(`${col} = $${params.length}`);
     };
     return this.run(orgId, async (c) => {
+      // The send window is part of the test design (a send-time test IS a
+      // window; a subject test is only fair if timing stays put), so it is
+      // frozen with the audience, senders and offer while any test runs.
       if (
         dto.segmentId !== undefined ||
         dto.senderIds !== undefined ||
-        dto.offerId !== undefined
+        dto.offerId !== undefined ||
+        dto.sendWindow !== undefined
       ) {
         await assertCampaignNotFrozenInTx(c, id);
       }
@@ -157,6 +185,10 @@ export class CampaignsService {
       if (dto.senderIds !== undefined)
         add('sender_ids', JSON.stringify(dto.senderIds));
       if (dto.scheduledAt !== undefined) add('scheduled_at', dto.scheduledAt);
+      if (dto.sendWindow !== undefined) {
+        const w = checkedWindow(dto.sendWindow);
+        add('send_window', w ? JSON.stringify(w) : null);
+      }
       if (sets.length === 0) return this.getRow(c, id);
       sets.push('updated_at = now()');
       params.push(id);
@@ -210,8 +242,8 @@ export class CampaignsService {
       if (src.rowCount === 0) throw new NotFoundException('Campaign not found');
       const s = src.rows[0];
       const dup = await c.query<CampaignRow>(
-        `INSERT INTO campaigns (org_id, name, segment_id, offer_id, sender_ids, status)
-         VALUES ($1, $2, $3, $4, $5::jsonb, 'draft')
+        `INSERT INTO campaigns (org_id, name, segment_id, offer_id, sender_ids, send_window, status)
+         VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, 'draft')
          RETURNING ${CAMPAIGN_COLS}`,
         [
           orgId,
@@ -219,6 +251,7 @@ export class CampaignsService {
           s.segment_id,
           s.offer_id,
           JSON.stringify(s.sender_ids ?? []),
+          s.send_window ? JSON.stringify(s.send_window) : null,
         ],
       );
       await c.query(

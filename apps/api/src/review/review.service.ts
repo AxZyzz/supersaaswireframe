@@ -234,8 +234,16 @@ export class ReviewService {
   ): Promise<{ row: ReviewRow; changed: boolean }> {
     const src = await this.data.load(orgId, experimentId, new Date());
     const hash = inputsHash(src.input);
+    const decided = decide(src.input);
     const result = {
-      ...decide(src.input),
+      ...decided,
+      // A send-time test (T17) differs by WINDOW, not by copy, so the AI
+      // Copywriter has nothing to draft: the action is not offered, which also
+      // makes the draft and approve endpoints refuse it (action_not_allowed).
+      allowedActions:
+        src.meta.kind === 'send_time'
+          ? decided.allowedActions.filter((a) => a.type !== 'draft_challenger')
+          : decided.allowedActions,
       slices: src.slices,
     };
     const template = explain(result);

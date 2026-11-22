@@ -3,6 +3,11 @@ import { Pool } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { OutcomesService } from '../outcomes/outcomes.service';
+import {
+  describeSendWindow,
+  parseSendWindow,
+  type SendWindow,
+} from '../sending/send-window';
 import { POLICY_VERSION, type Guardrails, type ReviewInput } from './policy';
 import {
   aggregate,
@@ -14,11 +19,25 @@ import {
 /** Outcome coverage the review needs before it will call a winner (Aman's default). */
 export const COVERAGE_GATE = 0.9;
 
+/** One arm of the test as the Review shows it (T17: the window for send-time tests). */
+export interface ExperimentArm {
+  variantId: string;
+  label: string;
+  /** null for subject tests. */
+  sendWindow: SendWindow | null;
+  /** "Tue-Thu 09:00-11:00 (recipient time)", or null for subject tests. */
+  windowText: string | null;
+}
+
 export interface ExperimentMeta {
   id: string;
   campaignId: string;
   campaignName: string;
   stepId: string;
+  /** 'subject' (T02) or 'send_time' (T17): what the two arms differ by. */
+  kind: 'subject' | 'send_time';
+  /** Both arms in test order, with their send windows when kind is send_time. */
+  arms: ExperimentArm[];
   status: string;
   offerName: string | null;
   primaryMetric: string;
@@ -44,6 +63,7 @@ interface MetaRow {
   campaign_id: string;
   campaign_name: string;
   step_id: string;
+  kind: string;
   status: string;
   offer_name: string | null;
   primary_metric: string;
@@ -62,7 +82,7 @@ interface MetaRow {
   } | null;
 }
 
-export const META_SQL = `SELECT e.id, e.campaign_id, cp.name AS campaign_name, e.step_id, e.status,
+export const META_SQL = `SELECT e.id, e.campaign_id, cp.name AS campaign_name, e.step_id, e.kind, e.status,
         o.name AS offer_name, e.primary_metric, e.secondary_metric,
         e.response_window_days, e.decision_date, e.started_at,
         e.baseline_rate, e.min_lift_pp, e.target_n_per_arm, e.guardrails
@@ -71,13 +91,30 @@ export const META_SQL = `SELECT e.id, e.campaign_id, cp.name AS campaign_name, e
    LEFT JOIN offers o ON o.id = e.offer_ref
   WHERE e.id = $1`;
 
-export function toMeta(x: MetaRow): ExperimentMeta {
+/** The arms of a test from its variant rows, windows described in plain words. */
+export function toArms(
+  rows: { id: string; label: string; send_window?: unknown }[],
+): ExperimentArm[] {
+  return rows.map((r) => {
+    const w = parseSendWindow(r.send_window);
+    return {
+      variantId: r.id,
+      label: r.label,
+      sendWindow: w,
+      windowText: w ? describeSendWindow(w) : null,
+    };
+  });
+}
+
+export function toMeta(x: MetaRow, arms: ExperimentArm[] = []): ExperimentMeta {
   const g = x.guardrails ?? {};
   return {
     id: x.id,
     campaignId: x.campaign_id,
     campaignName: x.campaign_name,
     stepId: x.step_id,
+    kind: x.kind === 'send_time' ? 'send_time' : 'subject',
+    arms,
     status: x.status,
     offerName: x.offer_name,
     primaryMetric: x.primary_metric,
@@ -137,7 +174,16 @@ export class ReviewDataService {
     return withOrgContext(this.pool, orgId, async (c) => {
       const e = await c.query<MetaRow>(META_SQL, [experimentId]);
       if (!e.rows[0]) throw new NotFoundException('Experiment not found');
-      return toMeta(e.rows[0]);
+      const v = await c.query<{
+        id: string;
+        label: string;
+        send_window: unknown;
+      }>(
+        `SELECT id, label, send_window FROM experiment_variants
+          WHERE experiment_id = $1 ORDER BY created_at, id`,
+        [experimentId],
+      );
+      return toMeta(e.rows[0], toArms(v.rows));
     });
   }
 
@@ -159,8 +205,9 @@ export class ReviewDataService {
           id: string;
           label: string;
           is_control: boolean;
+          send_window: unknown;
         }>(
-          `SELECT id, label, is_control FROM experiment_variants
+          `SELECT id, label, is_control, send_window FROM experiment_variants
             WHERE experiment_id = $1 ORDER BY created_at, id`,
           [experimentId],
         );
@@ -240,7 +287,7 @@ export class ReviewDataService {
         );
 
         return {
-          meta: toMeta(x),
+          meta: toMeta(x, toArms(v.rows)),
           variants: v.rows.map((r): VariantInfo => ({
             id: r.id,
             label: r.label,

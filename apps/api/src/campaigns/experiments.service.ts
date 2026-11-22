@@ -22,12 +22,19 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { Pool, PoolClient } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { OffersService } from './offers.service';
+import {
+  parseSendWindow,
+  sameSendWindow,
+  sendWindowError,
+  type SendWindow,
+} from '../sending/send-window';
 
 export const DEFAULT_GUARDRAILS = {
   bounce: 0.05,
@@ -83,15 +90,36 @@ export class ExperimentVariantInputDto {
   @IsString() @MinLength(1) @MaxLength(300) subject!: string;
 }
 
+/** One arm of a send-time test (T17): a label and a send window. */
+export class SendTimeArmInputDto {
+  @IsOptional() @IsString() @MaxLength(40) label?: string;
+  // checked by checkedWindowArms (sendWindowError) for a plain-words message
+  @IsObject() window!: Record<string, unknown>;
+}
+
 export class CreateExperimentDto {
   @IsOptional() @IsUUID() stepId?: string;
 
+  /** 'subject' (default, T02) or 'send_time' (T17: the arms are windows). */
+  @IsOptional()
+  @IsIn(['subject', 'send_time'])
+  kind?: 'subject' | 'send_time';
+
+  @ValidateIf((o: CreateExperimentDto) => o.kind !== 'send_time')
   @IsArray()
   @ArrayMinSize(2)
   @ArrayMaxSize(2)
   @ValidateNested({ each: true })
   @Type(() => ExperimentVariantInputDto)
-  variants!: ExperimentVariantInputDto[];
+  variants?: ExperimentVariantInputDto[];
+
+  @ValidateIf((o: CreateExperimentDto) => o.kind === 'send_time')
+  @IsArray()
+  @ArrayMinSize(2)
+  @ArrayMaxSize(2)
+  @ValidateNested({ each: true })
+  @Type(() => SendTimeArmInputDto)
+  windows?: SendTimeArmInputDto[];
 
   @IsOptional()
   @IsIn(['qualified_reply', 'booked_call'])
@@ -146,6 +174,15 @@ export class UpdateExperimentDto {
   @ValidateNested({ each: true })
   @Type(() => ExperimentVariantInputDto)
   variants?: ExperimentVariantInputDto[];
+
+  /** Send-time tests only (T17): replace the two windows while still a draft. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(2)
+  @ArrayMaxSize(2)
+  @ValidateNested({ each: true })
+  @Type(() => SendTimeArmInputDto)
+  windows?: SendTimeArmInputDto[];
 
   @IsOptional()
   @Type(() => Number)
@@ -229,6 +266,8 @@ export interface ExperimentVariantRow {
   resumed_by: string | null;
   resumed_at: Date | null;
   created_at: Date;
+  /** T17: the arm's send window in a send-time test; null for subject tests. */
+  send_window: SendWindow | null;
   assigned_companies?: number;
   sent_count?: number;
 }
@@ -246,8 +285,54 @@ const EXP_COLS = `id, org_id, campaign_id, step_id, kind, status, unit,
   created_at, updated_at`;
 
 const VAR_COLS = `id, org_id, experiment_id, label, subject, template_id,
-  template_version, is_control, status, created_by, approved_by, approved_at,
-  paused_by, paused_at, pause_reason, resumed_by, resumed_at, created_at`;
+  template_version, is_control, status, send_window, created_by, approved_by,
+  approved_at, paused_by, paused_at, pause_reason, resumed_by, resumed_at,
+  created_at`;
+
+/**
+ * The two arms of a send-time test, checked (Learning Loop T17). Plain-words
+ * 400s: this is what a manager reads when the form is wrong.
+ *  - exactly two windows, each valid;
+ *  - the same clock in both (recipient vs workspace), or the test would also
+ *    measure the clock instead of just the time of day;
+ *  - not the same schedule twice.
+ */
+export function checkedWindowArms(
+  raw: SendTimeArmInputDto[] | undefined,
+): { label: string; window: SendWindow }[] {
+  if (!Array.isArray(raw) || raw.length !== 2) {
+    throw new BadRequestException('A send-time test needs exactly 2 windows');
+  }
+  const arms = raw.map((a, i) => {
+    const name = i === 0 ? 'A' : 'B';
+    const why = sendWindowError(a?.window);
+    const window = why ? null : parseSendWindow(a.window);
+    if (!window) {
+      throw new BadRequestException({
+        statusCode: 400,
+        error: 'invalid_send_window',
+        message: `Window ${name}: ${why ?? 'not a valid send window.'}`,
+      });
+    }
+    return { label: (a.label ?? '').trim() || name, window };
+  });
+  if (arms[0].window.tzBasis !== arms[1].window.tzBasis) {
+    throw new BadRequestException({
+      statusCode: 400,
+      error: 'window_clock_mismatch',
+      message:
+        'Both windows must use the same clock (recipient time or workspace time). Otherwise the test would measure the clock as well as the time of day.',
+    });
+  }
+  if (sameSendWindow(arms[0].window, arms[1].window)) {
+    throw new BadRequestException({
+      statusCode: 400,
+      error: 'windows_identical',
+      message: 'The two windows are the same. Pick two different times to compare.',
+    });
+  }
+  return arms;
+}
 
 @Injectable()
 export class ExperimentsService {
@@ -286,6 +371,51 @@ export class ExperimentsService {
       );
     }
     return 0.03;
+  }
+
+  /**
+   * The ONE subject both arms of a send-time test send (Learning Loop T17): an
+   * approved winner, else the step's single subject, else the template's. A
+   * rotation of several subjects with no winner is refused: the arms would
+   * differ by subject as well as by time and the test would prove nothing.
+   */
+  private async sendTimeStepSubject(
+    c: PoolClient,
+    stepId: string,
+  ): Promise<string> {
+    const st = await c.query<{
+      template_id: string | null;
+      subject_variants: string[] | null;
+      winner_index: number | null;
+      tpl_subject: string | null;
+    }>(
+      `SELECT s.template_id, s.subject_variants, s.winner_index,
+              t.subject AS tpl_subject
+         FROM campaign_steps s
+         LEFT JOIN templates t ON t.id = s.template_id
+        WHERE s.id = $1`,
+      [stepId],
+    );
+    const row = st.rows[0];
+    if (!row?.template_id) {
+      throw new BadRequestException(
+        'Choose an email template for step 1 before testing send times',
+      );
+    }
+    const variants = row.subject_variants ?? [];
+    const winner = row.winner_index;
+    if (winner !== null && typeof variants[winner] === 'string') {
+      return variants[winner];
+    }
+    if (variants.length >= 2) {
+      throw new BadRequestException({
+        statusCode: 400,
+        error: 'subject_rotation_on_step',
+        message:
+          'Step 1 rotates between several subjects. Remove the rotation (or approve a winner) first, so both send times use the same subject.',
+      });
+    }
+    return variants[0] ?? row.tpl_subject ?? '';
   }
 
   private async hydrate(
@@ -328,14 +458,22 @@ export class ExperimentsService {
     campaignId: string,
     dto: CreateExperimentDto,
   ): Promise<ExperimentDetail> {
-    if (!Array.isArray(dto.variants) || dto.variants.length !== 2) {
-      throw new BadRequestException(
-        'V1 experiments require exactly 2 subject variants',
-      );
-    }
-    const subjects = dto.variants.map((v) => (v.subject ?? '').trim());
-    if (subjects.some((s) => !s)) {
-      throw new BadRequestException('Both variant subjects are required');
+    const kind = dto.kind ?? 'subject';
+    // send-time test (T17): two windows, validated before we touch the database
+    const windowArms =
+      kind === 'send_time' ? checkedWindowArms(dto.windows) : null;
+    let subjects: string[] = [];
+    if (kind === 'subject') {
+      const variantInputs = dto.variants;
+      if (!Array.isArray(variantInputs) || variantInputs.length !== 2) {
+        throw new BadRequestException(
+          'V1 experiments require exactly 2 subject variants',
+        );
+      }
+      subjects = variantInputs.map((v) => (v.subject ?? '').trim());
+      if (subjects.some((s) => !s)) {
+        throw new BadRequestException('Both variant subjects are required');
+      }
     }
 
     return this.run(orgId, async (c) => {
@@ -391,6 +529,12 @@ export class ExperimentsService {
         );
       }
 
+      // Send-time test (T17): the arms differ ONLY by window, so both send the
+      // step's own subject. That has to be one subject: a legacy rotation with
+      // no approved winner would send different subjects in the two arms.
+      const stepSubject =
+        kind === 'send_time' ? await this.sendTimeStepSubject(c, step.id) : '';
+
       const offerId = await this.offers.resolveOfferIdInTx(
         c,
         orgId,
@@ -418,7 +562,7 @@ export class ExperimentsService {
             primary_metric, secondary_metric, baseline_rate, min_lift_pp,
             target_n_per_arm, response_window_days, decision_date,
             guardrails, allocation, policy_version, offer_ref, created_by)
-         VALUES ($1,$2,$3,'subject','draft','company',$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,'v1',$13,$14)
+         VALUES ($1,$2,$3,$15,'draft','company',$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,'v1',$13,$14)
          RETURNING ${EXP_COLS}`,
         [
           orgId,
@@ -435,25 +579,29 @@ export class ExperimentsService {
           JSON.stringify({ weights: [0.5, 0.5] }),
           offerId,
           userId,
+          kind,
         ],
       );
       const exp = expRes.rows[0];
 
-      for (let i = 0; i < dto.variants.length; i++) {
-        const v = dto.variants[i];
-        const label = (v.label ?? '').trim() || (i === 0 ? 'A' : 'B');
+      for (let i = 0; i < 2; i++) {
+        const arm = windowArms?.[i] ?? null;
+        const label =
+          (arm?.label ?? dto.variants?.[i]?.label ?? '').trim() ||
+          (i === 0 ? 'A' : 'B');
         await c.query(
           `INSERT INTO experiment_variants
              (org_id, experiment_id, label, subject, template_id, template_version,
-              is_control, status, created_by)
-           VALUES ($1,$2,$3,$4,$5,1,$6,'active',$7)`,
+              is_control, status, send_window, created_by)
+           VALUES ($1,$2,$3,$4,$5,1,$6,'active',$7::jsonb,$8)`,
           [
             orgId,
             exp.id,
             label,
-            subjects[i],
+            arm ? stepSubject : subjects[i],
             step.template_id,
             i === 0,
+            arm ? JSON.stringify(arm.window) : null,
             userId,
           ],
         );
@@ -560,6 +708,38 @@ export class ExperimentsService {
         updated = r.rows[0];
       }
 
+      // A send-time test changes only its windows; a subject test only its
+      // subjects. Mixing them up is a 400, not a silent no-op.
+      if (exp.kind === 'send_time' && dto.variants) {
+        throw new BadRequestException(
+          'A send-time test is edited with its windows, not subjects',
+        );
+      }
+      if (exp.kind !== 'send_time' && dto.windows) {
+        throw new BadRequestException(
+          'Windows can only be set on a send-time test',
+        );
+      }
+      if (dto.windows) {
+        const arms = checkedWindowArms(dto.windows);
+        const existingVars = await c.query<{ id: string }>(
+          `SELECT id FROM experiment_variants
+           WHERE experiment_id = $1 ORDER BY created_at ASC, id ASC`,
+          [id],
+        );
+        for (let i = 0; i < Math.min(2, existingVars.rows.length); i++) {
+          await c.query(
+            `UPDATE experiment_variants SET label = $2, send_window = $3::jsonb
+             WHERE id = $1`,
+            [
+              existingVars.rows[i].id,
+              arms[i].label,
+              JSON.stringify(arms[i].window),
+            ],
+          );
+        }
+      }
+
       if (dto.variants) {
         if (dto.variants.length !== 2) {
           throw new BadRequestException(
@@ -618,12 +798,37 @@ export class ExperimentsService {
         throwExperimentFrozen();
       }
 
-      const vars = await c.query<{ id: string; subject: string }>(
-        `SELECT id, subject FROM experiment_variants
-         WHERE experiment_id = $1 AND status = 'active'`,
+      const vars = await c.query<{
+        id: string;
+        subject: string;
+        send_window: unknown;
+      }>(
+        `SELECT id, subject, send_window FROM experiment_variants
+         WHERE experiment_id = $1 AND status = 'active'
+         ORDER BY created_at ASC, id ASC`,
         [id],
       );
-      if (vars.rows.length < 2 || vars.rows.some((v) => !v.subject.trim())) {
+      if (exp.kind === 'send_time') {
+        // Both arms need a valid window, and the subject is re-read now (the
+        // template may have been edited while this was a draft), so the two
+        // arms start with one identical, current subject.
+        if (
+          vars.rows.length < 2 ||
+          vars.rows.some((v) => parseSendWindow(v.send_window) === null)
+        ) {
+          throw new BadRequestException(
+            'A send-time test needs 2 active arms, each with a valid send window',
+          );
+        }
+        const subject = await this.sendTimeStepSubject(c, exp.step_id);
+        await c.query(
+          `UPDATE experiment_variants SET subject = $2 WHERE experiment_id = $1`,
+          [id, subject],
+        );
+      } else if (
+        vars.rows.length < 2 ||
+        vars.rows.some((v) => !v.subject.trim())
+      ) {
         throw new BadRequestException(
           'Experiment needs 2 active subject variants to start',
         );

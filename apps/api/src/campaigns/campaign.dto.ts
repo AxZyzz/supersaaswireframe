@@ -5,6 +5,7 @@ import {
   IsDateString,
   IsIn,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -33,6 +34,12 @@ export class CreateCampaignDto {
   @ArrayMaxSize(50)
   @IsUUID('4', { each: true })
   senderIds?: string[];
+  // T17: {days:[1..7], startHour, endHour, tzBasis}. Checked in the service
+  // (sendWindowError) so the message says what is wrong in plain words.
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsObject()
+  sendWindow?: Record<string, unknown> | null;
 }
 
 export class UpdateCampaignDto {
@@ -56,6 +63,11 @@ export class UpdateCampaignDto {
   @ValidateIf((_, v) => v !== null)
   @IsDateString()
   scheduledAt?: string | null;
+  // T17: null clears the window (the campaign sends whenever it is due again).
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsObject()
+  sendWindow?: Record<string, unknown> | null;
 }
 
 export class ScheduleDto {
