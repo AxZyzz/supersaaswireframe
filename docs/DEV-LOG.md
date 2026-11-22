@@ -63,7 +63,9 @@ Aman asked for T17 ("what time should we send?") as the last core-lane task. Pla
   create a campaign to build its sequence", and the Setup | Review tabs appear only after a campaign is clicked. Aman signed in himself in the built-in pane (I do not type passwords on production);
   on the paused campaign `Test` the page shows Setup | Review, the Send window box, the A/B test panel and "Test two send times" (windows A Tue-Thu 09:00-11:00 and B Tue-Thu 14:00-16:00, clock option
   "Our workspace time (Asia/Calcutta)", so his workspace timezone is already set); `/review/insights` shows the "Run a send-time test" link to `/campaigns?sendtest=1`. The live bundle also contains the new strings.
-  UX note: the new panels sit low on the Setup tab, below the sequence steps; a first-time user has to select a campaign and scroll. Not changed.
+  UX note: the new panels sat low on the Setup tab, below the sequence steps. On Aman's "Yes, move them up" (commit `9e673f8`, web only, no API change) the Send window box and "Test two send times"
+  moved into their own **Send timing** card directly under Performance; the subject A/B test stays in the Sequence card. Checked locally (screenshot
+  `docs/send-time-screenshots/06-send-timing-card-above-sequence.jpg`), `tsc`, lint (no new warnings) and the web build clean. On `ll/T17`, pushed; **not merged into `google-stack` and not deployed yet**.
 - **Not done / not verified.** A real send-time test over
   days with real replies, so the "which time wins" verdict has never been exercised on live data. The per-sender hour window still uses the server clock (unchanged).
 - **Datastream checked after the deploy (2026-11-23, read-only).** It does NOT see the two new columns, by design: T07 replicates listed columns only (the Postgres `datastream_reader` grant, publication `expelly_bq`,
