@@ -16,7 +16,7 @@ How to keep this up to date: every session appends a dated entry at the top of
 ### 2026-11-22 — Learning Loop T14: playbook memory (approved learnings, versioned, found by vector search)
 
 Built on `ll/T14` from `google-stack` `353da81` (15 commits `d157918`..`8c704ad`, 58 files). **Pushed and merged into `google-stack` (fast-forward, 2026-11-22, `8c704ad`); **deployed 2026-11-22: API `supersaas-api-00022-9zb`, web `supersaas-web-00013-4jq`.** Cloud steps 1 to 6 ran on 2026-11-22 on
-Aman's go (dataset, table, one dataset grant, Vertex on, **real smoke run passed**, **migration `0060` applied on Cloud SQL**, **deployed**); the switch is still to do (see "Cloud steps" at the end). Migration `0060` is applied locally and on Cloud SQL.
+Aman's go (dataset, table, one dataset grant, Vertex on, **real smoke run passed**, **migration `0060` applied on Cloud SQL**, **deployed**, **`PLAYBOOK_SEARCH=bigquery` switched on**); see "Cloud steps" at the end. Migration `0060` is applied locally and on Cloud SQL.
 
 - **What it does:** after a promoted test's losing version is paused (Review) or on an active or expired search preference (Discover), a manager
   can **Save as playbook**: offer + segment + plain-words text + evidence + validity + version. Next Discover plans and challenger drafts get the
@@ -67,8 +67,12 @@ Aman's go (dataset, table, one dataset grant, Vertex on, **real smoke run passed
 - **First production read, verified 2026-11-22:** Aman opened Review > Playbooks on the live web (rev 00013): the page loads with the offer dropdown and "No playbooks yet"; the API log shows
   `GET /playbooks` and `GET /playbooks?offerId=...` both 200 on `supersaas-api-00022-9zb`, so the new table is readable through the app role and the row-level security policy (the grants
   from the default privileges set in `0002` work). Still not verified: saving a playbook, and any real embedding or `VECTOR_SEARCH` from the live API.
-- **Not done:** `PLAYBOOK_SEARCH` is still `postgres` in production, so no real playbook has been
-  embedded or searched there yet.
+- **Switch on, 2026-11-22:** `PLAYBOOK_SEARCH=bigquery` and `EMBEDDINGS_USE_VERTEX=true` set on the API -> `supersaas-api-00023-zpm` (same image `api:t14-b78aa93`; rollback: set
+  `PLAYBOOK_SEARCH=postgres`, or route traffic to `00022-9zb`). The startup log shows `Playbook vectors in BigQuery (supersaas-513613.expelly_memory, asia-south1); keywords answer if it fails`,
+  `/health/ready` is 200 (db and redis true), no errors. Embeddings use the Gemini driver (already `AI_DRIVER=gemini`) on Vertex `us-central1`.
+- **Not done / not verified:** no playbook exists in production yet, so a live save (embed + write to BigQuery) and a live search (embed + `VECTOR_SEARCH`) from the running API have not happened.
+  They were proven by the real smoke run on the same image and service account (4 of 4), not by the live service. The first live save is Aman's to try: Review > pause the losing version,
+  or a search preference > Save as playbook. "Rebuild search index" does nothing until a playbook exists.
 
 **Cloud steps (each explained and run only on Aman's go; project `supersaas-513613`):** (1) **DONE 2026-11-22** `bq mk` dataset `expelly_memory`
 (`asia-south1`) and the table `playbook_vectors` from `infra/bigquery/playbooks.sql` (7 columns, `embedding` is a repeated FLOAT, empty); (2) **DONE 2026-11-22**
@@ -82,7 +86,8 @@ then `gcloud run jobs execute supersaas-migrate --wait` -> execution `supersaas-
 `gcloud builds submit` with `deploy/cloudbuild-web.yaml` (`_API_URL` = the API's project-number URL, 3 min, free tier) -> `web:t14-afcfcab`, then
 `gcloud run services update supersaas-web --image=...` -> `supersaas-web-00013-4jq` (rollback `00012-22x`). Settings unchanged. Checked: API `/` and `/health/ready` 200 (`db` and `redis` true),
 `/playbooks` 401 without a token (the route exists), web `/`, `/login` and `/review/playbooks` 200, `/api/health/ready` through the web proxy 200, no error logs on the new
-revisions (the only warnings were my own 404 probes of wrong health URLs); (7) `PLAYBOOK_SEARCH=bigquery` only on a separate go.
+revisions (the only warnings were my own 404 probes of wrong health URLs); (7) **DONE 2026-11-22** `gcloud run services update supersaas-api --update-env-vars PLAYBOOK_SEARCH=bigquery,EMBEDDINGS_USE_VERTEX=true` -> `supersaas-api-00023-zpm`
+(other settings kept; 34 settings, 2 added), checked as above.
 
 
 ### 2026-11-22 — Learning Loop T07: BigQuery learning plane, Datastream, Knowledge Catalog
