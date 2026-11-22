@@ -17,7 +17,7 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 Aman asked for T17 ("what time should we send?") as the last core-lane task. Plan shown first and approved with "Go". Built on `ll/T17` from `google-stack` `126645f`
 (commits `15385e3`, `7913585`, `8cc9edc`, `80c2752`, `97aa25b`, plus the docs commit that carries this entry). **Pushed and merged into `google-stack` on Aman's "Push and merge"** (fast-forward `126645f` -> `be0e69a`, `google-stack` pushed; the main checkout was clean apart from the old untracked
-  `deploy/supabase-ca.crt`, and `google-stack` had not moved, so no rebase and the check results above still apply). **Not deployed.**
+  `deploy/supabase-ca.crt`, and `google-stack` had not moved, so no rebase and the check results above still apply). **Deployed the same day on "Go, run all" (API 00026, web 00016, migration `0062` on Cloud SQL; see "Deployed" below).**
 
 - **What it does.** A campaign can have a **send window**: days (1 = Mon … 7 = Sun) and whole hours, read on the **recipient's clock** (their timezone from the enrollment snapshot, then the lead,
   then the workspace timezone, then UTC) or on the workspace clock. A step that comes due outside the window is not dropped: `next_send_at` moves to the next opening and is **spread** across that
@@ -26,7 +26,7 @@ Aman asked for T17 ("what time should we send?") as the last core-lane task. Pla
   the company keeps its arm's window for its whole sequence (follow-ups too); Review compares the two windows with the same T04 policy.
 - **Check first (task step 1).** The only existing feature was the per-sender hour window (`sender_accounts.send_window_start/end`, server-clock hours, no days, no recipient timezone). It is a mailbox
   quiet-hours rule, so it stays as it is (still applied in sender selection). The campaign window is new: migration `0062_send_windows` adds `campaigns.send_window jsonb` and
-  `experiment_variants.send_window jsonb`. Additive, NULL = none, no new table so no new RLS block. Applied locally only, **not on Cloud SQL**.
+  `experiment_variants.send_window jsonb`. Additive, NULL = none, no new table so no new RLS block. Applied locally, and on Cloud SQL on 2026-11-23 (see "Deployed").
 - **Decisions (Aman's "Go" covered the plan's defaults).** One running test per campaign (a subject test and a send-time test cannot run together, both ways). The whole sequence follows the arm's
   window. Whole hours, start before end, no overnight windows. The two windows must differ and use the same clock. Both arms send the step's single subject (re-read at start); a step that
   rotates between several subjects with no approved winner is refused. The campaign's own window is frozen while any test runs (like segment, senders and offer). While a send-time test runs
@@ -52,7 +52,14 @@ Aman asked for T17 ("what time should we send?") as the last core-lane task. Pla
   This predates T17 (the policy uses `is_control`, so Review is right) and I did not change it. (2) The workspace timezone defaults to `UTC` and is not set by skipping onboarding, so
   "workspace time" and the fallback for unknown recipients are UTC until someone sets it in Settings. (3) Some shared Review "Checks" lines still say "version" and "wording"
   for a send-time test. (4) `npm install` ran out of memory on this machine (1.5 GB free), so the worktree's `node_modules` were copied from the T16 worktree, which has a byte-identical lockfile.
-- **Not done / not verified.** Nothing deployed: production still needs migration `0062` on Cloud SQL and an API + web deploy (each `gcloud` step explained first). A real send-time test over
+- **Deployed 2026-11-23** on Aman's "Go, run all" (every other session was idle first; each step had been explained before): (1) API image built on Cloud Build from `google-stack` `3274050`
+  (`api:t17-3274050`, 4m31s, free tier); (2) `gcloud run jobs update supersaas-migrate --image=...api:t17-3274050` (was `api:t16-bee86ea`; **it stays on the new image**); (3) `gcloud run jobs execute
+  supersaas-migrate --wait` -> execution `supersaas-migrate-s97xq`, log "migrations applied", exit 0 (migration `0062`); (4) `gcloud run services update supersaas-api --image=...api:t17-3274050`
+  -> `supersaas-api-00026-548` (rollback `00025-qv2`); (5) web built with `deploy/cloudbuild-web.yaml` (`web:t17-3274050`, 2m34s, free tier, `_API_URL` = the project-number URL); (6) `gcloud run
+  services update supersaas-web --image=...web:t17-3274050` -> `supersaas-web-00016-cnc` (rollback `00015-lv2`). Settings unchanged. Checked: API `/health/ready` 200 (`db` and `redis` true), the same
+  through the web proxy, `/`, `/login`, `/campaigns`, `/review/insights` 200, a request without a token 401, no errors on either new revision (the only warning-level line was my own 401 probe).
+  No new monthly cost (a few cents for two more images). The images were built from `3274050`; later commits on `google-stack` are docs only.
+- **Not done / not verified.** Not looked at on the live site logged in (needs a login: Campaigns > Setup should show the Send window box and "Test two send times"). A real send-time test over
   days with real replies, so the "which time wins" verdict has never been exercised on live data. Datastream will see two new columns on replicated tables on deploy (no T07 view reads them;
   not checked live). The per-sender hour window still uses the server clock (unchanged).
 
