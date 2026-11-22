@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { BigQuery } from '@google-cloud/bigquery';
 import { ConfigService } from '@nestjs/config';
 import type { BigQueryRunner } from '../insights/bigquery-insights.source';
 import {
@@ -196,7 +197,7 @@ describe('BigQuery vector store (T14)', () => {
       version: 2,
       offer_id: OFFER,
       embedding: [0.1, 0.2],
-      valid_to: '2027-01-01T00:00:00.000Z',
+      valid_to: new Date('2027-01-01T00:00:00Z'),
     });
     expect(calls[0].types).toEqual({
       org_id: 'STRING',
@@ -209,6 +210,29 @@ describe('BigQuery vector store (T14)', () => {
     expect(calls[0].query).not.toContain(ORG); // never in the SQL text
     expect(calls[0].maximumBytesBilled).toBe('1000000');
     expect(calls[0].location).toBe('asia-south1');
+  });
+
+  it('every upsert parameter survives the real client conversion (a TIMESTAMP given as a string became NULL)', async () => {
+    const { bq, calls } = fakeBq();
+    await new BigQueryPlaybookVectorStore(bq, CFG).upsert({
+      orgId: ORG,
+      playbookId: 'pb-1',
+      version: 2,
+      offerId: OFFER,
+      embedding: [0.1, 0.2],
+      validTo: new Date('2027-01-01T00:00:00Z'),
+    });
+    const { params, types } = calls[0];
+    for (const [name, value] of Object.entries(params)) {
+      const p = BigQuery.valueToQueryParameter_(value, types[name]);
+      const sent = p.parameterValue?.arrayValues ?? p.parameterValue?.value;
+      expect({ name, sent }).not.toEqual({ name, sent: null });
+      expect({ name, sent }).not.toEqual({ name, sent: undefined });
+    }
+    expect(
+      BigQuery.valueToQueryParameter_(params.valid_to, types.valid_to)
+        .parameterValue?.value,
+    ).toBe('2027-01-01T00:00:00.000Z');
   });
 
   it('removes by workspace and id, and searches with the workspace and offer as parameters', async () => {

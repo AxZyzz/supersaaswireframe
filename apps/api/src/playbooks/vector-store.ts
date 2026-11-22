@@ -117,7 +117,9 @@ export class BigQueryPlaybookVectorStore implements PlaybookVectorStore {
         version: r.version,
         offer_id: r.offerId,
         embedding: r.embedding,
-        valid_to: r.validTo.toISOString(),
+        // A Date, never an ISO string: the client reads `.value` of a TIMESTAMP parameter,
+        // so a plain string would reach BigQuery as NULL (found by the real smoke run).
+        valid_to: r.validTo,
       },
       {
         org_id: 'STRING',
