@@ -68,6 +68,35 @@ export function validateEnv(
     );
   }
 
+  // Playbook memory (T14): vector search needs somewhere to bill and a way to embed.
+  const ps = str('PLAYBOOK_SEARCH').toLowerCase();
+  if (ps && !['postgres', 'bigquery'].includes(ps)) {
+    errors.push('PLAYBOOK_SEARCH must be "postgres" or "bigquery"');
+  }
+  const ed = str('EMBEDDING_DRIVER').toLowerCase();
+  if (ed && !['gemini', 'mock'].includes(ed)) {
+    errors.push('EMBEDDING_DRIVER must be "gemini" or "mock"');
+  }
+  if (ps === 'bigquery') {
+    if (!str('BIGQUERY_PROJECT') && !str('GOOGLE_CLOUD_PROJECT')) {
+      errors.push(
+        'PLAYBOOK_SEARCH=bigquery needs BIGQUERY_PROJECT (or GOOGLE_CLOUD_PROJECT)',
+      );
+    }
+    const embedsWithGemini = ed
+      ? ed === 'gemini'
+      : str('AI_DRIVER') === 'gemini';
+    if (
+      embedsWithGemini &&
+      str('EMBEDDINGS_USE_VERTEX') !== 'true' &&
+      !str('GEMINI_API_KEY')
+    ) {
+      errors.push(
+        'PLAYBOOK_SEARCH=bigquery with Gemini embeddings needs GEMINI_API_KEY or EMBEDDINGS_USE_VERTEX=true',
+      );
+    }
+  }
+
   // Scheduled jobs (T13): CRON_MODE=scheduler hands the loop jobs to Cloud
   // Scheduler, which can only call in with a verifiable identity.
   const cm = str('CRON_MODE').toLowerCase();

@@ -13,6 +13,7 @@ export const AI_TASKS = [
   'discover_verify_extract',
   'review_explain',
   'challenger_draft',
+  'playbook_draft',
   'import_column_match',
 ] as const;
 export type AiTask = (typeof AI_TASKS)[number];
@@ -56,6 +57,8 @@ export const TASK_CATALOGUE: Record<AiTask, TaskSpec> = {
   discover_verify_extract: spec('fast', 2000),
   review_explain: spec('balanced', 1200, { screenOutput: true }),
   challenger_draft: spec('powerful', 400, { screenOutput: true }),
+  // T14: rewording of a playbook a person will read, edit and save (screened like other drafts)
+  playbook_draft: spec('fast', 500, { screenOutput: true }),
   import_column_match: spec('fast', 1000),
 };
 
@@ -68,6 +71,7 @@ export const FEATURE_TASK: Record<string, AiTask> = {
   'prospect-icp': 'discover_plan',
   'prospect-research': 'discover_verify_extract',
   'challenger-draft': 'challenger_draft',
+  'playbook-draft': 'playbook_draft',
   'review-explain': 'review_explain',
   'map-columns': 'import_column_match',
 };

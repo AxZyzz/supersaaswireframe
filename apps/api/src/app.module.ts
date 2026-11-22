@@ -14,6 +14,7 @@ import { DbModule } from './db/db.module';
 import { InboxModule } from './inbox/inbox.module';
 import { OutcomesModule } from './outcomes/outcomes.module';
 import { InsightsModule } from './insights/insights.module';
+import { PlaybooksModule } from './playbooks/playbooks.module';
 import { SearchPreferencesModule } from './search-preferences/search-preferences.module';
 import { InternalModule } from './internal/internal.module';
 import { LoopHealthModule } from './loop-health/loop-health.module';
@@ -67,6 +68,7 @@ import { UsageModule } from './usage/usage.module';
     ReviewModule,
     InsightsModule,
     SearchPreferencesModule,
+    PlaybooksModule,
     LoopHealthModule,
     InternalModule,
     NotificationsModule,

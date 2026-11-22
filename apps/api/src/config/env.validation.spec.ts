@@ -67,6 +67,49 @@ describe('validateEnv', () => {
     ).not.toThrow();
   });
 
+  it('T14: PLAYBOOK_SEARCH is postgres or bigquery; bigquery needs a project and a way to embed', () => {
+    const dev = { DATABASE_URL: 'x' };
+    expect(() =>
+      validateEnv({ ...dev, PLAYBOOK_SEARCH: 'postgres' }),
+    ).not.toThrow();
+    expect(() => validateEnv({ ...dev, PLAYBOOK_SEARCH: 'solr' })).toThrow(
+      /PLAYBOOK_SEARCH must be/,
+    );
+    expect(() => validateEnv({ ...dev, EMBEDDING_DRIVER: 'openai' })).toThrow(
+      /EMBEDDING_DRIVER must be/,
+    );
+    expect(() => validateEnv({ ...dev, PLAYBOOK_SEARCH: 'bigquery' })).toThrow(
+      /BIGQUERY_PROJECT/,
+    );
+    // mock embeddings need nothing else
+    expect(() =>
+      validateEnv({
+        ...dev,
+        PLAYBOOK_SEARCH: 'bigquery',
+        BIGQUERY_PROJECT: 'p',
+        EMBEDDING_DRIVER: 'mock',
+      }),
+    ).not.toThrow();
+    // gemini embeddings need a key, or Vertex
+    expect(() =>
+      validateEnv({
+        ...dev,
+        PLAYBOOK_SEARCH: 'bigquery',
+        BIGQUERY_PROJECT: 'p',
+        EMBEDDING_DRIVER: 'gemini',
+      }),
+    ).toThrow(/GEMINI_API_KEY or EMBEDDINGS_USE_VERTEX/);
+    expect(() =>
+      validateEnv({
+        ...dev,
+        PLAYBOOK_SEARCH: 'bigquery',
+        BIGQUERY_PROJECT: 'p',
+        EMBEDDING_DRIVER: 'gemini',
+        EMBEDDINGS_USE_VERTEX: 'true',
+      }),
+    ).not.toThrow();
+  });
+
   it('T09: agent switches need their address, and reject unknown values', () => {
     const dev = { DATABASE_URL: 'x' };
     expect(() => validateEnv({ ...dev, REVIEW_EXPLAINER: 'agent' })).toThrow(
