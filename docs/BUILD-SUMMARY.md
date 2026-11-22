@@ -232,7 +232,7 @@
 - **Stop-on-reply**; out-of-office → next step moves +3 days; not-interested → stops and tags the lead.
 
 ### 5.6 Sending engine and tracking
-- Scheduler tick: finds due sends across all tenants (definer function), then works per tenant. Respects send window, daily limit, warm-up ramp, plan email caps (deferred, not dropped), suppression list, and verified-only senders. Network call is held outside the DB transaction.
+- Scheduler tick: finds due sends across all tenants (definer function), then works per tenant. Respects the sender's send window (server-clock hours), the campaign send window (T17: days + hours on the recipient's clock, the workspace's when unknown; outside it a step waits for the next opening, spread across it), daily limit, warm-up ramp, plan email caps (deferred, not dropped), suppression list, and verified-only senders. Network call is held outside the DB transaction.
 - Render pipeline: variable substitution, tracked links, open pixel, unsubscribe footer with postal address (CAN-SPAM), `List-Unsubscribe` + RFC 8058 one-click header.
 - **Tracking:** `/t/o/:id` (open pixel), `/t/c/:id?u=` (click redirect). Click links are **HMAC-signed**, so the redirect cannot be abused as an open redirect. **Bot filter:** hits with no user agent, a known scanner agent, or within 10 seconds of sending are stored as `bot_open` / `bot_click` and excluded from stats and gates. Gmail's image proxy counts as human; Apple Mail prefetch cannot be told apart and still counts.
 - **Unsubscribe:** GET shows a confirm page with no side effects (link scanners cannot unsubscribe anyone), POST suppresses the address workspace-wide and stops the enrolment.

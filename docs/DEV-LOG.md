@@ -13,6 +13,48 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ## Sessions
 
+### 2026-11-23 — Learning Loop T17: send windows + "Test two send times"
+
+Aman asked for T17 ("what time should we send?") as the last core-lane task. Plan shown first and approved with "Go". Built on `ll/T17` from `google-stack` `126645f`
+(commits `15385e3`, `7913585`, `8cc9edc`, `80c2752`, `97aa25b`, plus the docs commit that carries this entry). **Not pushed, not merged, not deployed** (waiting for Aman's go).
+
+- **What it does.** A campaign can have a **send window**: days (1 = Mon … 7 = Sun) and whole hours, read on the **recipient's clock** (their timezone from the enrollment snapshot, then the lead,
+  then the workspace timezone, then UTC) or on the workspace clock. A step that comes due outside the window is not dropped: `next_send_at` moves to the next opening and is **spread** across that
+  slot (a deterministic hash of lead + step, leaving the last minutes alone) so a night's backlog does not fire at 09:00:00. Sender caps and warm-up still apply after that. No window = exactly the
+  old behaviour. A **send-time test** (`experiments.kind = 'send_time'`) gives each company one of two windows with the same hash as the subject test; the email and the subject are identical;
+  the company keeps its arm's window for its whole sequence (follow-ups too); Review compares the two windows with the same T04 policy.
+- **Check first (task step 1).** The only existing feature was the per-sender hour window (`sender_accounts.send_window_start/end`, server-clock hours, no days, no recipient timezone). It is a mailbox
+  quiet-hours rule, so it stays as it is (still applied in sender selection). The campaign window is new: migration `0062_send_windows` adds `campaigns.send_window jsonb` and
+  `experiment_variants.send_window jsonb`. Additive, NULL = none, no new table so no new RLS block. Applied locally only, **not on Cloud SQL**.
+- **Decisions (Aman's "Go" covered the plan's defaults).** One running test per campaign (a subject test and a send-time test cannot run together, both ways). The whole sequence follows the arm's
+  window. Whole hours, start before end, no overnight windows. The two windows must differ and use the same clock. Both arms send the step's single subject (re-read at start); a step that
+  rotates between several subjects with no approved winner is refused. The campaign's own window is frozen while any test runs (like segment, senders and offer). While a send-time test runs
+  its two windows replace the campaign window. A send-time review does not offer an AI challenger (the drafter writes copy), so the draft and approve endpoints refuse it; pausing a window works
+  like pausing a version (T11). The playbook button is hidden for send-time tests (it is about subject copy).
+- **Files.** API: `sending/send-window.ts` (pure window maths on `Intl`: inside-window, next opening across weekends and DST, zone fallback, spread), `sending/send.service.ts` (window check
+  before the cap and sender steps; `clock` property so tests can use a fake clock; `sendTimeArm()`), `campaigns/campaigns.service.ts` + `campaign.dto.ts` (`sendWindow` on create/update/duplicate),
+  `campaigns/experiments.service.ts` (kind + windows, arm checks, `sendTimeStepSubject`), `review/review-data.service.ts` (kind + each arm's window in the meta), `review/review.service.ts`
+  (no challenger offer for send-time). Web: `window-editor.tsx`, `send-window-panel.tsx`, `send-time-panel.tsx`, `experiment-panel.tsx` (ignores send-time tests), `review-panel.tsx` and
+  `review-actions.tsx` (windows and "send window" wording), `campaigns/page.tsx`, Insights send-time section ("Run a send-time test" link to `/campaigns?sendtest=1`, which shows a short hint).
+  **No new routes**, so `AUTHZ-MATRIX.md` is unchanged and its test passes: `PATCH /campaigns/:id` and `POST /campaigns/:id/experiments` keep admin + manager only.
+- **Tests.** `send-window.spec.ts` (44: Asia/Kolkata, America/New_York, Sydney, DST spring-forward and fall-back, a window inside the skipped hour, weekend, zone fallback, spread). 
+  `send-window.integration.spec.ts` (8, fake clock): window campaign sends only inside it per recipient timezone; next opening across a weekend and a DST change; sender cap decides inside the window;
+  a backlog is spread; legacy campaign with no window untouched; window validation, duplicate, clear; a full send-time test (20 companies, assignment stable, two contacts share an arm, one
+  subject, arms follow their windows including follow-ups, Review compares both windows, no challenger, frozen while running, one test at a time); setup refusals.
+  Full API suite: 964 pass, 1 skipped, 1 fail = the known `gemini.provider.spec.ts` (real network call, same as the T16 entry). Lint, `tsc`, API build, web build: clean (web lint: 4 warnings,
+  all already on the base commit). The pre-existing suites (sending, campaigns, review, insights, authz matrix) pass untouched.
+- **Looked at in the running app** (local API + web, mock email and AI, throwaway account; screenshots in `docs/send-time-screenshots/`): a running send-time test with 12 companies assigned
+  (3 on window A, 9 on window B) and the send window locked; the Review tab with the two windows under their labels, the goal text and no challenger button; editing and saving a campaign window;
+  starting a test from the panel; the Insights link and the hint on Campaigns; no console errors. The test was seeded on a Monday with both windows Tue-Thu, so every first touch is waiting
+  for Tuesday: the live screens show the structure, the sending behaviour is proven by the fake-clock tests.
+- **Found on the way.** (1) Both variants of a test are inserted in one transaction, so they share `created_at` and their order is decided by the random id: "A" is not always index 0.
+  This predates T17 (the policy uses `is_control`, so Review is right) and I did not change it. (2) The workspace timezone defaults to `UTC` and is not set by skipping onboarding, so
+  "workspace time" and the fallback for unknown recipients are UTC until someone sets it in Settings. (3) Some shared Review "Checks" lines still say "version" and "wording"
+  for a send-time test. (4) `npm install` ran out of memory on this machine (1.5 GB free), so the worktree's `node_modules` were copied from the T16 worktree, which has a byte-identical lockfile.
+- **Not done / not verified.** Nothing deployed: production still needs migration `0062` on Cloud SQL and an API + web deploy (each `gcloud` step explained first). A real send-time test over
+  days with real replies, so the "which time wins" verdict has never been exercised on live data. Datastream will see two new columns on replicated tables on deploy (no T07 view reads them;
+  not checked live). The per-sender hour window still uses the server clock (unchanged).
+
 ### 2026-11-23 — T16 follow-up: the workspace id in Settings
 
 Aman could not find the demo workspace id (the operator console that lists it is only for A2B staff accounts), and said "Yes, add it" to showing it to admins. Branch `ll/T16-ws-id` from
