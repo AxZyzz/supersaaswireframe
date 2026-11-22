@@ -15,7 +15,7 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ### 2026-11-22 — Learning Loop T14: playbook memory (approved learnings, versioned, found by vector search)
 
-Built on `ll/T14` from `google-stack` `353da81` (13 commits `d157918`..`b78aa93`, 58 files). **Not pushed, not merged.** Cloud steps 1 to 5 ran on 2026-11-22 on
+Built on `ll/T14` from `google-stack` `353da81` (15 commits `d157918`..`8c704ad`, 58 files). **Pushed and merged into `google-stack` (fast-forward, 2026-11-22, `8c704ad`); not deployed.** Cloud steps 1 to 5 ran on 2026-11-22 on
 Aman's go (dataset, table, one dataset grant, Vertex on, **real smoke run passed**, **migration `0060` applied on Cloud SQL**); deploy and the switch are still to do (see "Cloud steps" at the end). Migration `0060` is applied locally and on Cloud SQL.
 
 - **What it does:** after a promoted test's losing version is paused (Review) or on an active or expired search preference (Discover), a manager
