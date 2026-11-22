@@ -145,4 +145,6 @@ It is written by the API, which is why it is not in `expelly_learning` (views on
 
 - Created 2026-11-22: dataset, empty table, and `WRITER` for `supersaas-run@supersaas-513613.iam.gserviceaccount.com` on this dataset only (dataset ACL edited with `bq show` then `bq update --source`, as for `expelly_learning`).
 - Vertex AI API enabled and `roles/aiplatform.user` granted to the same service account (project level) on 2026-11-22.
-- Still to do: run `npm run playbooks:smoke` as a temporary Cloud Run job, then `PLAYBOOK_SEARCH=bigquery`. Details: `docs/GOOGLE-STACK.md` Phase 5.
+- Real smoke run passed on 2026-11-22 (temporary Cloud Run job `playbook-smoke`, deleted; the table is empty again): right workspace, right offer, unexpired only, removal works.
+  It found a bug the Jest fake could not (a TIMESTAMP parameter must be a `Date`), fixed in `b78aa93`.
+- Still to do: migration `0060` on Cloud SQL, deploy, then `PLAYBOOK_SEARCH=bigquery`. Details: `docs/GOOGLE-STACK.md` Phase 5.

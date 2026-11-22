@@ -15,8 +15,8 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ### 2026-11-22 — Learning Loop T14: playbook memory (approved learnings, versioned, found by vector search)
 
-Built on `ll/T14` from `google-stack` `353da81` (9 commits `d157918`..`53de71b`, 54 files). **Not pushed, not merged.** Cloud steps 1 to 3 ran on 2026-11-22 on
-Aman's go (empty dataset and table, one dataset grant, Vertex on); the rest are still to do (see "Cloud steps" at the end). Migration `0060` is applied on the local database only.
+Built on `ll/T14` from `google-stack` `353da81` (13 commits `d157918`..`b78aa93`, 58 files). **Not pushed, not merged.** Cloud steps 1 to 4 ran on 2026-11-22 on
+Aman's go (dataset, table, one dataset grant, Vertex on, **real smoke run passed**); migration, deploy and the switch are still to do (see "Cloud steps" at the end). Migration `0060` is applied on the local database only.
 
 - **What it does:** after a promoted test's losing version is paused (Review) or on an active or expired search preference (Discover), a manager
   can **Save as playbook**: offer + segment + plain-words text + evidence + validity + version. Next Discover plans and challenger drafts get the
@@ -55,15 +55,25 @@ Aman's go (empty dataset and table, one dataset grant, Vertex on); the rest are 
   of the repo); Python 38 pass; API suite: **858 pass, 1 skipped, 1 fail**: the Gemini provider spec (calls the network when a Gemini key is in `.env`;
   it fails the same on the base tree). In the full run `templates.integration` hit its 5 s `beforeAll` timeout because the machine was busy with a web build;
   it passes alone (7/7). New tests: 60 for playbooks (retrieval, text gate, roles, RLS, versions, tenant isolation, wiring), plus contract and authz.
-- **Not done / not verified:** the real embeddings + `VECTOR_SEARCH` smoke run (acceptance 2, second half) has not run (the table exists but is empty; Vertex is on but
-  no embedding has been requested yet); the migration is not on Cloud SQL; nothing deployed.
+- **Real smoke run (acceptance 2, second half), 2026-11-22:** as a temporary Cloud Run job (`playbook-smoke`, service account `supersaas-run`, image
+  `api:t14-b78aa93`, Vertex `us-central1`, BigQuery `asia-south1`, deleted afterwards). It embedded five throwaway texts with `gemini-embedding-001` (768 dims), wrote
+  them under two made-up workspaces and two offers (one expired, one in another offer, one in another workspace, all with the same text as the valid one), and ran
+  `VECTOR_SEARCH`: workspace A / offer X returned exactly its two unexpired playbooks (the subject-line one first, cosine 0.171, then the city one, 0.271; 526 ms), workspace B
+  saw only its own, and a removed playbook disappeared. 4 of 4 checks passed; its rows were deleted and the table has 0 rows. About 6 embedding calls and a few
+  kilobyte-scale queries: a fraction of a cent.
+- **Bug the real run found (the Jest fake client could not):** the first run (image `t14-7f80829`) failed with `Required field valid_to cannot be null`. The BigQuery client reads
+  `.value` of a TIMESTAMP parameter, so an ISO string reached BigQuery as NULL. Fixed by passing a `Date` (`b78aa93`), plus a test that runs every upsert parameter through the
+  real client's conversion. Second run: pass.
+- **Not done / not verified:** the migration is not on Cloud SQL; nothing deployed; `PLAYBOOK_SEARCH` is still `postgres` in production, so no real playbook has been
+  embedded or searched there yet.
 
 **Cloud steps (each explained and run only on Aman's go; project `supersaas-513613`):** (1) **DONE 2026-11-22** `bq mk` dataset `expelly_memory`
 (`asia-south1`) and the table `playbook_vectors` from `infra/bigquery/playbooks.sql` (7 columns, `embedding` is a repeated FLOAT, empty); (2) **DONE 2026-11-22**
 dataset access edited (`bq show` -> add `WRITER` for `supersaas-run@supersaas-513613.iam.gserviceaccount.com` -> `bq update --source`): this dataset only, no
 project-level change (no `bq add-iam-policy-binding` on this project); (3) **DONE 2026-11-22** `gcloud services enable aiplatform.googleapis.com` and `roles/aiplatform.user` for
 `supersaas-run@...` at project level (its roles before: bigquery.jobUser, cloudsql.client, cloudtrace.agent, modelarmor.user, secretmanager.secretAccessor; undo: remove
-that one binding, then `gcloud services disable aiplatform.googleapis.com`); (4) run the smoke script as a temporary Cloud Run job (`npm run playbooks:smoke`), delete the job; (5) run migration
+that one binding, then `gcloud services disable aiplatform.googleapis.com`); (4) **DONE 2026-11-22** build (`gcloud builds submit`, 4 to 5 min, free tier; images `api:t14-7f80829` then `api:t14-b78aa93`), run the smoke script as a temporary
+Cloud Run job, read its log, delete the job (passed on the second run, see above); (5) run migration
 `0060` on Cloud SQL (migrate job; no core-lane chat may be running); (6) deploy API + web; (7) `PLAYBOOK_SEARCH=bigquery` only on a separate go.
 
 

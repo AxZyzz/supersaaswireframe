@@ -419,7 +419,7 @@ Setup steps, commands and the exact state: `infra/bigquery/README.md`.
 
 ---
 
-## Phase 5: Playbook memory (T14; code done, cloud steps listed below)
+## Phase 5: Playbook memory (T14; dataset, table, Vertex and the real smoke run done 2026-11-22; migration, deploy and the switch still to do)
 
 **What it is.** A **playbook** is a lesson a person approved: "a short question as the subject beat a plain greeting for
 this offer" (kind `message`), or "Pune replied more for this offer" (kind `audience`). It is saved with the offer, the
@@ -482,7 +482,7 @@ own grant. Playbooks are **not** replicated to `expelly_raw` (`replication-set.j
 **Cost.** Embeddings: a few hundred short texts, cents a month. BigQuery: a table of a few hundred rows; a search scans kilobytes
 (the 1 GiB per-job cap still applies); well inside the free tier. No vector index until past about 5,000 rows.
 
-**Real smoke run.** `npm run playbooks:smoke -w apps/api` (also as `node dist/scripts/playbook-smoke.js` in a Cloud Run job) writes five
+**Real smoke run (passed 2026-11-22, 4 of 4 checks, image `api:t14-b78aa93`).** `npm run playbooks:smoke -w apps/api` (also as `node dist/scripts/playbook-smoke.js` in a Cloud Run job) writes five
 throwaway vectors under two made-up workspaces and offers, searches, checks that only workspace A's unexpired playbooks of
 that offer come back (an expired one, another offer and another workspace all carry the same text), checks a removed one disappears, then
 deletes its rows. It touches no real workspace and no Postgres.
