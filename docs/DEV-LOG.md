@@ -66,10 +66,9 @@ agents deployed to Agent Engine first and is optional). Plan shown first, approv
 - **Local-only, left tidy:** the local servers are stopped, a throwaway workspace ("T16 UI Co") remains in the local dev database, and two preview entries
   (`supersaas-api-t16`, `supersaas-web-t16`) were added to the vault's `.claude/launch.json` (not in git). `nest start --watch` ran out of memory while compiling,
   so the local API was run from the build instead.
-- **Not done / not verified:** no real Google Calendar has been connected in production yet (the consent-screen scope and test user are Aman's console steps, then a real booking); the first
-  production tick of `calendar-sync` (15 minutes after the revision started) was not watched; the Settings card was not looked at on the live site (it needs a login); the demo
-  dataset and views do not exist in BigQuery yet; the dashboard is not built (it is Aman's to build from the guide); no real Google OAuth consent was run, so the
-  consent-screen flag for the scope and the 7-day Testing-mode token expiry are from Google's documentation, not observed.
+- **Not done / not verified (updated 2026-11-23):** Aman connected his Google Calendar in production, but a real booking and a cancel have not been confirmed on the live site yet, and the first production
+  tick of `calendar-sync` was not watched; the Settings Calendar card was not looked at on the live site by me (it needs a login); the consent-screen flag for the scope and the 7-day Testing-mode token
+  expiry are from Google's documentation, not observed. The demo views now exist (3 of 5) and the dashboard is built and shared (see "Dashboard" below).
 
 **Cloud steps (each explained and run only on Aman's go; project `supersaas-513613`):** (1) **DONE 2026-11-23** `gcloud services enable calendar-json.googleapis.com` (free, state ENABLED);
 (2) **DONE 2026-11-23** migration `0061` on Cloud SQL: no other session was running (all sessions idle); API image built on Cloud Build from `google-stack` `bee86ea` (`api:t16-bee86ea`, 5 min, free tier);
@@ -78,9 +77,16 @@ agents deployed to Agent Engine first and is optional). Plan shown first, approv
 (rollback `00023-zpm`); web built with `deploy/cloudbuild-web.yaml` (`web:t16-bee86ea`, 2.5 min, free tier) -> `supersaas-web-00014-vbx` (rollback `00013-4jq`). Checked: `/health/ready` 200 (db and redis true),
 through the web proxy 200, `GET /integrations` and `GET /operator/learning-dashboard` 401 without a token, the two Calendar routes mapped, the tick list shows `calendar-sync/900s`, no errors (the only warnings were
 my own unauthenticated probes); (4) Aman: add the scope on the consent screen and the calendar
-account as a test user, Connect Google Calendar, make a test booking with an address that has received one of our emails; (5)
-`PROJECT=supersaas-513613 DEMO_ORG_ID=<demo workspace id> infra/bigquery/apply-demo.sh` (creates `expelly_demo`, free); (6) Aman builds the Looker Studio dashboard from
-`docs/LOOKER-STUDIO.md`; (7) set `LOOKER_DASHBOARD_URL` on the API.
+account as a test user, Connect Google Calendar, make a test booking with an address that has received one of our emails; (5) **DONE 2026-11-23** `apply-demo.sh` for the demo workspace (see
+below); (6) **DONE 2026-11-23** the Data Studio (formerly Looker Studio) report was built in the built-in browser pane by Claude, with Aman approving each Google consent box one by one and Aman doing the terms and
+account setup; (7) **DONE 2026-11-23** `gcloud run services update supersaas-api --update-env-vars LOOKER_DASHBOARD_URL=<report link>` -> `supersaas-api-00025-qv2` (rollback `00024-p66`; 35 settings, 1 added; health 200, no errors).
+
+**Dashboard (2026-11-23).** Report `Expelly learning loop (demo workspace)`: page "What works" (factor drop-down defaulting to country, funnel table, bar chart, scorecards reached / qualified / booked, "Data as of"),
+page "When to send" (pivot table with heatmap of Reply rate by day and 2-hour block). Checked against BigQuery: reached 4, data as of 22 Nov 11:43:19, heatmap cell Sat 2-4 pm = 4 reached, 1 replied, 0.25.
+Data sources are the three `demo_*` views on **Owner's credentials**. **Shared as Unlisted** ("anyone on the internet with the link can view", Viewer; not Public, so it is not searchable), on Aman's explicit go. The link is
+only in the API setting `LOOKER_DASHBOARD_URL` and the private vault, not in git. How it was built: `reporting/create` link with ONE data source (blank reports accept no `ds0` aliases), the other two added in the editor;
+the editor's zoom-to-fit scale made the click tool refuse canvas clicks, fixed by setting Zoom to 100%; one mid-way autosave error ("Couldn't save the file") lost a field, redone as a chart-level field.
+Not done: pages 3 and 4 (no review / search data yet, their views are skipped), a Booked rate field, layout polish (two scorecards touch, the page keeps its default title text `demo_factor_funnel`).
 
 ### 2026-11-22 — Learning Loop T14: playbook memory (approved learnings, versioned, found by vector search)
 

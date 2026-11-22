@@ -573,7 +573,7 @@ dataset on `expelly_learning` so a viewer who can read only `expelly_demo` can s
    `PROJECT=supersaas-513613 DEMO_ORG_ID=<demo workspace id> infra/bigquery/apply-demo.sh`: creates `expelly_demo` (free), creates the views
    (free, scans nothing) and edits the `expelly_learning` access list to authorise the dataset (free). Two views are skipped until the first
    Review revision and the first Search preference exist (same as T07's `review_history` and `search_policy_compare`).
-2. Aman builds the dashboard (`docs/LOOKER-STUDIO.md`) and shares the link.
-3. Set `LOOKER_DASHBOARD_URL` on the API (one new revision).
+2. **DONE 2026-11-23** the dashboard was built in the built-in browser (two pages so far: What works, When to send; pages 3 and 4 wait for data) and shared as **Unlisted** (anyone with the link can view; not Public), on Aman's go.
+3. **DONE 2026-11-23** `LOOKER_DASHBOARD_URL` set on the API (revision 00025). The link is not stored in git.
 
 **Cost.** None beyond what exists: the views cost nothing until queried; each dashboard refresh scans the (small) views inside the free tier.
