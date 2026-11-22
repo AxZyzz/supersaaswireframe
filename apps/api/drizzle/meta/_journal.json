@@ -435,6 +435,13 @@
       "when": 1785604620000,
       "tag": "0061_google_calendar",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1785691020000,
+      "tag": "0062_send_windows",
+      "breakpoints": true
     }
   ]
 }

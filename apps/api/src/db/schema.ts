@@ -606,6 +606,9 @@ export const campaigns = pgTable(
     senderIds: jsonb('sender_ids')
       .notNull()
       .default(sql`'[]'::jsonb`),
+    // Learning Loop T17: when this campaign may send (days + hours in the
+    // recipient's or workspace timezone). NULL = no window (legacy behaviour).
+    sendWindow: jsonb('send_window'),
     scheduledAt: timestamp('scheduled_at', { withTimezone: true }),
     startedAt: timestamp('started_at', { withTimezone: true }),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
@@ -774,6 +777,9 @@ export const experimentVariants = pgTable(
     templateVersion: integer('template_version').notNull().default(1),
     isControl: boolean('is_control').notNull().default(false),
     status: text('status').notNull().default('active'),
+    // Learning Loop T17: the send window of this arm in a send-time test
+    // (experiments.kind = 'send_time'). NULL for subject tests.
+    sendWindow: jsonb('send_window'),
     createdBy: uuid('created_by').references(() => users.id, {
       onDelete: 'set null',
     }),
