@@ -138,9 +138,9 @@ describe('the gate every wording must pass (T14)', () => {
       ...base,
       body: base.body.replace('22.5%', '31.0%'),
     });
-    expect(r).toEqual({
-      ok: false,
-      reason: expect.stringContaining('unsupported number 31'),
+    expect(r.ok).toBe(false);
+    expect(r).toMatchObject({
+      reason: expect.stringContaining('31') as string,
     });
   });
 

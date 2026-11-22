@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call */
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { randomUUID } from 'crypto';
@@ -1066,21 +1066,25 @@ describe('Playbook memory (T14)', () => {
       const plan = jest
         .spyOn(native, 'plan')
         .mockResolvedValue({ icp: null, candidates: [] });
-      const svc = app.get(ProspectsService) as unknown as {
-        planSearch: (
-          o: string,
-          run: unknown,
-          offer: unknown,
-          p: unknown,
-        ) => Promise<unknown>;
-        getRun: (
-          o: string,
-          id: string,
-        ) => Promise<{
-          playbooks_used: Array<{ id: string; title: string }>;
-          playbook_ids: string[];
-        }>;
-      };
+      // planSearch and getRun are internals of the service: reach them through a narrow type
+      const svc = app.get<
+        ProspectsService,
+        {
+          planSearch: (
+            o: string,
+            run: unknown,
+            offer: unknown,
+            p: unknown,
+          ) => Promise<unknown>;
+          getRun: (
+            o: string,
+            id: string,
+          ) => Promise<{
+            playbooks_used: Array<{ id: string; title: string }>;
+            playbook_ids: string[];
+          }>;
+        }
+      >(ProspectsService);
       await svc.planSearch(
         orgId,
         {

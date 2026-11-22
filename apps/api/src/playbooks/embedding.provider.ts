@@ -41,7 +41,7 @@ export function assertVector(v: unknown, dims: number): number[] {
   if (!Array.isArray(v) || v.length !== dims || !v.every(finite)) {
     throw new Error(`embedding must be ${dims} finite numbers`);
   }
-  return v as number[];
+  return v;
 }
 
 /** Lower-cased word tokens (letters and digits, unicode aware). */
