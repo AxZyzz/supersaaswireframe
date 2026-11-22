@@ -148,4 +148,5 @@ It is written by the API, which is why it is not in `expelly_learning` (views on
 - Real smoke run passed on 2026-11-22 (temporary Cloud Run job `playbook-smoke`, deleted; the table is empty again): right workspace, right offer, unexpired only, removal works.
   It found a bug the Jest fake could not (a TIMESTAMP parameter must be a `Date`), fixed in `b78aa93`.
 - Migration `0060` applied on Cloud SQL on 2026-11-22 (migrate job, now on image `api:t14-b78aa93`).
-- Still to do: deploy, then `PLAYBOOK_SEARCH=bigquery`. Details: `docs/GOOGLE-STACK.md` Phase 5.
+- Deployed 2026-11-22 (API `supersaas-api-00022-9zb`, web `supersaas-web-00013-4jq`).
+- Still to do: `PLAYBOOK_SEARCH=bigquery` (+ `EMBEDDINGS_USE_VERTEX=true`). Details: `docs/GOOGLE-STACK.md` Phase 5.
