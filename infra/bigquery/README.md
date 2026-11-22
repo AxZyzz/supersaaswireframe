@@ -162,10 +162,10 @@ It is written by the API, which is why it is not in `expelly_learning` (views on
 PROJECT=supersaas-513613 DEMO_ORG_ID=<the demo workspace id> infra/bigquery/apply-demo.sh
 ```
 
-- The id is passed on the command line (must be a UUID) and is not stored in git; the operator console shows each workspace's id.
+- The id is passed on the command line (must be a UUID) and is not stored in git. The operator console shows each workspace's id, but only for A2B staff accounts; anyone else can list ids with counts through a read-only query on `expelly_raw.public_orgs` joined to `public_sent_emails`.
 - The script creates the dataset if missing, creates or replaces the views, and authorises `expelly_demo` on `expelly_learning` (`demo/authorize.js`
   edits the access list the same way T07 did: `bq show --format=prettyjson` -> edit -> `bq update --source`). Safe to run again.
 - A view whose source is missing (`review_history`, `search_policy_compare` before their first rows) is skipped; run it again later.
 - `apps/api/src/insights/demo-views.spec.ts` fails the build if a view loses its filter, reads `expelly_raw`, writes anything, or if the script gets
   a default id. Build the dashboard with `docs/LOOKER-STUDIO.md`.
-- Status: files written and tested; **nothing applied yet** (needs the demo workspace id and Aman's go).
+- Applied 2026-11-23 for the demo workspace: dataset `expelly_demo` created, `demo_factor_funnel`, `demo_send_time_grid` and `demo_data_freshness` created, `demo_review_history` and `demo_search_policy_compare` skipped (their sources do not exist yet), and `expelly_demo` added once to the `expelly_learning` access list as an authorized dataset (existing grants kept). Checked: `demo_factor_funnel` has 20 rows, equal to the source's rows for that workspace while the source holds 20 rows of other workspaces that the view does not show; no `org_id` column. Run `apply-demo.sh` again after the first review / search preference.

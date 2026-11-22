@@ -569,7 +569,8 @@ demo view loses its filter, reads the raw dataset, writes anything, or if the sc
 dataset on `expelly_learning` so a viewer who can read only `expelly_demo` can still query the views.
 
 **Cloud steps (each explained and run only on Aman's go).**
-1. `PROJECT=supersaas-513613 DEMO_ORG_ID=<demo workspace id> infra/bigquery/apply-demo.sh`: creates `expelly_demo` (free), creates the views
+1. **DONE 2026-11-23** (demo workspace chosen by Aman from a read-only lookup of workspace ids with their email counts)
+   `PROJECT=supersaas-513613 DEMO_ORG_ID=<demo workspace id> infra/bigquery/apply-demo.sh`: creates `expelly_demo` (free), creates the views
    (free, scans nothing) and edits the `expelly_learning` access list to authorise the dataset (free). Two views are skipped until the first
    Review revision and the first Search preference exist (same as T07's `review_history` and `search_policy_compare`).
 2. Aman builds the dashboard (`docs/LOOKER-STUDIO.md`) and shares the link.

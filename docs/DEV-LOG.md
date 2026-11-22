@@ -30,6 +30,8 @@ agents deployed to Agent Engine first and is optional). Plan shown first, approv
   (`v_outcomes_current` keeps one verdict per enrollment and type); a cancel is found by the event id, because Google sends cancelled events without attendees.
   Beyond the plan: the operator console workspace list now shows each workspace id (select-all), which `apply-demo.sh` needs; the operator card shows a
   how-to hint when `LOOKER_DASHBOARD_URL` is unset instead of hiding itself.
+  **Mistake in my plan, found 2026-11-23:** the guide told Aman to read the id in the operator console, but that console is only for A2B staff accounts (`useIsOperator`), so he
+  could not see it. Fixed by a read-only BigQuery lookup (ids with counts only) and by correcting the guide; a Settings line showing the id to admins would remove the need (not built).
 - **Google verification impact (checked):** Google's verification page uses reading Calendar events as its example of a *sensitive* scope; the consent screen shows the
   exact flag. Not restricted. In Testing mode it works only for test users and the token expires after 7 days; public launch needs sensitive-scope verification
   (days to weeks). Details in `docs/GOOGLE-STACK.md` Phase 6.
