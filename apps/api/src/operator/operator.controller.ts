@@ -14,6 +14,7 @@ import type { Request } from 'express';
 import { IsIn, IsString, MaxLength, MinLength } from 'class-validator';
 import type { Plan } from '../usage/plan-limits';
 import { OperatorGuard, OperatorOnly } from './operator.guard';
+import { learningDashboardUrl } from './learning-dashboard';
 import { OperatorService } from './operator.service';
 
 class SetPlanDto {
@@ -70,6 +71,12 @@ export class OperatorController {
   @Get('ai-routing')
   aiRouting() {
     return this.ops.aiRouting();
+  }
+
+  /** The Looker Studio learning dashboard (T16), or null until LOOKER_DASHBOARD_URL is set. */
+  @Get('learning-dashboard')
+  learningDashboard() {
+    return { url: learningDashboardUrl(process.env.LOOKER_DASHBOARD_URL) };
   }
 
   @Get('health')

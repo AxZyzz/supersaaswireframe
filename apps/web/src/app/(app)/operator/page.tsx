@@ -7,6 +7,7 @@ import { timeAgo } from "@/lib/analytics";
 import { LoadError, loadErrorText, toast } from "@/components/feedback";
 import { OperatorBeta } from "@/components/operator-beta";
 import { OperatorAiRouting } from "@/components/operator-ai-routing";
+import { OperatorLearningDashboard } from "@/components/operator-learning-dashboard";
 
 interface Totals {
   orgs: number;
@@ -236,6 +237,10 @@ export default function OperatorPage() {
                       joined {timeAgo(o.created_at)}
                       {!o.onboarded_at && " · not onboarded"}
                     </div>
+                    {/* the workspace id: apply-demo.sh needs it to build the Looker Studio demo views (T16) */}
+                    <div className="select-all font-mono text-micro text-faint" title="Workspace id">
+                      {o.id}
+                    </div>
                   </td>
                   <td className="px-3 py-2">
                     <select
@@ -276,6 +281,8 @@ export default function OperatorPage() {
       </section>
 
       <OperatorAiRouting />
+
+      <OperatorLearningDashboard />
 
       <section className="rounded-lg border border-line bg-surface p-4">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink2">

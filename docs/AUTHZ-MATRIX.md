@@ -126,6 +126,7 @@
 | `GET /operator/failures` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /operator/feedback` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /operator/health` | operator | ⛔ | ⛔ | ⛔ |
+| `GET /operator/learning-dashboard` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /operator/orgs` | operator | ⛔ | ⛔ | ⛔ |
 | `GET /operator/orgs/:id` | operator | ⛔ | ⛔ | ⛔ |
 | `POST /operator/orgs/:id/pause-campaigns` | operator | ⛔ | ⛔ | ⛔ |
