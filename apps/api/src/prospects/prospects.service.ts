@@ -22,6 +22,7 @@ import {
   type SafetyScreen,
 } from '../ai/safety/safety-screen';
 import { PG_POOL } from '../db/db.module';
+import { PlaybooksService } from '../playbooks/playbooks.service';
 import { withOrgContext } from '../db/tenant-context';
 import { companyKey, FREE_MAIL } from '../leads/company-key';
 import type { MailProvider } from '../leads/attributes';
@@ -114,6 +115,8 @@ export interface RunRow {
   preference_id: string | null;
   preference_revision: number | null;
   allocation: (Allocation & StoredAllocation) | null;
+  /** T14: the playbooks the run was planned with. */
+  playbook_ids: string[];
 }
 
 /** Working data kept on the run until its allocation is finalized. */
@@ -123,7 +126,7 @@ export interface StoredAllocation {
 }
 
 const RUN_COLS = `id, goal, offer_id, icp, status, requested, total, done, verified, error, created_at, finished_at,
-  preference_id, preference_revision, allocation`;
+  preference_id, preference_revision, allocation, playbook_ids`;
 const PROSPECT_COLS = `id, run_id, company_name, domain, website_url, reason, status, summary,
   industry, location, fit_score, stars, score_parts, evidence, opportunity, unknowns, emails,
   pages, error, lead_id, created_at, updated_at,
@@ -187,6 +190,7 @@ export class ProspectsService {
     private readonly agent: AgentDiscoverDriver,
     private readonly cache: DiscoverRunCache,
     private readonly config: ConfigService,
+    private readonly playbooks: PlaybooksService,
     @Optional()
     @Inject(SAFETY_SCREEN)
     private readonly safety?: SafetyScreen,
@@ -327,7 +331,19 @@ export class ProspectsService {
     });
   }
 
-  getRun(orgId: string, runId: string) {
+  async getRun(orgId: string, runId: string) {
+    const out = await this.getRunRow(orgId, runId);
+    // T14: "Used 2 playbooks" (titles resolved outside the run's transaction)
+    return {
+      ...out,
+      playbooks_used: await this.playbooks.titles(
+        orgId,
+        out.playbook_ids ?? [],
+      ),
+    };
+  }
+
+  private getRunRow(orgId: string, runId: string) {
     return this.run(orgId, async (c) => {
       const r = await c.query<RunRow>(
         `SELECT ${RUN_COLS} FROM prospect_runs WHERE id = $1`,
@@ -713,6 +729,21 @@ export class ProspectsService {
       preference: p.preference,
       excludeCompanyKeys: [],
     };
+    // T14: approved audience learnings for this offer, as hints. Never throws and never blocks a run.
+    const hints = await this.playbooks.relevant(orgId, {
+      offerId: run.offer_id,
+      text: [run.goal, offer.offer, offer.audience].filter(Boolean).join('. '),
+      kinds: ['audience'],
+    });
+    if (hints.length > 0) {
+      base.playbooks = hints;
+      await this.run(orgId, (c) =>
+        c.query(
+          `UPDATE prospect_runs SET playbook_ids = $2::jsonb WHERE id = $1`,
+          [run.id, JSON.stringify(hints.map((h) => h.id))],
+        ),
+      ).catch(() => undefined);
+    }
     if (this.driverName() === 'agent') {
       try {
         const ref = await this.run(

@@ -16,6 +16,7 @@ describe('agent contracts', () => {
     ['copywriter.output', 'copywriter-output.valid'],
     ['discover.input', 'discover-input.valid'],
     ['discover.input', 'discover-input.targeted'],
+    ['discover.input', 'discover-input.playbooks'],
     ['discover.output', 'discover-output.valid'],
     // schema-valid on purpose: the API re-checks quotes and decides matchedPreference itself
     ['discover.output', 'discover-output.unverified-trigger'],

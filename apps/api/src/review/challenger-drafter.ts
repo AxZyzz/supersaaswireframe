@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AiService } from '../ai/ai.service';
+import { HINT_PREAMBLE } from '../playbooks/playbook.types';
 
 /**
  * Learning Loop T11: drafts challenger subject lines for the next test.
@@ -25,6 +26,8 @@ export interface ChallengerDraftInput {
   offerDescription: string | null;
   /** The workspace's business knowledge base as text (used by the Copywriter agent). */
   kb?: string;
+  /** Approved learnings (T14), one line each: hints, not facts. */
+  playbooks?: string[];
 }
 
 export interface ChallengerCandidate {
@@ -156,6 +159,12 @@ export class AiChallengerDrafter implements ChallengerDrafter {
                 : null,
               input.avoid.length
                 ? `Do not repeat these: ${input.avoid.join(' | ')}`
+                : null,
+              input.playbooks?.length
+                ? [
+                    HINT_PREAMBLE,
+                    ...input.playbooks.map((l) => '- ' + l.slice(0, 600)),
+                  ].join('\n')
                 : null,
             ]
               .filter(Boolean)

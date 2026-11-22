@@ -9,6 +9,7 @@ import {
   type DiscoverOutput,
 } from '../agents/contracts';
 import { AiService } from '../ai/ai.service';
+import { hintLine, type PlaybookHint } from '../playbooks/playbook.types';
 import { DiscoverRunCache } from './discover-run-cache';
 import {
   icpAndCandidatesPrompt,
@@ -53,6 +54,8 @@ export interface PlanInput {
     condition: string;
   };
   excludeCompanyKeys: string[];
+  /** Approved learnings (T14) for this offer: hints, not facts. */
+  playbooks?: PlaybookHint[];
 }
 
 export interface PlanResult {
@@ -97,6 +100,7 @@ export class NativeDiscoverDriver {
           input.offer,
           input.preference?.condition ?? '',
           input.askFor,
+          input.playbooks?.map(hintLine),
         ),
         task: 'discover_plan',
       });
@@ -106,7 +110,12 @@ export class NativeDiscoverDriver {
       };
     }
     const res = await this.ai.generate(input.orgId, 'prospect-icp', {
-      ...icpAndCandidatesPrompt(input.goal, input.offer, input.askFor),
+      ...icpAndCandidatesPrompt(
+        input.goal,
+        input.offer,
+        input.askFor,
+        input.playbooks?.map(hintLine),
+      ),
       task: 'discover_plan',
     });
     const parsed = JSON.parse(res.text) as { icp?: Record<string, unknown> };
@@ -183,6 +192,13 @@ export class AgentDiscoverDriver {
       mode: input.mode,
       excludeCompanyKeys: input.excludeCompanyKeys.slice(0, 2000),
     };
+    if (input.playbooks?.length) {
+      req.playbooks = input.playbooks.slice(0, 5).map((p) => ({
+        title: p.title,
+        body: p.body,
+        validTo: p.validTo,
+      }));
+    }
     if (input.mode === 'targeted' && input.preference) {
       req.preference = {
         id: input.preference.id,

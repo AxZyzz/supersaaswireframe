@@ -29,6 +29,7 @@ CASES = [
     ("copywriter.output", CopywriterOutput, "copywriter-output.valid", True),
     ("discover.input", DiscoverInput, "discover-input.valid", True),
     ("discover.input", DiscoverInput, "discover-input.targeted", True),
+    ("discover.input", DiscoverInput, "discover-input.playbooks", True),
     ("discover.output", DiscoverOutput, "discover-output.valid", True),
     # schema-valid on purpose: the API re-checks quotes and decides matchedPreference itself
     ("discover.output", DiscoverOutput, "discover-output.unverified-trigger", True),

@@ -108,7 +108,9 @@ export class AgentChallengerDrafter implements ChallengerDrafter {
         keepMergeTokens: true,
         language: 'en',
       },
-      playbooks: [], // T14 fills this
+      playbooks: (input.playbooks ?? [])
+        .slice(0, 5)
+        .map((l) => l.slice(0, 600)),
     };
     const bad = contractError('copywriter.input', request);
     if (bad) throw new Error(`bad Copywriter input: ${bad}`);

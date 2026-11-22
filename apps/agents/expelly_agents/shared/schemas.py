@@ -175,6 +175,12 @@ class DPreference(_Strict):
     filter: DFilter
 
 
+class DPlaybook(_Strict):
+    title: str = Field(min_length=1, max_length=120)
+    body: str = Field(min_length=1, max_length=500)
+    validTo: str = Field(min_length=1)
+
+
 class DiscoverInput(_Strict):
     runId: str = Field(min_length=1)
     orgId: str = Field(min_length=1)
@@ -186,6 +192,7 @@ class DiscoverInput(_Strict):
     mode: DiscoverMode
     preference: DPreference | None = None
     excludeCompanyKeys: list[str] = Field(max_length=2000)
+    playbooks: list[DPlaybook] = Field(default_factory=list, max_length=5)
 
 
 class DEvidence(_Strict):

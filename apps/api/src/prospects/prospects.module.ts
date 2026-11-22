@@ -5,6 +5,7 @@ import { AiModule } from '../ai/ai.module';
 import { GoogleCronTokenVerifier } from '../internal/cron-auth.guard';
 import { CampaignsModule } from '../campaigns/campaigns.module';
 import { LeadsModule } from '../leads/leads.module';
+import { PlaybooksModule } from '../playbooks/playbooks.module';
 import { PROSPECT_QUEUE } from '../queue/queue.module';
 import {
   AGENT_TOOL_TOKEN_VERIFIER,
@@ -24,6 +25,7 @@ import { ProspectsService } from './prospects.service';
     AgentsModule,
     LeadsModule,
     CampaignsModule,
+    PlaybooksModule,
   ],
   controllers: [ProspectsController, AgentToolsController],
   providers: [

@@ -1,5 +1,6 @@
 import type { AIGenerateOptions } from '../ai/providers/ai-provider';
 import { INDUSTRIES, SIZE_BANDS, TRIGGER_TYPES } from '../leads/attributes';
+import { HINT_PREAMBLE } from '../playbooks/playbook.types';
 
 /** Bumped whenever the attribute part of the research prompt changes. */
 export const ATTR_PROMPT_VERSION = 'attrs/1';
@@ -55,10 +56,22 @@ const ICP_SCHEMA = {
 };
 
 /** Goal → ideal customer profile + candidate companies to verify. */
+/** Approved learnings (T14) as one prompt block, or nothing. */
+export function playbookBlock(lines?: string[]): string {
+  if (!lines || lines.length === 0) return '';
+  return [
+    '',
+    '',
+    HINT_PREAMBLE,
+    ...lines.slice(0, 5).map((l) => '- ' + l.slice(0, 600)),
+  ].join('\n');
+}
+
 export function icpAndCandidatesPrompt(
   goal: string,
   offer: Offer,
   count: number,
+  playbooks?: string[],
 ): AIGenerateOptions {
   return {
     system: [
@@ -76,7 +89,7 @@ export function icpAndCandidatesPrompt(
     messages: [
       {
         role: 'user',
-        content: `Seller:\n${offerBlock(offer)}\n\nGoal:\n${goal}`,
+        content: `Seller:\n${offerBlock(offer)}\n\nGoal:\n${goal}${playbookBlock(playbooks)}`,
       },
     ],
     tier: 'fast',
@@ -103,6 +116,7 @@ export function targetedCandidatesPrompt(
   offer: Offer,
   condition: string,
   count: number,
+  playbooks?: string[],
 ): AIGenerateOptions {
   return {
     system: [
@@ -120,7 +134,7 @@ export function targetedCandidatesPrompt(
     messages: [
       {
         role: 'user',
-        content: `Seller:\n${offerBlock(offer)}\n\nGoal:\n${goal}\n\nExtra condition: ${condition}`,
+        content: `Seller:\n${offerBlock(offer)}\n\nGoal:\n${goal}\n\nExtra condition: ${condition}${playbookBlock(playbooks)}`,
       },
     ],
     tier: 'fast',

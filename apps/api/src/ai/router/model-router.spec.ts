@@ -55,8 +55,10 @@ function makeRouter(env: Record<string, string> = {}) {
 const opts: AIGenerateOptions = { messages: [{ role: 'user', content: 'hi' }] };
 
 describe('Task catalogue', () => {
-  it('has the nine tasks from the spec with the spec tiers', () => {
-    expect(AI_TASKS).toHaveLength(9);
+  it('has the nine tasks from the spec (plus playbook_draft, T14) with the spec tiers', () => {
+    expect(AI_TASKS).toHaveLength(10);
+    expect(TASK_CATALOGUE.playbook_draft.tier).toBe('fast');
+    expect(TASK_CATALOGUE.playbook_draft.screenOutput).toBe(true);
     expect(TASK_CATALOGUE.reply_classify.tier).toBe('fast');
     expect(TASK_CATALOGUE.campaign_build.tier).toBe('powerful');
     expect(TASK_CATALOGUE.challenger_draft.tier).toBe('powerful');

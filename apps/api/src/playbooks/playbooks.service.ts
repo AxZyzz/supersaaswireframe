@@ -655,16 +655,23 @@ export class PlaybooksService {
    */
   async relevant(
     orgId: string,
-    q: { offerId: string | null; text: string; k?: number },
+    q: {
+      offerId: string | null;
+      text: string;
+      k?: number;
+      /** Only these kinds (a subject draft wants message playbooks, a Discover run audience ones). */
+      kinds?: PlaybookKind[];
+    },
   ): Promise<PlaybookHint[]> {
     if (!q.offerId || !q.text.trim()) return [];
     const k = Math.max(1, Math.min(q.k ?? DEFAULT_TOP_K, 10));
     try {
+      // ask for more than k when a kind filter will drop some, then cut to k
       const ids = await this.retriever.retrieve({
         orgId,
         offerId: q.offerId,
         text: q.text,
-        k,
+        k: q.kinds ? Math.min(k * 3, 10) : k,
       });
       if (ids.length === 0) return [];
       // the Postgres re-check: this workspace, this offer, active, not expired
@@ -677,8 +684,9 @@ export class PlaybooksService {
         }>(
           `SELECT id, title, body, valid_to FROM playbooks
             WHERE id = ANY($1::uuid[]) AND offer_id = $2
-              AND status = 'active' AND valid_to > now()`,
-          [ids, q.offerId],
+              AND status = 'active' AND valid_to > now()
+              AND ($3::text[] IS NULL OR kind = ANY($3::text[]))`,
+          [ids, q.offerId, q.kinds ?? null],
         );
         const byId = new Map(r.rows.map((x) => [x.id, x]));
         return ids

@@ -4,6 +4,7 @@ import { AgentChallengerDrafter } from '../agents/copywriter-drafter';
 import { AiModule } from '../ai/ai.module';
 import { CampaignsModule } from '../campaigns/campaigns.module';
 import { OutcomesModule } from '../outcomes/outcomes.module';
+import { PlaybooksModule } from '../playbooks/playbooks.module';
 import { CHALLENGER_DRAFTER } from './challenger-drafter';
 import { ReviewActionsService } from './review-actions.service';
 import { ReviewController } from './review.controller';
@@ -16,7 +17,13 @@ import { ReviewService } from './review.service';
  * agent (T09) can replace the Gemini fallback without touching callers.
  */
 @Module({
-  imports: [OutcomesModule, AiModule, CampaignsModule, AgentsModule],
+  imports: [
+    OutcomesModule,
+    AiModule,
+    CampaignsModule,
+    AgentsModule,
+    PlaybooksModule,
+  ],
   controllers: [ReviewController],
   providers: [
     ReviewService,

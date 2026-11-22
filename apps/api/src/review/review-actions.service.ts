@@ -17,6 +17,8 @@ import {
 import type { AuthUser } from '../auth/types';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { hintLine } from '../playbooks/playbook.types';
+import { PlaybooksService } from '../playbooks/playbooks.service';
 import {
   CHALLENGER_DRAFTER,
   cleanSubject,
@@ -72,6 +74,8 @@ export interface DraftView {
   subject: string;
   source: string;
   createdAt: Date;
+  /** Playbooks (T14) this draft was written with: "Used 1 playbook". */
+  playbooks: Array<{ id: string; title: string }>;
 }
 
 interface ActionRow {
@@ -167,6 +171,7 @@ export class ReviewActionsService {
     @Inject(PG_POOL) private readonly pool: Pool,
     private readonly experiments: ExperimentsService,
     @Inject(CHALLENGER_DRAFTER) private readonly drafter: ChallengerDrafter,
+    private readonly playbooks: PlaybooksService,
   ) {}
 
   // ── views ──────────────────────────────────────────────────────────────
@@ -979,25 +984,38 @@ export class ReviewActionsService {
   }
 
   async listDrafts(orgId: string, reviewId: string): Promise<DraftView[]> {
-    return withOrgContext(this.pool, orgId, async (c) => {
+    const rows = await withOrgContext(this.pool, orgId, async (c) => {
       const { review } = await this.draftContext(c, reviewId);
       const r = await c.query<{
         id: string;
         subject: string;
         source: string;
         created_at: Date;
+        playbook_ids: string[];
       }>(
-        `SELECT id, subject, source, created_at FROM challenger_drafts
+        `SELECT id, subject, source, created_at, playbook_ids FROM challenger_drafts
           WHERE review_id = $1 ORDER BY created_at DESC, id DESC`,
         [review.id],
       );
-      return r.rows.map((d) => ({
-        id: d.id,
-        subject: d.subject,
-        source: d.source,
-        createdAt: d.created_at,
-      }));
+      return r.rows;
     });
+    const titles = new Map(
+      (
+        await this.playbooks.titles(
+          orgId,
+          rows.flatMap((d) => d.playbook_ids ?? []),
+        )
+      ).map((t) => [t.id, t.title]),
+    );
+    return rows.map((d) => ({
+      id: d.id,
+      subject: d.subject,
+      source: d.source,
+      createdAt: d.created_at,
+      playbooks: (d.playbook_ids ?? [])
+        .filter((id) => titles.has(id))
+        .map((id) => ({ id, title: titles.get(id) as string })),
+    }));
   }
 
   async createDrafts(
@@ -1037,8 +1055,12 @@ export class ReviewActionsService {
         variants.find((v) => v.id === review.result.winnerVariantId) ??
         variants.find((v) => v.is_control) ??
         variants[0];
-      const offer = await c.query<{ name: string; description: string | null }>(
-        `SELECT o.name, o.description FROM experiments e
+      const offer = await c.query<{
+        id: string;
+        name: string;
+        description: string | null;
+      }>(
+        `SELECT o.id, o.name, o.description FROM experiments e
            JOIN offers o ON o.id = e.offer_ref WHERE e.id = $1`,
         [experimentId],
       );
@@ -1057,9 +1079,19 @@ export class ReviewActionsService {
         kb,
         baseSubject: keep?.subject ?? '',
         avoid: variants.map((v) => v.subject),
+        offerId: offer.rows[0]?.id ?? null,
         offerName: offer.rows[0]?.name ?? null,
         offerDescription: offer.rows[0]?.description ?? null,
       };
+    });
+
+    // Approved learnings (T14) for this offer: hints for the drafter. Never throws.
+    const hints = await this.playbooks.relevant(orgId, {
+      offerId: ctx.offerId,
+      text: [ctx.offerName, ctx.offerDescription, ctx.baseSubject]
+        .filter(Boolean)
+        .join('. '),
+      kinds: ['message'],
     });
 
     // Phase 2: ask the drafter outside any transaction (it may call an AI).
@@ -1070,6 +1102,7 @@ export class ReviewActionsService {
       offerName: ctx.offerName,
       offerDescription: ctx.offerDescription,
       kb: ctx.kb,
+      playbooks: hints.map(hintLine),
     });
 
     // Phase 3: store them (re-reads the review so a deleted one is a 404).
@@ -1079,8 +1112,8 @@ export class ReviewActionsService {
       for (const cand of candidates) {
         const r = await c.query<{ id: string; created_at: Date }>(
           `INSERT INTO challenger_drafts
-             (org_id, review_id, experiment_id, subject, source, created_by)
-           VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, created_at`,
+             (org_id, review_id, experiment_id, subject, source, created_by, playbook_ids)
+           VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb) RETURNING id, created_at`,
           [
             orgId,
             reviewId,
@@ -1088,6 +1121,7 @@ export class ReviewActionsService {
             cand.subject,
             cand.source,
             user.userId,
+            JSON.stringify(hints.map((h) => h.id)),
           ],
         );
         out.push({
@@ -1095,6 +1129,7 @@ export class ReviewActionsService {
           subject: cand.subject,
           source: cand.source,
           createdAt: r.rows[0].created_at,
+          playbooks: hints.map((h) => ({ id: h.id, title: h.title })),
         });
       }
       return out;

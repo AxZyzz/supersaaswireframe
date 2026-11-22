@@ -7,6 +7,12 @@ import request from 'supertest';
 import { AppModule } from '../app.module';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { NativeDiscoverDriver } from '../prospects/discover-driver';
+import { ProspectsService } from '../prospects/prospects.service';
+import {
+  CHALLENGER_DRAFTER,
+  type ChallengerDraftInput,
+} from '../review/challenger-drafter';
 import { candidateLoader } from './playbook-candidates';
 import { KeywordRetriever, type RetrieveQuery } from './playbook-retriever';
 import { PLAYBOOK_RETRIEVER, PlaybooksService } from './playbooks.service';
@@ -85,10 +91,27 @@ describe('Playbook memory (T14)', () => {
     },
   };
 
+  /** Stands in for the Copywriter / Gemini drafter and records the hints it was given. */
+  const drafter = {
+    seen: [] as ChallengerDraftInput[],
+    draft(input: ChallengerDraftInput) {
+      drafter.seen.push(input);
+      return Promise.resolve(
+        ['Hint-aware one', 'Hint-aware two', 'Hint-aware three'].map(
+          (subject) => ({
+            subject,
+            source: 'template' as const,
+          }),
+        ),
+      );
+    },
+  };
+
   // ── builders ───────────────────────────────────────────────────────────
 
   /** A campaign + experiment (A control, B) for an offer, with a stored review. */
   const mkReview = async (o: {
+    draft?: boolean;
     promote: boolean;
     simulated?: boolean;
     approved?: boolean;
@@ -171,7 +194,15 @@ describe('Playbook memory (T14)', () => {
               { id: 'F1', kind: 'rate' },
               { id: 'F2', kind: 'lift' },
             ],
-            allowedActions: [],
+            allowedActions: o.draft
+              ? [
+                  {
+                    actionId: 'draft-1',
+                    type: 'draft_challenger',
+                    label: 'Draft a challenger',
+                  },
+                ]
+              : [],
           }
         : {
             decision: 'inconclusive',
@@ -279,6 +310,8 @@ describe('Playbook memory (T14)', () => {
       .useValue(store)
       .overrideProvider(PLAYBOOK_RETRIEVER)
       .useValue(retriever)
+      .overrideProvider(CHALLENGER_DRAFTER)
+      .useValue(drafter)
       .compile();
     app = moduleRef.createNestApplication();
     app.useGlobalPipes(
@@ -920,6 +953,155 @@ describe('Playbook memory (T14)', () => {
         { id: v2.body.id, title: 'Titled playbook, second' },
       ]);
       expect(await svc.titles(otherOrgId, [pb.id])).toEqual([]);
+    });
+  });
+
+  // ── wiring: challenger drafts and Discover runs ────────────────────────
+
+  describe('using them in drafts and Discover runs', () => {
+    it("a challenger draft request gets the offer's message playbooks as hints, and stores and shows which ones it used", async () => {
+      const { pb } = await savedFromReview('Hint source for drafts', {
+        body: 'Short question subjects beat plain greetings for dental practices.',
+      });
+      // an audience playbook for the same offer must NOT go to a subject drafter
+      const pref = await mkPreference();
+      const aud = await save(managerToken, {
+        preferenceId: pref,
+        title: 'Audience note not for subjects',
+        body: 'Pune dental practices replied more; keep testing it, this is not proof.',
+      }).expect(201);
+
+      const r = await mkReview({ promote: true, approved: true, draft: true });
+      drafter.seen.length = 0;
+      const res = await http()
+        .post(`/reviews/${r.reviewId}/challenger-drafts`)
+        .set('Authorization', as(managerToken))
+        .expect(200);
+
+      // 1. the drafter was given the message playbook as a hint line, and only that
+      expect(drafter.seen).toHaveLength(1);
+      const lines = drafter.seen[0].playbooks ?? [];
+      expect(lines.some((l) => l.includes('Hint source for drafts'))).toBe(
+        true,
+      );
+      expect(
+        lines.some((l) => l.includes('Audience note not for subjects')),
+      ).toBe(false);
+      expect(lines[0]).toContain('approved learning, valid until');
+
+      // 2. each stored draft says which playbooks it used ("Used 1 playbook")
+      expect(res.body.drafts).toHaveLength(3);
+      for (const d of res.body.drafts) {
+        expect(d.playbooks).toEqual(
+          expect.arrayContaining([
+            { id: pb.id, title: 'Hint source for drafts' },
+          ]),
+        );
+        expect(d.playbooks.map((p: { id: string }) => p.id)).not.toContain(
+          aud.body.id,
+        );
+      }
+      const stored = await q((c) =>
+        c.query<{ playbook_ids: string[] }>(
+          `SELECT playbook_ids FROM challenger_drafts WHERE review_id = $1`,
+          [r.reviewId],
+        ),
+      );
+      expect(stored.rows).toHaveLength(3);
+      expect(stored.rows[0].playbook_ids).toContain(pb.id);
+
+      // 3. listing them later still resolves the titles, even after the playbook was replaced
+      const listed = await http()
+        .get(`/reviews/${r.reviewId}/challenger-drafts`)
+        .set('Authorization', as(agentToken))
+        .expect(200);
+      const body = listed.body.drafts ?? listed.body;
+      expect(
+        body[0].playbooks.map((p: { title: string }) => p.title),
+      ).toContain('Hint source for drafts');
+    });
+
+    it('a draft request with no matching playbook sends no hints and still works', async () => {
+      await q((c) =>
+        c.query(
+          `UPDATE playbooks SET status = 'retired' WHERE status = 'active'`,
+        ),
+      );
+      const r = await mkReview({ promote: true, approved: true, draft: true });
+      drafter.seen.length = 0;
+      const res = await http()
+        .post(`/reviews/${r.reviewId}/challenger-drafts`)
+        .set('Authorization', as(managerToken))
+        .expect(200);
+      expect(drafter.seen[0].playbooks).toEqual([]);
+      expect(res.body.drafts[0].playbooks).toEqual([]);
+    });
+
+    it('a Discover plan gets the offer\'s AUDIENCE playbooks, records them on the run, and the run shows "used"', async () => {
+      await q((c) =>
+        c.query(
+          `UPDATE playbooks SET status = 'retired' WHERE status = 'active'`,
+        ),
+      );
+      const pref = await mkPreference();
+      const aud = await save(managerToken, {
+        preferenceId: pref,
+        title: 'Pune dental practices answer more',
+        body: 'Dental practices in Pune replied more; keep testing it, this is not proof.',
+      }).expect(201);
+      const msg = await savedFromReview('Message note not for discovery', {
+        body: 'Short question subjects beat plain greetings for dental practices.',
+      });
+      expect(msg.pb.id).toBeTruthy();
+
+      const run = await q(async (c) => {
+        const r = await c.query<{ id: string }>(
+          `INSERT INTO prospect_runs (org_id, goal, status, requested, offer_id)
+           VALUES ($1,'Find dental practices in Pune','running',5,$2) RETURNING id`,
+          [orgId, offerId],
+        );
+        return r.rows[0].id;
+      });
+      const native = app.get(NativeDiscoverDriver);
+      const plan = jest
+        .spyOn(native, 'plan')
+        .mockResolvedValue({ icp: null, candidates: [] });
+      const svc = app.get(ProspectsService) as unknown as {
+        planSearch: (
+          o: string,
+          run: unknown,
+          offer: unknown,
+          p: unknown,
+        ) => Promise<unknown>;
+        getRun: (
+          o: string,
+          id: string,
+        ) => Promise<{
+          playbooks_used: Array<{ id: string; title: string }>;
+          playbook_ids: string[];
+        }>;
+      };
+      await svc.planSearch(
+        orgId,
+        {
+          id: run,
+          goal: 'Find dental practices in Pune',
+          offer_id: offerId,
+          requested: 5,
+        },
+        { audience: 'dental practices' },
+        { mode: 'baseline', count: 5, askFor: 8, limit: 5 },
+      );
+      const given = plan.mock.calls[0][0].playbooks ?? [];
+      plan.mockRestore();
+      expect(given.map((h) => h.id)).toEqual([aud.body.id]);
+      expect(given[0].title).toBe('Pune dental practices answer more');
+
+      const view = await svc.getRun(orgId, run);
+      expect(view.playbook_ids).toEqual([aud.body.id]);
+      expect(view.playbooks_used).toEqual([
+        { id: aud.body.id, title: 'Pune dental practices answer more' },
+      ]);
     });
   });
 

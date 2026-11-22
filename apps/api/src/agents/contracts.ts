@@ -93,6 +93,8 @@ export interface DiscoverInput {
     filter: { factor: DiscoverFactor; value: string };
   };
   excludeCompanyKeys: string[];
+  /** Approved learnings (T14): hints, not facts. */
+  playbooks?: Array<{ title: string; body: string; validTo: string }>;
 }
 
 /** One company the agent claims to have found. A CLAIM: the API re-checks all of it. */

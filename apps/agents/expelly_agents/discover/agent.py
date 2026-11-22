@@ -55,6 +55,8 @@ searchIdeas (angles to find companies) and candidateCount (how many companies to
 1.5 x targetCount, at most 75).
 If preference is present, the search must favour companies matching preference.filter (for example
 city Pune, or the trigger "expansion"), and mention it in the icp summary.
+If playbooks is present, they are prior approved learnings from this workspace for this offer: treat
+them as hints, not facts, and prefer the current evidence over them.
 Return only the JSON object that matches the schema.
 """
 
@@ -65,6 +67,8 @@ Rules:
 - Only companies you are confident exist, each with its real primary website domain (e.g. "acme.com").
 - Prefer companies that clearly match the ICP; mix well-known and lesser-known ones.
 - If request.preference is present, propose mainly companies that fit preference.filter.
+- If request.playbooks is present, treat it as prior approved learnings: hints, not facts. Prefer the
+  current evidence, and never skip the checks above because a playbook says so.
 - Never invent companies or domains; returning fewer is better. No directories, marketplaces,
   news sites or social networks.
 - Skip every domain listed in request.excludeCompanyKeys.
