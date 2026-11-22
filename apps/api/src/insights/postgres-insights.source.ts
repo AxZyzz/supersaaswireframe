@@ -58,13 +58,19 @@ export class PostgresInsightsSource implements InsightsSource {
               WHERE ($1::uuid IS NULL OR cp.offer_id = $1)
                 AND ($2::uuid[] IS NULL OR cp.id = ANY($2))
            ), sends AS (
+             -- step_order here is the step's 1-based POSITION in its campaign (first step = 1).
+             -- The app stores steps from 0, so the stored number can't be compared with 1 directly.
              SELECT se.id, se.campaign_id, se.step_id, se.sender_id, se.subject,
-                    se.sent_at, se.variant_id, s.step_order, s.template_id,
+                    se.sent_at, se.variant_id,
+                    s.step_order - fs.first_order + 1 AS step_order, s.template_id,
                     COALESCE(cl.snapshot->>'company_key', l.company_key) AS company_key,
                     cl.snapshot AS snap, l.id AS lead_id
                FROM sent_emails se
                JOIN scope ON scope.campaign_id = se.campaign_id
                JOIN campaign_steps s ON s.id = se.step_id
+               JOIN (SELECT campaign_id, min(step_order) AS first_order
+                       FROM campaign_steps GROUP BY campaign_id) fs
+                 ON fs.campaign_id = se.campaign_id
                LEFT JOIN campaign_leads cl ON cl.id = se.campaign_lead_id
                LEFT JOIN leads l ON l.id = se.lead_id
               WHERE se.status = 'sent'

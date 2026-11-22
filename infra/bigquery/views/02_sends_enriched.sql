@@ -5,7 +5,7 @@ CREATE OR REPLACE VIEW `${PROJECT}.${LEARN}.sends_enriched` (
   offer_id OPTIONS (description = "Offer the campaign promotes."),
   campaign_lead_id OPTIONS (description = "The enrollment the email was sent for."),
   step_id OPTIONS (description = "Sequence step."),
-  step_order OPTIONS (description = "1 = first touch, 2 = first follow-up, and so on."),
+  step_order OPTIONS (description = "Position of the step in its campaign: 1 = first touch, 2 = first follow-up, and so on. The app stores steps from 0; this is already shifted so the first step is always 1."),
   template_id OPTIONS (description = "Template of the step (its subject is in company_reach.template_subject)."),
   sender_id OPTIONS (description = "Sender mailbox id. The address itself is not copied to BigQuery."),
   variant_id OPTIONS (description = "A/B subject version used, if the step had a running test."),
@@ -32,7 +32,7 @@ SELECT
   c.offer_id,
   se.campaign_lead_id,
   se.step_id,
-  s.step_order,
+  s.step_order - fs.first_order + 1 AS step_order,
   s.template_id,
   se.sender_id,
   se.variant_id,
@@ -52,5 +52,10 @@ SELECT
 FROM `${PROJECT}.${RAW}.public_sent_emails` se
 JOIN `${PROJECT}.${RAW}.public_campaign_steps` s ON s.id = se.step_id AND s.org_id = se.org_id
 JOIN `${PROJECT}.${RAW}.public_campaigns` c ON c.id = se.campaign_id AND c.org_id = se.org_id
+JOIN (
+  SELECT org_id, campaign_id, MIN(step_order) AS first_order
+  FROM `${PROJECT}.${RAW}.public_campaign_steps`
+  GROUP BY org_id, campaign_id
+) fs ON fs.campaign_id = se.campaign_id AND fs.org_id = se.org_id
 LEFT JOIN `${PROJECT}.${RAW}.public_campaign_leads` cl ON cl.id = se.campaign_lead_id AND cl.org_id = se.org_id
 WHERE se.status = 'sent';

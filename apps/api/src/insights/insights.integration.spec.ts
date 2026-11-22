@@ -214,7 +214,8 @@ describe('Insights: Postgres source and API (T06)', () => {
           [orgId, name, offer],
         );
         const st = await c.query<{ id: string }>(
-          `INSERT INTO campaign_steps (org_id, campaign_id, step_order, delay_hours) VALUES ($1,$2,1,0) RETURNING id`,
+          // the app numbers steps from 0 (campaigns.service: first step = 0), so the first touch is step_order 0
+          `INSERT INTO campaign_steps (org_id, campaign_id, step_order, delay_hours) VALUES ($1,$2,0,0) RETURNING id`,
           [orgId, cp.rows[0].id],
         );
         step[cp.rows[0].id] = st.rows[0].id;
