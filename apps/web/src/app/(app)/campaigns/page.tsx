@@ -42,6 +42,8 @@ import AiBuilder from "./ai-builder";
 import { useLive } from "@/lib/realtime";
 import { WinnerPanel } from "@/components/winner-panel";
 import { ExperimentPanel } from "@/components/experiment-panel";
+import { SendTimePanel } from "@/components/send-time-panel";
+import { SendWindowPanel } from "@/components/send-window-panel";
 import { OfferSelect } from "@/components/offer-select";
 import { ReviewPanel } from "@/components/review-panel";
 import { canManage, useRole } from "@/lib/me";
@@ -69,7 +71,16 @@ export default function CampaignsPage() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
-  const [activeExp, setActiveExp] = useState<Experiment | null>(null);
+  // A campaign runs ONE test at a time: a subject test (T02) or a send-time
+  // test (T17). `activeExp` is whichever is running, else the latest of either.
+  const [subjectExp, setSubjectExp] = useState<Experiment | null>(null);
+  const [timeExp, setTimeExp] = useState<Experiment | null>(null);
+  const activeExp =
+    [subjectExp, timeExp].find((e) => e?.status === "running") ??
+    subjectExp ??
+    timeExp;
+  // the Insights page links here ("Run a send-time test"): /campaigns?sendtest=1
+  const [sendTestHint, setSendTestHint] = useState(false);
   const [tab, setTab] = useState<"setup" | "review">("setup");
   const role = useRole();
 
@@ -120,6 +131,7 @@ export default function CampaignsPage() {
   // A link from a playbook's evidence: /campaigns?open=<id>&tab=review
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
+    if (p.get("sendtest") === "1") setSendTestHint(true);
     const id = p.get("open");
     if (id && /^[0-9a-f-]{36}$/i.test(id)) {
       void open(id).then(() => {
@@ -269,6 +281,24 @@ export default function CampaignsPage() {
 
       {/* detail */}
       <div className="min-w-0 flex-1">
+        {sendTestHint && (
+          <div
+            role="status"
+            className="mb-3 flex items-start justify-between gap-3 rounded-lg border border-accent-soft2 bg-accent-soft px-3 py-2 text-sm text-accent"
+          >
+            <span>
+              To find your best time to send: open a draft or paused campaign, then use{" "}
+              <strong>Test two send times</strong> under its Sequence. Companies are split at random
+              between two send windows and Review compares them.
+            </span>
+            <button
+              onClick={() => setSendTestHint(false)}
+              className="shrink-0 text-tiny underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
         {!selected ? (
           <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-line-mid bg-surface">
             <p className="text-sm text-muted">
@@ -560,6 +590,14 @@ export default function CampaignsPage() {
                 )}
               </div>
 
+              <SendWindowPanel
+                key={`${selected.id}-${selected.updated_at}`}
+                campaign={selected}
+                canManage={canManage(role)}
+                frozen={activeExp?.status === "running"}
+                onSaved={() => void refresh(selected.id)}
+              />
+
               {selected.steps[0] && (
                 <ExperimentPanel
                   key={`${selected.id}-${selected.steps[0].id}`}
@@ -571,7 +609,17 @@ export default function CampaignsPage() {
                       ?.subject ?? ""
                   }
                   canManage={canManage(role)}
-                  onChanged={setActiveExp}
+                  onChanged={setSubjectExp}
+                />
+              )}
+
+              {selected.steps[0] && (
+                <SendTimePanel
+                  key={`${selected.id}-${selected.steps[0].id}-time`}
+                  campaignId={selected.id}
+                  campaignStatus={selected.status}
+                  canManage={canManage(role)}
+                  onChanged={setTimeExp}
                 />
               )}
 

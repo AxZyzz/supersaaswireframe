@@ -75,6 +75,10 @@ export interface ExperimentMeta {
   campaignId: string;
   stepId: string;
   campaignName: string;
+  /** What the two arms differ by: copy ('subject') or send time ('send_time', T17). */
+  kind: "subject" | "send_time";
+  /** Both arms; windowText is set for a send-time test ("Tue-Thu 09:00-11:00 (recipient time)"). */
+  arms: { variantId: string; label: string; windowText: string | null }[];
   status: string;
   offerName: string | null;
   responseWindowDays: number;

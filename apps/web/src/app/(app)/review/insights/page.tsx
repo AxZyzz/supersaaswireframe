@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronRight, TriangleAlert } from "lucide-react";
 import { ReviewNav } from "@/components/review-nav";
@@ -505,7 +506,17 @@ function SendTime({ data }: { data: InsightsResponse }) {
     <section className={card} aria-label="Best time to send">
       <h2 className="text-section font-semibold text-ink2">Send time</h2>
       {!status.comparable ? (
-        <p className="mt-1 text-sm text-muted">{status.message}</p>
+        <>
+          <p className="mt-1 text-sm text-muted">{status.message}</p>
+          <p className="mt-2 text-sm text-muted">
+            Not enough variety in when your emails go out to compare times. You can create
+            that variety on purpose:{" "}
+            <Link href="/campaigns?sendtest=1" className="font-medium text-accent hover:underline">
+              Run a send-time test
+            </Link>
+            .
+          </p>
+        </>
       ) : (
         <>
           <p className="mt-1 text-sm text-muted">
@@ -566,7 +577,10 @@ function SendTime({ data }: { data: InsightsResponse }) {
           </div>
           <p className="mt-2 text-tiny text-faint">
             Overall {pct(overallReplyRate)}. Hatched cells have fewer than {MIN_CELL} companies:
-            not enough data yet. Exploratory: run a send-time test before changing when you send.
+            not enough data yet. Exploratory: run a send-time test before changing when you send.{" "}
+            <Link href="/campaigns?sendtest=1" className="font-medium text-accent hover:underline">
+              Run a send-time test
+            </Link>
           </p>
         </>
       )}

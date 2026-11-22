@@ -39,7 +39,8 @@ export function ExperimentPanel({
   const applyList = useCallback(
     (list: Experiment[]) => {
       setExperiments(list);
-      const current = list[0] ?? null;
+      // send-time tests (T17) have their own panel
+      const current = list.find((e) => e.kind !== "send_time") ?? null;
       if (current && current.variants.length >= 2) {
         setSubjectA(current.variants[0].subject);
         setSubjectB(current.variants[1].subject);
@@ -67,13 +68,18 @@ export function ExperimentPanel({
     };
   }, [campaignId, applyList]);
 
-  const current = experiments[0] ?? null;
+  const current = experiments.find((e) => e.kind !== "send_time") ?? null;
+  // one test at a time: a running send-time test (T17) blocks a subject test
+  const timeRunning = experiments.some(
+    (e) => e.kind === "send_time" && e.status === "running",
+  );
   const isRunning = current?.status === "running";
   const isStopped = current?.status === "stopped";
   const canEditSetup =
     canManage &&
     ["draft", "paused"].includes(campaignStatus) &&
-    !isRunning;
+    !isRunning &&
+    !timeRunning;
 
   async function saveAndStart() {
     const a = subjectA.trim();
@@ -205,6 +211,12 @@ export function ExperimentPanel({
         sees one version across all contacts and retries.
       </p>
 
+      {timeRunning && (
+        <p className="mt-2 rounded border border-warning-text/30 bg-warning-bg px-2.5 py-1.5 text-tiny text-warning-text">
+          A send-time test is running on this campaign. One test at a time: stop it to test subjects.
+        </p>
+      )}
+
       {current && current.ineligible_count > 0 && (
         <div className="mt-2 flex items-center gap-1.5 rounded border border-warning-text/30 bg-warning-bg px-2.5 py-1.5 text-tiny text-warning-text">
           <AlertCircle size={13} />
@@ -261,7 +273,7 @@ export function ExperimentPanel({
             <>
               <button
                 type="button"
-                disabled={busy || !["draft", "paused"].includes(campaignStatus)}
+                disabled={busy || timeRunning || !["draft", "paused"].includes(campaignStatus)}
                 onClick={() => void saveAndStart()}
                 className="inline-flex items-center gap-1.5 rounded bg-accent px-3 py-1.5 text-tiny font-medium text-white hover:bg-accent-hover disabled:opacity-50"
               >
@@ -269,7 +281,7 @@ export function ExperimentPanel({
               </button>
               <button
                 type="button"
-                disabled={busy || !["draft", "paused"].includes(campaignStatus)}
+                disabled={busy || timeRunning || !["draft", "paused"].includes(campaignStatus)}
                 onClick={() => void saveDraft()}
                 className="rounded border border-line-mid px-2.5 py-1.5 text-tiny text-ink hover:bg-hover disabled:opacity-50"
               >

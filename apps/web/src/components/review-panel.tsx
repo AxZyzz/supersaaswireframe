@@ -162,10 +162,10 @@ export function ReviewPanel({
         <div className="flex justify-end">{simulationPicker}</div>
         <div className="rounded-lg border border-dashed border-line-mid bg-surface p-8 text-center">
           <p className="text-sm font-medium text-ink">
-            {noTest ? "No A/B test to review yet." : "Nothing to show yet."}
+            {noTest ? "No A/B or send-time test to review yet." : "Nothing to show yet."}
           </p>
           <p className="mt-1 text-sm text-muted">
-            Start a company-level A/B test on step 1 in Setup. Until then you can try a
+            Start a company-level A/B test or a send-time test on step 1 in Setup. Until then you can try a
             simulation to see what Review will look like.
           </p>
         </div>
@@ -180,6 +180,10 @@ export function ReviewPanel({
     current.inputs.arms.find((a) => a.variantId === id);
   const minLift = (exp?.minLiftPp ?? current.inputs.minLiftPp) / 100;
   const window = exp?.responseWindowDays ?? 14;
+  // T17: a send-time test compares WINDOWS (the email and subject are identical)
+  const isSendTime = exp?.kind === "send_time";
+  const windowOf = (variantId: string) =>
+    exp?.arms?.find((x) => x.variantId === variantId)?.windowText ?? null;
 
   return (
     <div className="space-y-4">
@@ -209,8 +213,15 @@ export function ReviewPanel({
               {STATUS_LABEL[status]}
             </span>
             <span className="text-sm font-medium text-ink">
-              Goal: confirmed qualified replies within {window} days
+              {isSendTime
+                ? `Goal: which send time gets more confirmed qualified replies within ${window} days`
+                : `Goal: confirmed qualified replies within ${window} days`}
             </span>
+            {isSendTime && (
+              <span className="rounded bg-accent-soft px-2 py-0.5 text-tiny text-accent">
+                Send-time test: same email, same subject
+              </span>
+            )}
           </div>
           <div className="mt-1 flex flex-wrap gap-x-4 text-tiny text-muted">
             {exp?.offerName && <span>Offer: {exp.offerName}</span>}
@@ -238,12 +249,12 @@ export function ReviewPanel({
 
       {/* 2. variant table */}
       <div className={card}>
-        <h3 className={h3}>Versions</h3>
+        <h3 className={h3}>{isSendTime ? "Send times" : "Versions"}</h3>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="text-left text-tiny uppercase tracking-wide text-faint">
-                <th className="py-1 pr-3">Version</th>
+                <th className="py-1 pr-3">{isSendTime ? "Send window" : "Version"}</th>
                 <th className="px-2">Companies</th>
                 <th className="px-2">Sent</th>
                 <th className="px-2">Delivered</th>
@@ -274,6 +285,14 @@ export function ReviewPanel({
                         <span className="ml-1 rounded bg-success-bg px-1.5 text-tiny text-success-text">
                           recommended
                         </span>
+                      )}
+                      {isSendTime && windowOf(a.variantId) && (
+                        <div
+                          className="text-tiny font-normal text-muted"
+                          data-testid="arm-window"
+                        >
+                          {windowOf(a.variantId)}
+                        </div>
                       )}
                     </td>
                     <td className="px-2"><Num r={current} n={c.assigned}>{c.assigned}</Num></td>

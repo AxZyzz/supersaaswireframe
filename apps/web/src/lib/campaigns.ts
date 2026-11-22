@@ -10,6 +10,49 @@ export type CampaignStatus =
 
 export type StepCondition = "always" | "opened_no_reply" | "not_opened";
 
+/**
+ * When a campaign may send (Learning Loop T17): ISO weekdays (1 = Monday ...
+ * 7 = Sunday), whole hours (end is exclusive, no overnight windows), read on the
+ * recipient's clock (the workspace's when we don't know theirs) or the workspace's.
+ */
+export interface SendWindow {
+  days: number[];
+  startHour: number;
+  endHour: number;
+  tzBasis: "recipient" | "workspace";
+}
+
+export const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+
+const hh = (h: number) => `${String(h).padStart(2, "0")}:00`;
+
+/** "Tue-Thu 09:00-11:00 (recipient time)": same words as the API's history and Review. */
+export function describeSendWindow(w: SendWindow): string {
+  const days = [...w.days].sort((a, b) => a - b);
+  const runs: string[] = [];
+  let i = 0;
+  while (i < days.length) {
+    let j = i;
+    while (j + 1 < days.length && days[j + 1] === days[j] + 1) j++;
+    runs.push(
+      j - i >= 2
+        ? `${DAY_NAMES[days[i] - 1]}-${DAY_NAMES[days[j] - 1]}`
+        : days
+            .slice(i, j + 1)
+            .map((d) => DAY_NAMES[d - 1])
+            .join(", "),
+    );
+    i = j + 1;
+  }
+  return `${runs.join(", ")} ${hh(w.startHour)}-${hh(w.endHour)} (${w.tzBasis} time)`;
+}
+
+export const sameSendWindow = (a: SendWindow, b: SendWindow) =>
+  a.startHour === b.startHour &&
+  a.endHour === b.endHour &&
+  a.tzBasis === b.tzBasis &&
+  [...a.days].sort().join() === [...b.days].sort().join();
+
 export interface Campaign {
   id: string;
   name: string;
@@ -17,6 +60,8 @@ export interface Campaign {
   segment_id: string | null;
   offer_id: string | null;
   sender_ids: string[];
+  /** T17: null = no window, the campaign sends whenever a step is due. */
+  send_window: SendWindow | null;
   scheduled_at: string | null;
   started_at: string | null;
   archived_at: string | null;
@@ -67,6 +112,8 @@ export const updateCampaign = (
     segmentId: string | null;
     offerId: string | null;
     senderIds: string[];
+    /** null clears the window. */
+    sendWindow: SendWindow | null;
   }>,
 ) => api<Campaign>(`/campaigns/${id}`, {
   method: "PATCH",
@@ -148,6 +195,8 @@ export interface ExperimentVariant {
   template_version: number;
   is_control: boolean;
   status: "draft" | "active" | "paused";
+  /** T17: this arm's send window in a send-time test; null for subject tests. */
+  send_window: SendWindow | null;
   assigned_companies?: number;
   sent_count?: number;
 }
@@ -156,7 +205,8 @@ export interface Experiment {
   id: string;
   campaign_id: string;
   step_id: string;
-  kind: string;
+  /** 'subject' (T02) or 'send_time' (T17). */
+  kind: "subject" | "send_time";
   status: "draft" | "running" | "decided" | "stopped";
   unit: string;
   primary_metric: string;
@@ -182,7 +232,10 @@ export const createCampaignExperiment = (
   campaignId: string,
   body: {
     stepId?: string;
-    variants: { label?: string; subject: string }[];
+    /** 'subject' (default) takes `variants`; 'send_time' takes `windows`. */
+    kind?: "subject" | "send_time";
+    variants?: { label?: string; subject: string }[];
+    windows?: { label?: string; window: SendWindow }[];
     primaryMetric?: "qualified_reply" | "booked_call";
     secondaryMetric?: "booked_call" | "qualified_reply";
     baselineRate?: number;
@@ -201,6 +254,7 @@ export const updateExperiment = (
   id: string,
   body: Partial<{
     variants: { label?: string; subject: string }[];
+    windows: { label?: string; window: SendWindow }[];
     baselineRate: number;
     minLiftPp: number;
     targetNPerArm: number | null;

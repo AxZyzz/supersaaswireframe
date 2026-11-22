@@ -346,8 +346,8 @@ function ChallengerDrawer({
 
 const when = (iso: string) => new Date(iso).toLocaleString();
 
-function describe(h: ActionRecord): string {
-  const v = h.payload.variantLabel ? `version ${h.payload.variantLabel}` : "a version";
+function describe(h: ActionRecord, noun = "version"): string {
+  const v = h.payload.variantLabel ? `${noun} ${h.payload.variantLabel}` : `a ${noun}`;
   const undo = h.revertsActionId ? " (undo)" : "";
   switch (h.type) {
     case "keep_testing":
@@ -417,8 +417,11 @@ export function ReviewActions({
     return [...out].map(([variantId, label]) => ({ variantId, label }));
   }, [history, review.experimentId]);
 
+  // T17: a send-time test has send windows, not versions of the copy
+  const sendTime = review.experiment?.kind === "send_time";
+  const noun = sendTime ? "send window" : "version";
   const armLabel = (id?: string) =>
-    review.result.arms.find((a) => a.variantId === id)?.label ?? "this version";
+    review.result.arms.find((a) => a.variantId === id)?.label ?? `this ${noun}`;
   const armCompanies = (id?: string) =>
     review.inputs.arms.find((a) => a.variantId === id)?.assigned ?? 0;
 
@@ -492,7 +495,7 @@ export function ReviewActions({
             Review a challenger
           </button>
         )}
-        {showButtons && review.result.decision === "promote" && paused.length > 0 && (
+        {showButtons && !sendTime && review.result.decision === "promote" && paused.length > 0 && (
           // T14: the promotion was approved (the loser is paused): keep what was learned
           <button
             onClick={() => setSavePlaybook(true)}
@@ -524,7 +527,7 @@ export function ReviewActions({
             {history.map((h) => (
               <li key={h.id} className="flex flex-wrap items-baseline gap-x-2 text-sm">
                 <span className={h.status === "reverted" ? "text-faint line-through" : "text-ink"}>
-                  {describe(h)}
+                  {describe(h, noun)}
                 </span>
                 {h.status === "reverted" && <span className="text-tiny text-faint">undone</span>}
                 <span className="text-tiny text-muted">
@@ -586,13 +589,13 @@ export function ReviewActions({
 
       {dialog?.kind === "pause" && (
         <ConfirmDialog
-          title={`Pause version ${dialog.label}`}
+          title={`Pause ${noun} ${dialog.label}`}
           confirmLabel={`Pause ${dialog.label}`}
           reasonLabel="Why? (shown in the history)"
           onClose={() => setDialog(null)}
           body={
             <p>
-              Version <strong>{dialog.label}</strong> stops being used for <strong>new</strong>{" "}
+              {sendTime ? "Send window" : "Version"} <strong>{dialog.label}</strong> stops being used for <strong>new</strong>{" "}
               companies from now. {dialog.companies} companies already on {dialog.label} keep it.
               History is kept. You can resume any time.
             </p>
@@ -607,20 +610,20 @@ export function ReviewActions({
             } catch (e) {
               stale(e);
             }
-            await afterChange(`Version ${dialog.label} paused for new companies.`);
+            await afterChange(`${sendTime ? "Send window" : "Version"} ${dialog.label} paused for new companies.`);
           }}
         />
       )}
 
       {dialog?.kind === "resume" && (
         <ConfirmDialog
-          title={`Resume version ${dialog.label}`}
+          title={`Resume ${noun} ${dialog.label}`}
           confirmLabel={`Resume ${dialog.label}`}
           onClose={() => setDialog(null)}
           body={
             <p>
-              Version <strong>{dialog.label}</strong> can be given to new companies again from now.
-              Companies already assigned keep the version they have.
+              {sendTime ? "Send window" : "Version"} <strong>{dialog.label}</strong> can be given to new companies again from now.
+              Companies already assigned keep the {noun} they have.
             </p>
           }
           run={async (_reason, key) => {
@@ -632,7 +635,7 @@ export function ReviewActions({
             } catch (e) {
               stale(e);
             }
-            await afterChange(`Version ${dialog.label} resumed.`);
+            await afterChange(`${sendTime ? "Send window" : "Version"} ${dialog.label} resumed.`);
           }}
         />
       )}
@@ -646,8 +649,8 @@ export function ReviewActions({
           onClose={() => setDialog(null)}
           body={
             <p>
-              This undoes “{describe(dialog.record)}” for new companies. Companies already assigned
-              keep their version.
+              This undoes “{describe(dialog.record, noun)}” for new companies. Companies already assigned
+              keep their {noun}.
             </p>
           }
           run={async (reason, key) => {
