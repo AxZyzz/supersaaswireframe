@@ -15,8 +15,7 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ### 2026-11-22 — Learning Loop T16: Google Calendar booked calls + Looker Studio dashboard
 
-Built on `ll/T16` from `google-stack` `087f24b` (11 commits `3deb097`..`4ffe527` plus a docs commit, about 40 files). **Pushed and merged into `google-stack` (fast-forward, 2026-11-23, `24abd25`); not deployed.
-No Google Cloud command was run.** Aman asked for T16 after T14 (order: T07, T14, T16, one at a time); T15 was left out on purpose (it needs the
+Built on `ll/T16` from `google-stack` `087f24b` (11 commits `3deb097`..`4ffe527` plus a docs commit, about 40 files). **Pushed and merged into `google-stack` (fast-forward, 2026-11-23, `24abd25`); **deployed 2026-11-23: API `supersaas-api-00024-p66`, web `supersaas-web-00014-vbx`, migration `0061` on Cloud SQL, Calendar API enabled.** Aman asked for T16 after T14 (order: T07, T14, T16, one at a time); T15 was left out on purpose (it needs the
 agents deployed to Agent Engine first and is optional). Plan shown first, approved with "Go, defaults ok".
 
 - **Part A, what it does:** a manager or admin connects a Google Calendar (Settings > Integrations, optional, read-only `calendar.events.readonly`).
@@ -57,12 +56,18 @@ agents deployed to Agent Engine first and is optional). Plan shown first, approv
 - **Local-only, left tidy:** the local servers are stopped, a throwaway workspace ("T16 UI Co") remains in the local dev database, and two preview entries
   (`supersaas-api-t16`, `supersaas-web-t16`) were added to the vault's `.claude/launch.json` (not in git). `nest start --watch` ran out of memory while compiling,
   so the local API was run from the build instead.
-- **Not done / not verified:** nothing deployed; the Calendar API is not enabled in the project and migration `0061` is not on Cloud SQL; the demo
+- **Not done / not verified:** no real Google Calendar has been connected in production yet (the consent-screen scope and test user are Aman's console steps, then a real booking); the first
+  production tick of `calendar-sync` (15 minutes after the revision started) was not watched; the Settings card was not looked at on the live site (it needs a login); the demo
   dataset and views do not exist in BigQuery yet; the dashboard is not built (it is Aman's to build from the guide); no real Google OAuth consent was run, so the
   consent-screen flag for the scope and the 7-day Testing-mode token expiry are from Google's documentation, not observed.
 
-**Cloud steps (each explained and run only on Aman's go; project `supersaas-513613`):** (1) `gcloud services enable calendar-json.googleapis.com` (free);
-(2) migration `0061` on Cloud SQL (migrate job; no core-lane chat may be running); (3) deploy API + web; (4) Aman: add the scope on the consent screen and the calendar
+**Cloud steps (each explained and run only on Aman's go; project `supersaas-513613`):** (1) **DONE 2026-11-23** `gcloud services enable calendar-json.googleapis.com` (free, state ENABLED);
+(2) **DONE 2026-11-23** migration `0061` on Cloud SQL: no other session was running (all sessions idle); API image built on Cloud Build from `google-stack` `bee86ea` (`api:t16-bee86ea`, 5 min, free tier);
+`gcloud run jobs update supersaas-migrate --image=...api:t16-bee86ea` (was `api:t14-b78aa93`; **it stays on the new image**), then `gcloud run jobs execute supersaas-migrate --wait` -> execution
+`supersaas-migrate-ttk2p`, "migrations applied", exit 0; (3) **DONE 2026-11-23** deploy: `gcloud run services update supersaas-api --image=...api:t16-bee86ea` -> `supersaas-api-00024-p66`
+(rollback `00023-zpm`); web built with `deploy/cloudbuild-web.yaml` (`web:t16-bee86ea`, 2.5 min, free tier) -> `supersaas-web-00014-vbx` (rollback `00013-4jq`). Checked: `/health/ready` 200 (db and redis true),
+through the web proxy 200, `GET /integrations` and `GET /operator/learning-dashboard` 401 without a token, the two Calendar routes mapped, the tick list shows `calendar-sync/900s`, no errors (the only warnings were
+my own unauthenticated probes); (4) Aman: add the scope on the consent screen and the calendar
 account as a test user, Connect Google Calendar, make a test booking with an address that has received one of our emails; (5)
 `PROJECT=supersaas-513613 DEMO_ORG_ID=<demo workspace id> infra/bigquery/apply-demo.sh` (creates `expelly_demo`, free); (6) Aman builds the Looker Studio dashboard from
 `docs/LOOKER-STUDIO.md`; (7) set `LOOKER_DASHBOARD_URL` on the API.

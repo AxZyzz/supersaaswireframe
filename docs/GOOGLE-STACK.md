@@ -492,7 +492,7 @@ deletes its rows. It touches no real workspace and no Postgres.
 index** once. Off: `PLAYBOOK_SEARCH=postgres`.
 
 
-## Phase 6: Google Calendar booked calls and the Looker Studio dashboard (T16; code done, cloud steps listed below)
+## Phase 6: Google Calendar booked calls and the Looker Studio dashboard (T16; code merged, Calendar API on, migration `0061` and deploy (API 00024, web 00014) done 2026-11-23; the dashboard views, consent-screen steps and a real test booking still to do)
 
 Two small, independent pieces. Part A turns a meeting with a lead into a verified "booked call" automatically. Part B is a shareable
 Looker Studio dashboard on the T07 BigQuery views.
