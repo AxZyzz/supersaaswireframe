@@ -149,6 +149,14 @@
 | `POST /outcomes/:id/verify` | login | ✅ | ✅ | ✅ |
 | `GET /outcomes/history/:conversationId` | login | ✅ | ✅ | ✅ |
 | `GET /outcomes/unattributed` | login | ✅ | ✅ | ✅ |
+| `GET /playbooks` | login | ✅ | ✅ | ✅ |
+| `POST /playbooks` | login | ✅ | ✅ | ⛔ |
+| `GET /playbooks/:id` | login | ✅ | ✅ | ✅ |
+| `PATCH /playbooks/:id` | login | ✅ | ✅ | ⛔ |
+| `POST /playbooks/:id/retire` | login | ✅ | ✅ | ⛔ |
+| `GET /playbooks/:id/versions` | login | ✅ | ✅ | ✅ |
+| `POST /playbooks/draft` | login | ✅ | ✅ | ⛔ |
+| `POST /playbooks/reindex` | login | ✅ | ⛔ | ⛔ |
 | `POST /prospects/add-to-leads` | login | ✅ | ✅ | ⛔ |
 | `GET /prospects/runs` | login | ✅ | ✅ | ✅ |
 | `POST /prospects/runs` | login | ✅ | ✅ | ⛔ |
