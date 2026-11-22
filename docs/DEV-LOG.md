@@ -15,8 +15,8 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ### 2026-11-22 — Learning Loop T07: BigQuery learning plane, Datastream, Knowledge Catalog
 
-Built on `ll/T07` from `google-stack` `3d10fd0` (9 commits `78f6896`..`fd1c98b`). **Pushed, not merged, not deployed.** The cloud
-pipeline is live; `INSIGHTS_SOURCE` stays `postgres` in production until Aman says to flip it.
+Built on `ll/T07` from `google-stack` `3d10fd0` (9 commits `78f6896`..`fd1c98b`). **Pushed, merged into `google-stack` (`2d187e4`) and deployed.** The cloud
+pipeline is live and production Insights reads BigQuery since 2026-11-22 (see the end of this entry).
 
 - **Pipeline (project `supersaas-513613`, `asia-south1`):** APIs on (Datastream, BigQuery, Data Lineage, Dataplex); datasets `expelly_raw`
   (locked: only Datastream writes it, only the `expelly_learning` views read it, the API's service account cannot) and `expelly_learning`;
@@ -52,8 +52,20 @@ pipeline is live; `INSIGHTS_SOURCE` stays `postgres` in production until Aman sa
   `5fc942ef…` matches Postgres on every count (only `subject_length`, expected, differs); `factor_funnel` spot-checks (city, industry, country) match.
   Workspaces `e205a201…` (1 of 5 sends) and `884e7326…` (6 of 6) differ because those enrollments have no snapshot and the BigQuery copy has no
   leads table: known and documented, new enrollments are fine.
-- **Checks:** see the final report. Cost: Datastream bills per GB (cents to a few dollars a month); BigQuery in the free tier; Cloud Build free
-  tier. **Not done:** lineage screenshot (needs a Google sign-in in the browser pane), push, merge, deploy, flipping `INSIGHTS_SOURCE`.
+- **Checks:** lint and builds clean; API suite 795 pass, 1 fail (the Gemini spec, which calls the network when a Gemini key is in `.env`; it fails the same
+  on the base tree). Cost: Datastream bills per GB (cents to a few dollars a month); BigQuery in the free tier (one Insights page load scans about
+  125 MB; results are cached 10 minutes); Cloud Build free tier.
+- **Landing and deploy (2026-11-22, each step on Aman's go):** pushed `ll/T07`, fast-forwarded `google-stack` `3d10fd0` -> `2d187e4`; API image
+  `api:t07-d529394` -> revision `supersaas-api-00020-7tz` (rollback `00019-75k`); web image `web:t07-2d187e4` -> `supersaas-web-00012-22x`
+  (rollback `00011-h6x`); then `INSIGHTS_SOURCE=bigquery` -> API revision `supersaas-api-00021-8nh`. Checked live by Aman's login: Review > Insights
+  shows "Data as of 22 Nov 2026, 17:13 (BigQuery copy of the database...)", 4 companies reached, 1 replied, reply step "step 1" (the first-step fix
+  works on real data); the API's service account ran 2 BigQuery jobs for that page load (42 MB + 84 MB billed, under 1.1 s, no errors) and no
+  "bigquery failed" fallback warning was logged.
+- **Lineage:** screenshot of the Knowledge Catalog Lineage tab saved as `docs/architecture/t07-lineage-factor-funnel.jpg`
+  (`public_outcome_events` -> `outcomes_current` -> `company_reach` -> `factor_funnel`, plus the other raw tables feeding `company_reach`).
+- **Still open:** `review_history` and `search_policy_compare` (and 5 glossary links) wait for the first row in `reviews` / `search_preferences`:
+  run `infra/bigquery/apply.sh` and `glossary.js` again then.
+
 
 ### 2026-11-21 — Learning Loop T10: Discover as an ADK agent with a typed contract
 

@@ -125,6 +125,7 @@ Descriptions on every view and column are part of the view SQL.
 showed up within minutes). Chain recorded 2026-11-22:
 `expelly_raw.public_outcome_events` -> `outcomes_current` -> `company_reach` -> `factor_funnel`, plus the raw tables each view reads.
 Open it in the console: Knowledge Catalog -> search `factor_funnel` -> Lineage tab (or BigQuery Studio -> the view -> Lineage).
+Screenshot: `docs/architecture/t07-lineage-factor-funnel.jpg`.
 
 ## What is live (2026-11-22)
 
@@ -133,6 +134,6 @@ Open it in the console: Knowledge Catalog -> search `factor_funnel` -> Lineage t
   `public_search_preferences` do not exist yet (production has none of those rows). `apply.sh` skips the two views that need them
   (`review_history`, `search_policy_compare`); run it again later.
 - 8 of the 10 view files applied. Row counts on 2026-11-22: 4 workspaces, 18 sent emails, 7 campaigns, 39 outcome events.
-- `INSIGHTS_SOURCE` is still `postgres` in production. Nothing reads BigQuery yet.
+- `INSIGHTS_SOURCE=bigquery` in production since 2026-11-22 (API revision 00021); Postgres answers if BigQuery fails.
 - Known gap: a workspace whose enrollments were made before snapshots existed (T02) has sends but no company key in BigQuery
   (the Postgres source falls back to the leads table, which is not copied). New enrollments are fine.
