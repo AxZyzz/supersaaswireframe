@@ -137,3 +137,11 @@ Screenshot: `docs/architecture/t07-lineage-factor-funnel.jpg`.
 - `INSIGHTS_SOURCE=bigquery` in production since 2026-11-22 (API revision 00021); Postgres answers if BigQuery fails.
 - Known gap: a workspace whose enrollments were made before snapshots existed (T02) has sends but no company key in BigQuery
   (the Postgres source falls back to the leads table, which is not copied). New enrollments are fine.
+
+## Playbook vectors (Learning Loop T14)
+
+Separate from everything above: dataset `expelly_memory` (`asia-south1`) holds one table, `playbook_vectors` (ids, offer, expiry and the vector; no text).
+It is written by the API, which is why it is not in `expelly_learning` (views only, read-only to the API). DDL: `playbooks.sql`. Playbooks are NOT in `replication-set.json`.
+
+- Created 2026-11-22: dataset, empty table, and `WRITER` for `supersaas-run@supersaas-513613.iam.gserviceaccount.com` on this dataset only (dataset ACL edited with `bq show` then `bq update --source`, as for `expelly_learning`).
+- Still to do: enable Vertex AI and `roles/aiplatform.user`, run `npm run playbooks:smoke` as a temporary Cloud Run job, then `PLAYBOOK_SEARCH=bigquery`. Details: `docs/GOOGLE-STACK.md` Phase 5.

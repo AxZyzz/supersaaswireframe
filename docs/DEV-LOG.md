@@ -15,8 +15,8 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ### 2026-11-22 — Learning Loop T14: playbook memory (approved learnings, versioned, found by vector search)
 
-Built on `ll/T14` from `google-stack` `353da81` (9 commits `d157918`..`53de71b`, 54 files). **Not pushed, not merged. No Google Cloud command has
-been run for T14 yet** (see "Cloud steps" at the end). Migration `0060` is applied on the local database only.
+Built on `ll/T14` from `google-stack` `353da81` (9 commits `d157918`..`53de71b`, 54 files). **Not pushed, not merged.** Cloud steps 1 and 2 ran on 2026-11-22 on
+Aman's go (empty dataset and table, one grant); the rest are still to do (see "Cloud steps" at the end). Migration `0060` is applied on the local database only.
 
 - **What it does:** after a promoted test's losing version is paused (Review) or on an active or expired search preference (Discover), a manager
   can **Save as playbook**: offer + segment + plain-words text + evidence + validity + version. Next Discover plans and challenger drafts get the
@@ -55,11 +55,13 @@ been run for T14 yet** (see "Cloud steps" at the end). Migration `0060` is appli
   of the repo); Python 38 pass; API suite: **858 pass, 1 skipped, 1 fail**: the Gemini provider spec (calls the network when a Gemini key is in `.env`;
   it fails the same on the base tree). In the full run `templates.integration` hit its 5 s `beforeAll` timeout because the machine was busy with a web build;
   it passes alone (7/7). New tests: 60 for playbooks (retrieval, text gate, roles, RLS, versions, tenant isolation, wiring), plus contract and authz.
-- **Not done / not verified:** the real embeddings + `VECTOR_SEARCH` smoke run (acceptance 2, second half) and the BigQuery table do not exist yet; the migration
-  is not on Cloud SQL; nothing deployed.
+- **Not done / not verified:** the real embeddings + `VECTOR_SEARCH` smoke run (acceptance 2, second half) has not run (the table exists but is empty, and Vertex
+  is not enabled yet); the migration is not on Cloud SQL; nothing deployed.
 
-**Cloud steps (each explained and run only on Aman's go):** (1) create dataset `expelly_memory` (`asia-south1`) and the table from
-`infra/bigquery/playbooks.sql`; (2) give the API's service account `roles/bigquery.dataEditor` on that dataset only; (3) enable `aiplatform.googleapis.com` and
+**Cloud steps (each explained and run only on Aman's go; project `supersaas-513613`):** (1) **DONE 2026-11-22** `bq mk` dataset `expelly_memory`
+(`asia-south1`) and the table `playbook_vectors` from `infra/bigquery/playbooks.sql` (7 columns, `embedding` is a repeated FLOAT, empty); (2) **DONE 2026-11-22**
+dataset access edited (`bq show` -> add `WRITER` for `supersaas-run@supersaas-513613.iam.gserviceaccount.com` -> `bq update --source`): this dataset only, no
+project-level change (no `bq add-iam-policy-binding` on this project); (3) enable `aiplatform.googleapis.com` and
 give `roles/aiplatform.user`; (4) run the smoke script as a temporary Cloud Run job (`npm run playbooks:smoke`), delete the job; (5) run migration
 `0060` on Cloud SQL (migrate job; no core-lane chat may be running); (6) deploy API + web; (7) `PLAYBOOK_SEARCH=bigquery` only on a separate go.
 
