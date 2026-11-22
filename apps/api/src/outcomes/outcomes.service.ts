@@ -35,6 +35,11 @@ export interface OutcomeInput {
   reason?: string | null;
   /** Force "unattributed" (ambiguous thread): keep the lead, drop the enrollment. */
   unattributed?: boolean;
+  /**
+   * Verified by a system fact, not a person (a calendar booking): stamps
+   * verified_at while verified_by stays empty.
+   */
+  autoVerified?: boolean;
 }
 
 export interface OutcomeRow {
@@ -211,7 +216,7 @@ export class OutcomesService {
             verification, occurred_at, created_by, verified_by, verified_at,
             reason, idempotency_key)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,COALESCE($12, now()),$13,$14,
-                 CASE WHEN $14::uuid IS NULL THEN NULL ELSE now() END,$15,$16)
+                 CASE WHEN $14::uuid IS NULL AND NOT $17::boolean THEN NULL ELSE now() END,$15,$16)
          ON CONFLICT (org_id, idempotency_key) DO NOTHING
          RETURNING id`,
         [
@@ -231,6 +236,7 @@ export class OutcomesService {
           e.verifiedBy ?? null,
           e.reason ?? null,
           e.idempotencyKey,
+          !!e.autoVerified,
         ],
       );
       await c.query('RELEASE SAVEPOINT outcome_sp');
@@ -311,6 +317,8 @@ export class OutcomesService {
       reason: string | null;
       userId: string | null;
       key: string;
+      /** Who made the correction. A person ('manual') unless a system fact did. */
+      source?: OutcomeSource;
     },
   ): Promise<OutcomeRow> {
     const ins = await c.query<OutcomeRow>(
@@ -319,7 +327,7 @@ export class OutcomesService {
           variant_id, conversation_id, sent_email_id, type, source,
           verification, occurred_at, created_by, verified_by, verified_at,
           reason, supersedes_id, idempotency_key)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'manual',$10,$11,$12,$12,now(),$13,$14,$15)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$16,$10,$11,$12,$12,now(),$13,$14,$15)
        ON CONFLICT (org_id, idempotency_key) DO NOTHING
        RETURNING ${COLS}`,
       [
@@ -338,6 +346,7 @@ export class OutcomesService {
         s.reason,
         prev.id,
         s.key,
+        s.source ?? 'manual',
       ],
     );
     if (ins.rows[0]) return ins.rows[0];
@@ -346,6 +355,36 @@ export class OutcomesService {
       [s.key],
     );
     return again.rows[0];
+  }
+
+  /**
+   * A calendar event we booked an outcome for was cancelled: add a superseding
+   * `rejected` row (source calendar). Found by the booking's idempotency key,
+   * since Google sends no attendees for a cancelled event. Idempotent, and a
+   * no-op when the booking was never recorded or is already settled as rejected.
+   */
+  async recordCalendarCancel(
+    c: PoolClient,
+    orgId: string,
+    bookedKey: string,
+    cancelKey: string,
+  ): Promise<boolean> {
+    const head = await c.query<OutcomeRow>(
+      `SELECT ${COLS} FROM outcome_events o
+        WHERE o.idempotency_key = $1
+          AND NOT EXISTS (SELECT 1 FROM outcome_events s WHERE s.supersedes_id = o.id)`,
+      [bookedKey],
+    );
+    const row = head.rows[0];
+    if (!row || row.verification === 'rejected') return false;
+    await this.supersede(c, orgId, row, {
+      verification: 'rejected',
+      reason: 'The calendar event was cancelled',
+      userId: null,
+      key: cancelKey,
+      source: 'calendar',
+    });
+    return true;
   }
 
   // ── people ───────────────────────────────────────────────────────────────
