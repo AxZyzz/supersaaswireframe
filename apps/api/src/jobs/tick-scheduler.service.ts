@@ -10,6 +10,7 @@ import { randomUUID } from 'crypto';
 import Redis from 'ioredis';
 import { WeeklySummaryService } from '../analytics/weekly-summary.service';
 import { GmailReplySyncService } from '../inbox/gmail-reply-sync.service';
+import { CalendarSyncService } from '../integrations/calendar-sync.service';
 import { SheetsService } from '../integrations/sheets.service';
 import { NotificationEmailService } from '../notifications/notification-email.service';
 import { WeeklyReviewService } from '../internal/weekly-review.service';
@@ -35,7 +36,7 @@ interface Tick {
 
 /**
  * Runs the repeating work (send loop, notification emails, Gmail reply sync,
- * Sheets sync, Monday summary) from in-process timers instead of BullMQ
+ * Sheets sync, Calendar sync, Monday summary) from in-process timers instead of BullMQ
  * repeatable jobs.
  *
  * Why: Redis is metered (Upstash bills per command). A queue that holds a
@@ -78,6 +79,7 @@ export class TickSchedulerService
     private readonly searchPrefs: SearchPreferencesService,
     private readonly weeklyReview: WeeklyReviewService,
     private readonly loopHealth: LoopHealthService,
+    private readonly calendarSync: CalendarSyncService,
   ) {}
 
   private enabled(t: Pick<Tick, 'group' | 'cronOwned'>): boolean {
@@ -113,6 +115,14 @@ export class TickSchedulerService
         everyMs: 15 * 60_000,
         group: 'jobs',
         run: () => this.sheets.runDue(),
+      },
+      {
+        // Google Calendar booked calls (T16): read changed events of every
+        // connected calendar. In-process like the other syncs (the API is always on).
+        name: 'calendar-sync',
+        everyMs: 15 * 60_000,
+        group: 'jobs',
+        run: () => this.calendarSync.runDue(),
       },
       {
         // search preferences: expire the overdue ones, switch off unsafe ones
