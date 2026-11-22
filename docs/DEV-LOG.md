@@ -15,8 +15,8 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ### 2026-11-22 — Learning Loop T14: playbook memory (approved learnings, versioned, found by vector search)
 
-Built on `ll/T14` from `google-stack` `353da81` (13 commits `d157918`..`b78aa93`, 58 files). **Not pushed, not merged.** Cloud steps 1 to 4 ran on 2026-11-22 on
-Aman's go (dataset, table, one dataset grant, Vertex on, **real smoke run passed**); migration, deploy and the switch are still to do (see "Cloud steps" at the end). Migration `0060` is applied on the local database only.
+Built on `ll/T14` from `google-stack` `353da81` (13 commits `d157918`..`b78aa93`, 58 files). **Not pushed, not merged.** Cloud steps 1 to 5 ran on 2026-11-22 on
+Aman's go (dataset, table, one dataset grant, Vertex on, **real smoke run passed**, **migration `0060` applied on Cloud SQL**); deploy and the switch are still to do (see "Cloud steps" at the end). Migration `0060` is applied locally and on Cloud SQL.
 
 - **What it does:** after a promoted test's losing version is paused (Review) or on an active or expired search preference (Discover), a manager
   can **Save as playbook**: offer + segment + plain-words text + evidence + validity + version. Next Discover plans and challenger drafts get the
@@ -64,7 +64,8 @@ Aman's go (dataset, table, one dataset grant, Vertex on, **real smoke run passed
 - **Bug the real run found (the Jest fake client could not):** the first run (image `t14-7f80829`) failed with `Required field valid_to cannot be null`. The BigQuery client reads
   `.value` of a TIMESTAMP parameter, so an ISO string reached BigQuery as NULL. Fixed by passing a `Date` (`b78aa93`), plus a test that runs every upsert parameter through the
   real client's conversion. Second run: pass.
-- **Not done / not verified:** the migration is not on Cloud SQL; nothing deployed; `PLAYBOOK_SEARCH` is still `postgres` in production, so no real playbook has been
+- **Not done / not verified:** the migration job succeeded (`migrations applied`, exit 0) but nothing has read the new table in production yet (the first read
+  will be the Playbooks page after deploy; grants come from the default privileges set in `0002`, as for every table); nothing deployed; `PLAYBOOK_SEARCH` is still `postgres` in production, so no real playbook has been
   embedded or searched there yet.
 
 **Cloud steps (each explained and run only on Aman's go; project `supersaas-513613`):** (1) **DONE 2026-11-22** `bq mk` dataset `expelly_memory`
@@ -73,8 +74,9 @@ dataset access edited (`bq show` -> add `WRITER` for `supersaas-run@supersaas-51
 project-level change (no `bq add-iam-policy-binding` on this project); (3) **DONE 2026-11-22** `gcloud services enable aiplatform.googleapis.com` and `roles/aiplatform.user` for
 `supersaas-run@...` at project level (its roles before: bigquery.jobUser, cloudsql.client, cloudtrace.agent, modelarmor.user, secretmanager.secretAccessor; undo: remove
 that one binding, then `gcloud services disable aiplatform.googleapis.com`); (4) **DONE 2026-11-22** build (`gcloud builds submit`, 4 to 5 min, free tier; images `api:t14-7f80829` then `api:t14-b78aa93`), run the smoke script as a temporary
-Cloud Run job, read its log, delete the job (passed on the second run, see above); (5) run migration
-`0060` on Cloud SQL (migrate job; no core-lane chat may be running); (6) deploy API + web; (7) `PLAYBOOK_SEARCH=bigquery` only on a separate go.
+Cloud Run job, read its log, delete the job (passed on the second run, see above); (5) **DONE 2026-11-22** migration
+`0060` on Cloud SQL: no other session was running; `gcloud run jobs update supersaas-migrate --image=...api:t14-b78aa93` (was `api:8bb0c3a`; **it stays on the new image**),
+then `gcloud run jobs execute supersaas-migrate --wait` -> execution `supersaas-migrate-ztr2p`, log "migrations applied", exit 0, a few seconds; (6) deploy API + web; (7) `PLAYBOOK_SEARCH=bigquery` only on a separate go.
 
 
 ### 2026-11-22 — Learning Loop T07: BigQuery learning plane, Datastream, Knowledge Catalog

@@ -147,4 +147,5 @@ It is written by the API, which is why it is not in `expelly_learning` (views on
 - Vertex AI API enabled and `roles/aiplatform.user` granted to the same service account (project level) on 2026-11-22.
 - Real smoke run passed on 2026-11-22 (temporary Cloud Run job `playbook-smoke`, deleted; the table is empty again): right workspace, right offer, unexpired only, removal works.
   It found a bug the Jest fake could not (a TIMESTAMP parameter must be a `Date`), fixed in `b78aa93`.
-- Still to do: migration `0060` on Cloud SQL, deploy, then `PLAYBOOK_SEARCH=bigquery`. Details: `docs/GOOGLE-STACK.md` Phase 5.
+- Migration `0060` applied on Cloud SQL on 2026-11-22 (migrate job, now on image `api:t14-b78aa93`).
+- Still to do: deploy, then `PLAYBOOK_SEARCH=bigquery`. Details: `docs/GOOGLE-STACK.md` Phase 5.

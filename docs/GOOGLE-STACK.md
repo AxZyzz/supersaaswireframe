@@ -419,7 +419,7 @@ Setup steps, commands and the exact state: `infra/bigquery/README.md`.
 
 ---
 
-## Phase 5: Playbook memory (T14; dataset, table, Vertex and the real smoke run done 2026-11-22; migration, deploy and the switch still to do)
+## Phase 5: Playbook memory (T14; dataset, table, Vertex and the real smoke run and migration `0060` done 2026-11-22; deploy and the switch still to do)
 
 **What it is.** A **playbook** is a lesson a person approved: "a short question as the subject beat a plain greeting for
 this offer" (kind `message`), or "Pune replied more for this offer" (kind `audience`). It is saved with the offer, the
