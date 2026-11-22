@@ -112,3 +112,27 @@ bq show --schema --format=prettyjson supersaas-513613:expelly_raw.public_sent_em
 # the numbers, compared with Postgres (needs the production database URL, see the script header)
 npm run bq:smoke -w apps/api -- --compare
 ```
+
+## Glossary and lineage (Knowledge Catalog)
+
+`PROJECT=supersaas-513613 node infra/bigquery/glossary.js` creates the **Expelly metrics** glossary (10 terms, definitions copied
+from the Campaign Review Build Brief) in `asia-south1` and links each term to the view columns it describes (for example
+*Qualified reply (verified)* to `company_reach.qualified_verified`). It only creates what is missing; links to a view that does not
+exist yet are skipped, so run it again after `apply.sh` creates `review_history` and `search_policy_compare`.
+Descriptions on every view and column are part of the view SQL.
+
+**Lineage** is recorded automatically because the Data Lineage API is on (Google says a job shows up within 24 hours; ours
+showed up within minutes). Chain recorded 2026-11-22:
+`expelly_raw.public_outcome_events` -> `outcomes_current` -> `company_reach` -> `factor_funnel`, plus the raw tables each view reads.
+Open it in the console: Knowledge Catalog -> search `factor_funnel` -> Lineage tab (or BigQuery Studio -> the view -> Lineage).
+
+## What is live (2026-11-22)
+
+- Datastream stream `expelly-learning-stream`: RUNNING, 17 tables backfilled with no errors, 15-minute freshness.
+  Datastream creates a table in `expelly_raw` on its first row, so `public_reviews`, `public_review_actions` and
+  `public_search_preferences` do not exist yet (production has none of those rows). `apply.sh` skips the two views that need them
+  (`review_history`, `search_policy_compare`); run it again later.
+- 8 of the 10 view files applied. Row counts on 2026-11-22: 4 workspaces, 18 sent emails, 7 campaigns, 39 outcome events.
+- `INSIGHTS_SOURCE` is still `postgres` in production. Nothing reads BigQuery yet.
+- Known gap: a workspace whose enrollments were made before snapshots existed (T02) has sends but no company key in BigQuery
+  (the Postgres source falls back to the leads table, which is not copied). New enrollments are fine.
