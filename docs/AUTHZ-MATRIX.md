@@ -80,6 +80,8 @@
 | `GET /inbox/unread-count` | login | ✅ | ✅ | ✅ |
 | `GET /insights` | login | ✅ | ✅ | ✅ |
 | `GET /integrations` | login | ✅ | ✅ | ✅ |
+| `DELETE /integrations/google-calendar` | login | ✅ | ✅ | ⛔ |
+| `POST /integrations/google-calendar/connect` | login | ✅ | ✅ | ⛔ |
 | `DELETE /integrations/google-sheets` | login | ✅ | ✅ | ⛔ |
 | `POST /integrations/google-sheets/connect` | login | ✅ | ✅ | ⛔ |
 | `POST /integrations/google-sheets/preview` | login | ✅ | ✅ | ⛔ |
