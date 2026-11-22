@@ -56,6 +56,8 @@ export function buildQueries(
   const view = (name: string) => `\`${cfg.project}.${cfg.dataset}.${name}\``;
   return {
     /**
+     * NOTE: an empty campaign list reaches BigQuery as a NULL array (ARRAY_LENGTH(NULL) is NULL, not 0),
+     * hence the COALESCE. Without it every row was filtered out (found by the prod compare, T07).
      * One row per company: its FIRST first-touch email across the campaigns in
      * scope. Same rule as the Postgres source (a company is counted once, by its
      * earliest step-1 send).
@@ -63,7 +65,7 @@ export function buildQueries(
     companies: `SELECT * FROM ${view('company_reach')}
 WHERE org_id = @org_id
   AND (@offer_id IS NULL OR offer_id = @offer_id)
-  AND (ARRAY_LENGTH(@campaign_ids) = 0 OR campaign_id IN UNNEST(@campaign_ids))
+  AND (COALESCE(ARRAY_LENGTH(@campaign_ids), 0) = 0 OR campaign_id IN UNNEST(@campaign_ids))
   AND (@from_ts IS NULL OR first_sent_at >= @from_ts)
   AND (@to_ts IS NULL OR first_sent_at < @to_ts)
 QUALIFY ROW_NUMBER() OVER (PARTITION BY company_key ORDER BY first_sent_at, campaign_id) = 1`,

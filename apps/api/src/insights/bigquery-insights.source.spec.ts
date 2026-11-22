@@ -241,6 +241,12 @@ describe('BigQueryInsightsSource (T07)', () => {
       expect(main.query).not.toContain('offer-9');
     });
 
+    it('treats an empty or NULL campaign list as "no campaign filter" (BigQuery turns an empty array parameter into NULL)', () => {
+      const sql = buildQueries(CFG).companies;
+      expect(sql).toContain('COALESCE(ARRAY_LENGTH(@campaign_ids), 0) = 0');
+      expect(sql).not.toMatch(/[^(]ARRAY_LENGTH\(@campaign_ids\) = 0/);
+    });
+
     it('sends empty filters as typed nulls / empty arrays, with a byte cap and the Mumbai location', async () => {
       const { bq, calls } = fakeBigQuery({});
       await new BigQueryInsightsSource(bq, side, CFG).all(q);
