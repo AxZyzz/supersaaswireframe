@@ -421,6 +421,13 @@
       "when": 1785604500000,
       "tag": "0059_cron_runs",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1785604560000,
+      "tag": "0060_playbooks",
+      "breakpoints": true
     }
   ]
 }

@@ -1369,6 +1369,10 @@ export const challengerDrafts = pgTable(
       .references(() => experiments.id, { onDelete: 'cascade' }),
     subject: text('subject').notNull(),
     source: text('source').notNull().default('template'),
+    // Learning Loop T14: the playbooks this draft was written with ("Used 1 playbook").
+    playbookIds: jsonb('playbook_ids')
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     createdBy: uuid('created_by').references(() => users.id, {
       onDelete: 'set null',
     }),
@@ -1477,5 +1481,54 @@ export const cronRuns = pgTable(
   },
   (t) => [
     uniqueIndex('cron_runs_org_job_period_idx').on(t.orgId, t.job, t.period),
+  ],
+);
+
+// ── Learning Loop T14: playbook memory ───────────────────────────────────
+// An approved learning (what worked, for which offer and segment) with its
+// evidence and validity dates. Editing inserts a new version (supersedes_id);
+// old versions stay. Only status 'active' rows are retrieved. The vector copy
+// lives in BigQuery (expelly_memory.playbook_vectors); the text stays here.
+// (The unique indexes on (supersedes_id) and (org, offer, lower(title)) for
+// active rows are in migration 0060.)
+export const playbooks = pgTable(
+  'playbooks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    offerId: uuid('offer_id')
+      .notNull()
+      .references(() => offers.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    segment: jsonb('segment'),
+    title: text('title').notNull(),
+    body: text('body').notNull(),
+    evidence: jsonb('evidence').notNull(),
+    validFrom: timestamp('valid_from', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    validTo: timestamp('valid_to', { withTimezone: true }).notNull(),
+    version: integer('version').notNull().default(1),
+    supersedesId: uuid('supersedes_id').references(
+      (): AnyPgColumn => playbooks.id,
+      { onDelete: 'set null' },
+    ),
+    status: text('status').notNull().default('active'),
+    vectorStatus: text('vector_status').notNull().default('pending'),
+    createdBy: uuid('created_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    retiredAt: timestamp('retired_at', { withTimezone: true }),
+    retiredBy: uuid('retired_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (t) => [
+    index('playbooks_offer_idx').on(t.orgId, t.offerId, t.status, t.validTo),
   ],
 );
