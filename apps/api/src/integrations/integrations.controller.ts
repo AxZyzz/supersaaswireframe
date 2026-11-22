@@ -24,6 +24,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthUser } from '../auth/types';
 import type { ImportableField } from '../leads/import/import.dto';
+import { CalendarOAuthService } from './calendar-oauth.service';
 import { IntegrationsService } from './integrations.service';
 import { SheetsOAuthService } from './sheets-oauth.service';
 import { SheetsService } from './sheets.service';
@@ -59,6 +60,7 @@ export class IntegrationsController {
     private readonly integrations: IntegrationsService,
     private readonly sheetsOAuth: SheetsOAuthService,
     private readonly sheets: SheetsService,
+    private readonly calendarOAuth: CalendarOAuthService,
   ) {}
 
   @Get()
@@ -81,6 +83,23 @@ export class IntegrationsController {
   @Delete('google-sheets')
   disconnectSheets(@CurrentUser() user: AuthUser) {
     return this.integrations.disconnectSheets(user.orgId);
+  }
+
+  /** Optional, separate from Gmail and Sheets: read-only calendar events (T16). */
+  @Roles('admin', 'manager')
+  @Post('google-calendar/connect')
+  @HttpCode(200)
+  connectCalendar(
+    @CurrentUser() user: AuthUser,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.calendarOAuth.connectUrl(user, bindBrowser(res));
+  }
+
+  @Roles('admin', 'manager')
+  @Delete('google-calendar')
+  disconnectCalendar(@CurrentUser() user: AuthUser) {
+    return this.integrations.disconnectCalendar(user.orgId);
   }
 
   @Roles('admin', 'manager')
