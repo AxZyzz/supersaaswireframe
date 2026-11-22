@@ -144,4 +144,5 @@ Separate from everything above: dataset `expelly_memory` (`asia-south1`) holds o
 It is written by the API, which is why it is not in `expelly_learning` (views only, read-only to the API). DDL: `playbooks.sql`. Playbooks are NOT in `replication-set.json`.
 
 - Created 2026-11-22: dataset, empty table, and `WRITER` for `supersaas-run@supersaas-513613.iam.gserviceaccount.com` on this dataset only (dataset ACL edited with `bq show` then `bq update --source`, as for `expelly_learning`).
-- Still to do: enable Vertex AI and `roles/aiplatform.user`, run `npm run playbooks:smoke` as a temporary Cloud Run job, then `PLAYBOOK_SEARCH=bigquery`. Details: `docs/GOOGLE-STACK.md` Phase 5.
+- Vertex AI API enabled and `roles/aiplatform.user` granted to the same service account (project level) on 2026-11-22.
+- Still to do: run `npm run playbooks:smoke` as a temporary Cloud Run job, then `PLAYBOOK_SEARCH=bigquery`. Details: `docs/GOOGLE-STACK.md` Phase 5.
