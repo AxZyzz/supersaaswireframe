@@ -7,8 +7,8 @@
  *
  * Needs Google credentials (Cloud Run service account, or locally
  * `gcloud auth application-default login`) and GOOGLE_CLOUD_PROJECT (or
- * BIGQUERY_PROJECT). --compare also needs MIGRATE_DATABASE_URL / DATABASE_URL
- * pointing at the SAME database Datastream copies (production, not your local one).
+ * BIGQUERY_PROJECT). --compare also needs DATABASE_URL (the app role) pointing at the
+ * SAME database Datastream copies (production, not your local one).
  *
  * It prints what BigQuery says and, with --compare, every number that differs
  * from Postgres. Differences that are EXPECTED in BigQuery mode: subject_length
@@ -102,18 +102,26 @@ async function main() {
   const compare = flag('compare');
   const needsPg = compare || !flag('no-side-data');
 
+  // The numbers must come through the APP role (DATABASE_URL), which row-level security
+  // limits to one workspace at a time. The owner role (MIGRATE_DATABASE_URL) bypasses RLS and
+  // would count every workspace, so it is used only to pick a workspace when none is given.
   const pool = needsPg
     ? new Pool({
         connectionString:
-          process.env.MIGRATE_DATABASE_URL ?? process.env.DATABASE_URL,
+          process.env.DATABASE_URL ?? process.env.MIGRATE_DATABASE_URL,
       })
     : null;
 
   let orgId = arg('org');
   if (!orgId && pool) {
-    const r = await pool.query<{ org_id: string }>(
+    const owner = new Pool({
+      connectionString:
+        process.env.MIGRATE_DATABASE_URL ?? process.env.DATABASE_URL,
+    });
+    const r = await owner.query<{ org_id: string }>(
       `SELECT org_id FROM sent_emails GROUP BY org_id ORDER BY count(*) DESC LIMIT 1`,
     );
+    await owner.end();
     orgId = r.rows[0]?.org_id;
   }
   if (!orgId) throw new Error('pass --org <workspace uuid>');
