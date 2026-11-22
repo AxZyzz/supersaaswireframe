@@ -16,10 +16,10 @@ How to keep this up to date: every session appends a dated entry at the top of
 ### 2026-11-23 — T16 follow-up: the workspace id in Settings
 
 Aman could not find the demo workspace id (the operator console that lists it is only for A2B staff accounts), and said "Yes, add it" to showing it to admins. Branch `ll/T16-ws-id` from
-`google-stack` `89459d8`, one web-only change: **Settings > Workspace** now shows the workspace id (select-all, with a Copy button) to admins and managers; agents do not see it. No API change, no
+`google-stack` `89459d8`, one web-only change (commits `65d56f6`, `61061f2`): **Settings > Workspace** now shows the workspace id (select-all, with a Copy button) to admins and managers; agents do not see it. No API change, no
 migration. Copy says "Copied" only when the browser allowed clipboard access (the preview pane denied it, which showed my first version wrongly saying "Copied"; fixed, with a toast that tells the
 user to select the id instead). Checked: web `tsc` clean, web build passes, looked at locally (the id on the page equals the workspace's id; screenshot `docs/calendar-screenshots/06-workspace-id-in-settings.jpg`).
-The agent-hides-it case is from the code (`canSeeId` is admin or manager), not clicked as an agent. **Not pushed, not merged, not deployed.**
+The agent-hides-it case is from the code (`canSeeId` is admin or manager), not clicked as an agent. **Pushed and merged into `google-stack` (fast-forward, `61061f2`), deployed 2026-11-23: web image `web:t16b-61061f2` built on Cloud Build (2.6 min, free tier) -> `supersaas-web-00015-lv2` (rollback `00014-vbx`); API untouched (still `00024-p66`). Checked: `/`, `/login`, `/settings` 200, `/api/health/ready` through the proxy 200, no warnings on the new revision. Not looked at on the live site (needs a login).**
 
 ### 2026-11-22 — Learning Loop T16: Google Calendar booked calls + Looker Studio dashboard
 

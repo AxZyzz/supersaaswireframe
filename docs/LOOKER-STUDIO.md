@@ -21,11 +21,11 @@ do it for you and explain each step first):
 PROJECT=supersaas-513613 DEMO_ORG_ID=<the demo workspace id> infra/bigquery/apply-demo.sh
 ```
 
-- **The demo workspace id.** The operator console shows it in small grey text under each workspace name, but that page exists
-  **only for A2B staff accounts** (`users.is_operator`); a normal login has no screen that shows it. Without an operator
-  account, ask Claude to look it up: a read-only BigQuery query lists every workspace id with its timezone, emails sent,
-  campaigns that sent and last send date (ids and counts only, no names or emails). Pick the workspace whose numbers match
-  your demo workspace in the app.
+- **The demo workspace id.** Admins and managers see it in **Settings -> Workspace** (the "Workspace id" line at the bottom of
+  that section, with a Copy button; added 2026-11-23). The operator console also lists it under each workspace name, but that
+  page exists only for A2B staff accounts (`users.is_operator`). Otherwise ask Claude to look it up: a read-only BigQuery
+  query lists every workspace id with its timezone, emails sent, campaigns that sent and last send date (ids and counts
+  only, no names or emails). Pick the workspace whose numbers match your demo workspace in the app.
 - **Already applied (2026-11-23)** for the demo workspace, so you can go straight to Step 1. Three of the five views exist now
   (`demo_factor_funnel`, `demo_send_time_grid`, `demo_data_freshness`).
 - The script creates `expelly_demo` (asia-south1), creates five `demo_*` views, and lets those views read
