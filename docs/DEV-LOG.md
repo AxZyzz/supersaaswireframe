@@ -15,7 +15,7 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ### 2026-11-22 — Learning Loop T16: Google Calendar booked calls + Looker Studio dashboard
 
-Built on `ll/T16` from `google-stack` `087f24b` (11 commits `3deb097`..`4ffe527` plus a docs commit, about 40 files). **Not pushed, not merged, not deployed.
+Built on `ll/T16` from `google-stack` `087f24b` (11 commits `3deb097`..`4ffe527` plus a docs commit, about 40 files). **Pushed and merged into `google-stack` (fast-forward, 2026-11-23, `24abd25`); not deployed.
 No Google Cloud command was run.** Aman asked for T16 after T14 (order: T07, T14, T16, one at a time); T15 was left out on purpose (it needs the
 agents deployed to Agent Engine first and is optional). Plan shown first, approved with "Go, defaults ok".
 
@@ -57,7 +57,7 @@ agents deployed to Agent Engine first and is optional). Plan shown first, approv
 - **Local-only, left tidy:** the local servers are stopped, a throwaway workspace ("T16 UI Co") remains in the local dev database, and two preview entries
   (`supersaas-api-t16`, `supersaas-web-t16`) were added to the vault's `.claude/launch.json` (not in git). `nest start --watch` ran out of memory while compiling,
   so the local API was run from the build instead.
-- **Not done / not verified:** nothing pushed, merged or deployed; the Calendar API is not enabled in the project and migration `0061` is not on Cloud SQL; the demo
+- **Not done / not verified:** nothing deployed; the Calendar API is not enabled in the project and migration `0061` is not on Cloud SQL; the demo
   dataset and views do not exist in BigQuery yet; the dashboard is not built (it is Aman's to build from the guide); no real Google OAuth consent was run, so the
   consent-screen flag for the scope and the 7-day Testing-mode token expiry are from Google's documentation, not observed.
 
