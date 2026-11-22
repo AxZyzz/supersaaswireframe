@@ -394,9 +394,10 @@ export class SendService implements BeforeApplicationShutdown {
         sender_ids: string[];
         status: string;
         send_window: unknown;
-      }>(`SELECT sender_ids, status, send_window FROM campaigns WHERE id = $1`, [
-        cl.campaign_id,
-      ]);
+      }>(
+        `SELECT sender_ids, status, send_window FROM campaigns WHERE id = $1`,
+        [cl.campaign_id],
+      );
       if (campRes.rowCount === 0) return { outcome: 'skipped' as Outcome };
       const campStatus = campRes.rows[0].status;
       if (campStatus !== 'active' && campStatus !== 'scheduled') {

@@ -328,7 +328,8 @@ export function checkedWindowArms(
     throw new BadRequestException({
       statusCode: 400,
       error: 'windows_identical',
-      message: 'The two windows are the same. Pick two different times to compare.',
+      message:
+        'The two windows are the same. Pick two different times to compare.',
     });
   }
   return arms;

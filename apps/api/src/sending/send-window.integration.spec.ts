@@ -35,10 +35,18 @@ describe('Send windows + send-time test (T17)', () => {
     send.clock = () => new Date(iso);
   };
   const tick = async () =>
-    (await http().post('/sending/tick').set('Authorization', auth()).expect(200))
-      .body as Record<string, number>;
+    (
+      await http()
+        .post('/sending/tick')
+        .set('Authorization', auth())
+        .expect(200)
+    ).body as Record<string, number>;
   const q = <T = any>(sql: string, params: unknown[] = []) =>
-    withOrgContext(pool, orgId, async (c) => (await c.query(sql, params)).rows as T[]);
+    withOrgContext(
+      pool,
+      orgId,
+      async (c) => (await c.query(sql, params)).rows as T[],
+    );
 
   /** Time has come: due in the database, and the fake clock says `iso`. */
   const itIsNow = async (campaignId: string, iso: string) => {
@@ -176,8 +184,13 @@ describe('Send windows + send-time test (T17)', () => {
       })
       .expect(201);
     await verifyAllSenders(app.getHttpServer(), auth());
-    await q(`UPDATE sender_accounts SET warmup_enabled = false, daily_limit = 500`);
-    const tpls = await http().get('/templates').set('Authorization', auth()).expect(200);
+    await q(
+      `UPDATE sender_accounts SET warmup_enabled = false, daily_limit = 500`,
+    );
+    const tpls = await http()
+      .get('/templates')
+      .set('Authorization', auth())
+      .expect(200);
     templateId = tpls.body[0].id;
   });
 
@@ -199,14 +212,17 @@ describe('Send windows + send-time test (T17)', () => {
 
   // ── acceptance criterion 1 ────────────────────────────────────────────
 
-  it('a campaign with a window only sends inside it, in each recipient\'s own timezone', async () => {
+  it("a campaign with a window only sends inside it, in each recipient's own timezone", async () => {
     await q(`UPDATE orgs SET timezone = 'UTC' WHERE id = $1`, [orgId]);
     const { segmentId } = await leadsIn([
       { email: 'kolkata@in.t17.test', tz: 'Asia/Kolkata' },
       { email: 'newyork@us.t17.test', tz: 'America/New_York' },
       { email: 'unknown@xx.t17.test', tz: null }, // read on the workspace clock (UTC)
     ]);
-    const camp = await campaignWith({ segmentId, sendWindow: WIN_TUE_THU_9_11 });
+    const camp = await campaignWith({
+      segmentId,
+      sendWindow: WIN_TUE_THU_9_11,
+    });
     await enroll(camp.id);
 
     // Tuesday 2026-11-24 04:00Z: 09:30 in Kolkata (inside), 23:00 Monday in
@@ -216,7 +232,10 @@ describe('Send windows + send-time test (T17)', () => {
     expect(t1.sent).toBe(1);
     expect(t1.deferred).toBe(2);
 
-    const sent = await q(`SELECT to_email FROM sent_emails WHERE campaign_id = $1`, [camp.id]);
+    const sent = await q(
+      `SELECT to_email FROM sent_emails WHERE campaign_id = $1`,
+      [camp.id],
+    );
     expect(sent.map((s) => s.to_email)).toEqual(['kolkata@in.t17.test']);
 
     // the others were not dropped: moved to the NEXT opening on their own clock
@@ -240,18 +259,31 @@ describe('Send windows + send-time test (T17)', () => {
     const t3 = await tick();
     expect(t3.sent).toBe(1);
     expect(
-      (await q(`SELECT to_email FROM sent_emails WHERE campaign_id = $1 ORDER BY sent_at`, [camp.id])).map((s) => s.to_email),
+      (
+        await q(
+          `SELECT to_email FROM sent_emails WHERE campaign_id = $1 ORDER BY sent_at`,
+          [camp.id],
+        )
+      ).map((s) => s.to_email),
     ).toEqual(['kolkata@in.t17.test', 'newyork@us.t17.test']);
     // the UTC lead: 15:00 UTC is past its 09:00-11:00 UTC window, so it waits for Wednesday
     expect(t3.deferred).toBe(1);
-    const utcNow = (await nextSendAts(camp.id)).find((p) => p.email === 'unknown@xx.t17.test')!;
-    expect(utcNow.ms!).toBeGreaterThanOrEqual(Date.parse('2026-11-25T09:00:00Z'));
+    const utcNow = (await nextSendAts(camp.id)).find(
+      (p) => p.email === 'unknown@xx.t17.test',
+    )!;
+    expect(utcNow.ms!).toBeGreaterThanOrEqual(
+      Date.parse('2026-11-25T09:00:00Z'),
+    );
     expect(utcNow.ms!).toBeLessThan(Date.parse('2026-11-25T11:00:00Z'));
   });
 
   it('after the window closes the send moves to the next window day: across a weekend and a DST change (workspace clock)', async () => {
-    await q(`UPDATE orgs SET timezone = 'America/New_York' WHERE id = $1`, [orgId]);
-    const { segmentId } = await leadsIn([{ email: 'friday@dst.t17.test', tz: null }]);
+    await q(`UPDATE orgs SET timezone = 'America/New_York' WHERE id = $1`, [
+      orgId,
+    ]);
+    const { segmentId } = await leadsIn([
+      { email: 'friday@dst.t17.test', tz: null },
+    ]);
     const wk: SendWindow = {
       days: [1, 2, 3, 4, 5],
       startHour: 9,
@@ -285,7 +317,10 @@ describe('Send windows + send-time test (T17)', () => {
 
   it('a lead that was already inside the window is not delayed, and caps still apply inside it', async () => {
     const { segmentId } = await leadsIn(
-      ['a', 'b', 'c', 'd', 'e'].map((n) => ({ email: `${n}@cap.t17.test`, tz: 'Asia/Kolkata' })),
+      ['a', 'b', 'c', 'd', 'e'].map((n) => ({
+        email: `${n}@cap.t17.test`,
+        tz: 'Asia/Kolkata',
+      })),
     );
     const allDay: SendWindow = {
       days: [1, 2, 3, 4, 5, 6, 7],
@@ -314,7 +349,10 @@ describe('Send windows + send-time test (T17)', () => {
       tz: 'Asia/Kolkata',
     }));
     const { segmentId } = await leadsIn(specs);
-    const camp = await campaignWith({ segmentId, sendWindow: WIN_TUE_THU_9_11 });
+    const camp = await campaignWith({
+      segmentId,
+      sendWindow: WIN_TUE_THU_9_11,
+    });
     await enroll(camp.id);
 
     // Wednesday 2026-11-25 01:00 IST (19:30Z Tuesday): the window is closed
@@ -329,14 +367,21 @@ describe('Send windows + send-time test (T17)', () => {
     const close = Date.parse('2026-11-25T05:30:00Z');
     expect(Math.min(...times)).toBeGreaterThanOrEqual(open);
     expect(Math.max(...times)).toBeLessThan(close);
-    expect(new Set(times.map((m) => Math.floor(m / 60_000))).size).toBeGreaterThanOrEqual(15);
+    expect(
+      new Set(times.map((m) => Math.floor(m / 60_000))).size,
+    ).toBeGreaterThanOrEqual(15);
     expect(times.filter((m) => m > open + 3_600_000).length).toBeGreaterThan(5);
   });
 
   it('a legacy campaign without a window is untouched: it sends at any hour on any day', async () => {
-    const { segmentId } = await leadsIn([{ email: 'legacy@legacy.t17.test', tz: 'Asia/Kolkata' }]);
+    const { segmentId } = await leadsIn([
+      { email: 'legacy@legacy.t17.test', tz: 'Asia/Kolkata' },
+    ]);
     const camp = await campaignWith({ segmentId });
-    const got = await http().get(`/campaigns/${camp.id}`).set('Authorization', auth()).expect(200);
+    const got = await http()
+      .get(`/campaigns/${camp.id}`)
+      .set('Authorization', auth())
+      .expect(200);
     expect(got.body.send_window).toBeNull();
     await enroll(camp.id);
     at('2026-11-22T21:00:00Z'); // a Sunday, 02:30 in Kolkata on Monday
@@ -354,15 +399,24 @@ describe('Send windows + send-time test (T17)', () => {
       .send({ name: `W-${randomUUID().slice(0, 6)}` })
       .expect(201);
     const patch = (sendWindow: unknown) =>
-      http().patch(`/campaigns/${camp.body.id}`).set('Authorization', auth()).send({ sendWindow });
+      http()
+        .patch(`/campaigns/${camp.body.id}`)
+        .set('Authorization', auth())
+        .send({ sendWindow });
 
-    const bad = await patch({ ...WIN_TUE_THU_9_11, startHour: 22, endHour: 6 }).expect(400);
+    const bad = await patch({
+      ...WIN_TUE_THU_9_11,
+      startHour: 22,
+      endHour: 6,
+    }).expect(400);
     expect(bad.body.error).toBe('invalid_send_window');
     expect(bad.body.message).toMatch(/overnight/i);
     await patch({ ...WIN_TUE_THU_9_11, days: [] }).expect(400);
     await patch({ ...WIN_TUE_THU_9_11, tzBasis: 'sender' }).expect(400);
 
-    const ok = await patch({ ...WIN_TUE_THU_9_11, days: [4, 2, 3] }).expect(200);
+    const ok = await patch({ ...WIN_TUE_THU_9_11, days: [4, 2, 3] }).expect(
+      200,
+    );
     expect(ok.body.send_window).toEqual(WIN_TUE_THU_9_11); // days sorted
 
     const dup = await http()
@@ -401,8 +455,14 @@ describe('Send windows + send-time test (T17)', () => {
       })
       .expect(201);
     expect(created.body.kind).toBe('send_time');
-    const vA = created.body.variants.find((v: any) => v.label === 'A');
-    const vB = created.body.variants.find((v: any) => v.label === 'B');
+    const armsCreated = created.body.variants as {
+      id: string;
+      label: string;
+      subject: string;
+      send_window: unknown;
+    }[];
+    const vA = armsCreated.find((v) => v.label === 'A')!;
+    const vB = armsCreated.find((v) => v.label === 'B')!;
     expect(vA.send_window).toEqual(WIN_TUE_THU_9_11);
     expect(vB.send_window).toEqual(WIN_TUE_THU_14_16);
     expect(vA.subject).toBe(vB.subject); // identical subjects in both arms
@@ -417,7 +477,10 @@ describe('Send windows + send-time test (T17)', () => {
     ).map((r) => r.id);
     const indexOf = (id: string) => order.indexOf(id);
 
-    await http().post(`/experiments/${exp}/start`).set('Authorization', auth()).expect(200);
+    await http()
+      .post(`/experiments/${exp}/start`)
+      .set('Authorization', auth())
+      .expect(200);
     await enroll(camp.id);
 
     // Tuesday 04:00Z = 09:30 IST: arm A is open, arm B is not (14:00-16:00 IST = 08:30Z-10:30Z)
@@ -432,11 +495,19 @@ describe('Send windows + send-time test (T17)', () => {
       [exp],
     );
     expect(assigns).toHaveLength(20); // one per company, however many contacts
-    const armOf = new Map(assigns.map((a) => [a.company_key, a.variant_id === vA.id ? 'A' : 'B']));
+    const armOf = new Map(
+      assigns.map((a) => [a.company_key, a.variant_id === vA.id ? 'A' : 'B']),
+    );
     expect(new Set(armOf.values())).toEqual(new Set(['A', 'B']));
 
     // everything sent so far is an arm-A company, credited to A, with the same subject
-    const sent1 = await q<{ to_email: string; variant_id: string; experiment_id: string; variant_index: number; subject: string }>(
+    const sent1 = await q<{
+      to_email: string;
+      variant_id: string;
+      experiment_id: string;
+      variant_index: number;
+      subject: string;
+    }>(
       `SELECT to_email, variant_id, experiment_id, variant_index, subject
          FROM sent_emails WHERE campaign_id = $1 AND status = 'sent'`,
       [camp.id],
@@ -453,15 +524,21 @@ describe('Send windows + send-time test (T17)', () => {
 
     // two contacts at co-0 share ONE assignment, so they share the arm and its window
     const co0Arm = armOf.get('co-0.sendtime.test');
-    const co0Sent = sent1.filter((s) => s.to_email.endsWith('@co-0.sendtime.test'));
+    const co0Sent = sent1.filter((s) =>
+      s.to_email.endsWith('@co-0.sendtime.test'),
+    );
     if (co0Arm === 'A') {
       expect(co0Sent).toHaveLength(2); // both went out in window A
     } else {
       expect(co0Sent).toHaveLength(0); // both wait for window B
-      const co0 = (await nextSendAts(camp.id)).filter((r) => r.email.endsWith('@co-0.sendtime.test'));
+      const co0 = (await nextSendAts(camp.id)).filter((r) =>
+        r.email.endsWith('@co-0.sendtime.test'),
+      );
       expect(co0).toHaveLength(2);
       for (const r of co0) {
-        expect(isInsideWindow(WIN_TUE_THU_14_16, r.next_send_at!, 'Asia/Kolkata')).toBe(true);
+        expect(
+          isInsideWindow(WIN_TUE_THU_14_16, r.next_send_at!, 'Asia/Kolkata'),
+        ).toBe(true);
       }
     }
 
@@ -479,7 +556,11 @@ describe('Send windows + send-time test (T17)', () => {
     await itIsNow(camp.id, '2026-11-24T09:00:00Z');
     await tick(); // arm B's first touches go out; arm A's follow-ups find window A closed
     await tick(); // arm B's follow-ups are due at once and still inside window B
-    const sentAll = await q<{ to_email: string; variant_id: string; step_order: number }>(
+    const sentAll = await q<{
+      to_email: string;
+      variant_id: string;
+      step_order: number;
+    }>(
       `SELECT se.to_email, se.variant_id, cs.step_order
          FROM sent_emails se JOIN campaign_steps cs ON cs.id = se.step_id
         WHERE se.campaign_id = $1 AND se.status = 'sent' AND cs.step_order = 0`,
@@ -492,7 +573,10 @@ describe('Send windows + send-time test (T17)', () => {
       expect(s.variant_id).toBe(arm === 'A' ? vA.id : vB.id);
     }
     // assignments did not grow or change: stable
-    const after = await q(`SELECT count(*)::int AS n FROM experiment_assignments WHERE experiment_id = $1`, [exp]);
+    const after = await q(
+      `SELECT count(*)::int AS n FROM experiment_assignments WHERE experiment_id = $1`,
+      [exp],
+    );
     expect(after[0].n).toBe(20);
 
     // follow-ups (step 2) follow the company's arm window: with the clock at
@@ -504,13 +588,16 @@ describe('Send windows + send-time test (T17)', () => {
       [camp.id],
     );
     expect(followUps.length).toBeGreaterThan(0);
-    for (const f of followUps) expect(armOf.get(f.to_email.split('@')[1])).toBe('B');
+    for (const f of followUps)
+      expect(armOf.get(f.to_email.split('@')[1])).toBe('B');
     const waitingA = (await nextSendAts(camp.id)).filter(
       (r) => armOf.get(r.email.split('@')[1]) === 'A' && r.status === 'active',
     );
     expect(waitingA.length).toBeGreaterThan(0);
     for (const w of waitingA) {
-      expect(isInsideWindow(WIN_TUE_THU_9_11, w.next_send_at!, 'Asia/Kolkata')).toBe(true);
+      expect(
+        isInsideWindow(WIN_TUE_THU_9_11, w.next_send_at!, 'Asia/Kolkata'),
+      ).toBe(true);
       expect(w.ms!).toBeGreaterThanOrEqual(Date.parse('2026-11-25T03:30:00Z')); // Wednesday
     }
 
@@ -518,18 +605,37 @@ describe('Send windows + send-time test (T17)', () => {
     const review = await http()
       .post(`/campaigns/${camp.id}/review/refresh`)
       .set('Authorization', auth());
-    const rv = review.status === 200 || review.status === 201
-      ? review.body
-      : (await http().get(`/campaigns/${camp.id}/review`).set('Authorization', auth()).expect(200)).body;
-    expect(rv.experiment.kind).toBe('send_time');
+    const rv =
+      review.status === 200 || review.status === 201
+        ? review.body
+        : (
+            await http()
+              .get(`/campaigns/${camp.id}/review`)
+              .set('Authorization', auth())
+              .expect(200)
+          ).body;
+    const view = rv as {
+      id: string;
+      experiment: {
+        kind: string;
+        arms: { label: string; windowText: string | null }[];
+      };
+      result: {
+        arms: { assigned: number }[];
+        allowedActions: { type: string }[];
+      };
+    };
+    expect(view.experiment.kind).toBe('send_time');
     const windowOf = (label: string) =>
-      rv.experiment.arms.find((a: any) => a.label === label)?.windowText;
+      view.experiment.arms.find((a) => a.label === label)?.windowText;
     expect(windowOf('A')).toBe('Tue-Thu 09:00-11:00 (recipient time)');
     expect(windowOf('B')).toBe('Tue-Thu 14:00-16:00 (recipient time)');
-    expect(rv.result.arms).toHaveLength(2);
-    expect(rv.result.arms.reduce((n: number, a: any) => n + a.assigned, 0)).toBe(20);
+    expect(view.result.arms).toHaveLength(2);
+    expect(view.result.arms.reduce((n, a) => n + a.assigned, 0)).toBe(20);
     // an AI challenger makes no sense for a send-time test: not offered, and refused if asked
-    expect(rv.result.allowedActions.some((a: any) => a.type === 'draft_challenger')).toBe(false);
+    expect(
+      view.result.allowedActions.some((a) => a.type === 'draft_challenger'),
+    ).toBe(false);
     const drafts = await http()
       .post(`/reviews/${rv.id}/challenger-drafts`)
       .set('Authorization', auth());
@@ -539,7 +645,9 @@ describe('Send windows + send-time test (T17)', () => {
     await http()
       .patch(`/experiments/${exp}`)
       .set('Authorization', auth())
-      .send({ windows: [{ window: WIN_TUE_THU_14_16 }, { window: WIN_TUE_THU_9_11 }] })
+      .send({
+        windows: [{ window: WIN_TUE_THU_14_16 }, { window: WIN_TUE_THU_9_11 }],
+      })
       .expect(409);
     const frozen = await http()
       .patch(`/campaigns/${camp.id}`)
@@ -554,7 +662,10 @@ describe('Send windows + send-time test (T17)', () => {
       .set('Authorization', auth())
       .send({ variants: [{ subject: 'x' }, { subject: 'y' }] })
       .expect(400);
-    await http().post(`/campaigns/${camp.id}/pause`).set('Authorization', auth()).expect(200);
+    await http()
+      .post(`/campaigns/${camp.id}/pause`)
+      .set('Authorization', auth())
+      .expect(200);
     const second = await http()
       .post(`/campaigns/${camp.id}/experiments`)
       .set('Authorization', auth())
@@ -564,10 +675,15 @@ describe('Send windows + send-time test (T17)', () => {
   });
 
   it('refuses a send-time test whose two arms would differ by more than time', async () => {
-    const { segmentId } = await leadsIn([{ email: 'x@setup.t17.test', tz: 'Asia/Kolkata' }]);
+    const { segmentId } = await leadsIn([
+      { email: 'x@setup.t17.test', tz: 'Asia/Kolkata' },
+    ]);
     const camp = await campaignWith({ segmentId });
-    const post = (body: unknown) =>
-      http().post(`/campaigns/${camp.id}/experiments`).set('Authorization', auth()).send(body);
+    const post = (body: object) =>
+      http()
+        .post(`/campaigns/${camp.id}/experiments`)
+        .set('Authorization', auth())
+        .send(body);
 
     const same = await post({
       kind: 'send_time',
@@ -586,16 +702,23 @@ describe('Send windows + send-time test (T17)', () => {
 
     const bad = await post({
       kind: 'send_time',
-      windows: [{ window: WIN_TUE_THU_9_11 }, { window: { ...WIN_TUE_THU_14_16, days: [] } }],
+      windows: [
+        { window: WIN_TUE_THU_9_11 },
+        { window: { ...WIN_TUE_THU_14_16, days: [] } },
+      ],
     }).expect(400);
     expect(bad.body.message).toMatch(/^Window B:/);
 
-    await post({ kind: 'send_time', windows: [{ window: WIN_TUE_THU_9_11 }] }).expect(400);
+    await post({
+      kind: 'send_time',
+      windows: [{ window: WIN_TUE_THU_9_11 }],
+    }).expect(400);
 
     // step 1 rotating between two subjects (no winner) would change the subject too
-    await q(`UPDATE campaign_steps SET subject_variants = '["One","Two"]'::jsonb WHERE id = $1`, [
-      camp.stepIds[0],
-    ]);
+    await q(
+      `UPDATE campaign_steps SET subject_variants = '["One","Two"]'::jsonb WHERE id = $1`,
+      [camp.stepIds[0]],
+    );
     const rot = await post({
       kind: 'send_time',
       windows: [{ window: WIN_TUE_THU_9_11 }, { window: WIN_TUE_THU_14_16 }],

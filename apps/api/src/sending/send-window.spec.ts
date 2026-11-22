@@ -30,9 +30,9 @@ const MON_FRI_9_17: SendWindow = {
 describe('sendWindowError / parseSendWindow', () => {
   it('accepts a normal window and sorts the days', () => {
     expect(sendWindowError(TUE_THU_9_11)).toBeNull();
-    expect(
-      parseSendWindow({ ...TUE_THU_9_11, days: [4, 2, 3] })?.days,
-    ).toEqual([2, 3, 4]);
+    expect(parseSendWindow({ ...TUE_THU_9_11, days: [4, 2, 3] })?.days).toEqual(
+      [2, 3, 4],
+    );
   });
 
   it.each([
@@ -43,7 +43,10 @@ describe('sendWindowError / parseSendWindow', () => {
     ['a fractional hour', { ...TUE_THU_9_11, startHour: 9.5 }],
     ['start hour 24', { ...TUE_THU_9_11, startHour: 24, endHour: 24 }],
     ['end hour 0', { ...TUE_THU_9_11, endHour: 0 }],
-    ['end before start (overnight)', { ...TUE_THU_9_11, startHour: 22, endHour: 6 }],
+    [
+      'end before start (overnight)',
+      { ...TUE_THU_9_11, startHour: 22, endHour: 6 },
+    ],
     ['end equal to start', { ...TUE_THU_9_11, startHour: 9, endHour: 9 }],
     ['a bad basis', { ...TUE_THU_9_11, tzBasis: 'sender' }],
     ['not an object', 'Tue-Thu'],
@@ -65,12 +68,12 @@ describe('describeSendWindow / sameSendWindow', () => {
     expect(describeSendWindow(TUE_THU_9_11)).toBe(
       'Tue-Thu 09:00-11:00 (recipient time)',
     );
-    expect(
-      describeSendWindow({ ...MON_FRI_9_17, tzBasis: 'workspace' }),
-    ).toBe('Mon-Fri 09:00-17:00 (workspace time)');
-    expect(
-      describeSendWindow({ ...TUE_THU_9_11, days: [1, 3, 5] }),
-    ).toBe('Mon, Wed, Fri 09:00-11:00 (recipient time)');
+    expect(describeSendWindow({ ...MON_FRI_9_17, tzBasis: 'workspace' })).toBe(
+      'Mon-Fri 09:00-17:00 (workspace time)',
+    );
+    expect(describeSendWindow({ ...TUE_THU_9_11, days: [1, 3, 5] })).toBe(
+      'Mon, Wed, Fri 09:00-11:00 (recipient time)',
+    );
     expect(describeSendWindow({ ...TUE_THU_9_11, days: [1, 2, 4] })).toBe(
       'Mon, Tue, Thu 09:00-11:00 (recipient time)',
     );
@@ -79,7 +82,11 @@ describe('describeSendWindow / sameSendWindow', () => {
   it('compares windows by schedule', () => {
     expect(sameSendWindow(TUE_THU_9_11, { ...TUE_THU_9_11 })).toBe(true);
     expect(
-      sameSendWindow(TUE_THU_9_11, { ...TUE_THU_9_11, startHour: 14, endHour: 16 }),
+      sameSendWindow(TUE_THU_9_11, {
+        ...TUE_THU_9_11,
+        startHour: 14,
+        endHour: 16,
+      }),
     ).toBe(false);
     expect(
       sameSendWindow(TUE_THU_9_11, { ...TUE_THU_9_11, tzBasis: 'workspace' }),
@@ -165,10 +172,18 @@ describe('isInsideWindow', () => {
   it('Asia/Kolkata, Tue-Thu 9-11: inside from 09:00 IST up to (not including) 11:00 IST', () => {
     const tz = 'Asia/Kolkata';
     // Tuesday 2026-11-24, 09:00 IST = 03:30Z
-    expect(isInsideWindow(TUE_THU_9_11, new Date('2026-11-24T03:29:59Z'), tz)).toBe(false);
-    expect(isInsideWindow(TUE_THU_9_11, new Date('2026-11-24T03:30:00Z'), tz)).toBe(true);
-    expect(isInsideWindow(TUE_THU_9_11, new Date('2026-11-24T05:29:59Z'), tz)).toBe(true);
-    expect(isInsideWindow(TUE_THU_9_11, new Date('2026-11-24T05:30:00Z'), tz)).toBe(false);
+    expect(
+      isInsideWindow(TUE_THU_9_11, new Date('2026-11-24T03:29:59Z'), tz),
+    ).toBe(false);
+    expect(
+      isInsideWindow(TUE_THU_9_11, new Date('2026-11-24T03:30:00Z'), tz),
+    ).toBe(true);
+    expect(
+      isInsideWindow(TUE_THU_9_11, new Date('2026-11-24T05:29:59Z'), tz),
+    ).toBe(true);
+    expect(
+      isInsideWindow(TUE_THU_9_11, new Date('2026-11-24T05:30:00Z'), tz),
+    ).toBe(false);
   });
 
   it('America/New_York: the same 09:30 local time is a different UTC time in winter and summer', () => {
@@ -184,23 +199,45 @@ describe('isInsideWindow', () => {
   it('the wrong weekday is outside even at the right hour', () => {
     // Monday 2026-11-23, 09:30 IST
     expect(
-      isInsideWindow(TUE_THU_9_11, new Date('2026-11-23T04:00:00Z'), 'Asia/Kolkata'),
+      isInsideWindow(
+        TUE_THU_9_11,
+        new Date('2026-11-23T04:00:00Z'),
+        'Asia/Kolkata',
+      ),
     ).toBe(false);
   });
 
-  it('the weekday is the RECIPIENT\'s, not UTC\'s', () => {
+  it("the weekday is the RECIPIENT's, not UTC's", () => {
     // Tue 2026-11-24 00:30 in Tokyo (UTC+9) is still Mon 15:30 UTC
-    const late: SendWindow = { days: [2], startHour: 0, endHour: 2, tzBasis: 'recipient' };
-    expect(isInsideWindow(late, new Date('2026-11-23T15:30:00Z'), 'Asia/Tokyo')).toBe(true);
-    expect(isInsideWindow(late, new Date('2026-11-23T15:30:00Z'), 'UTC')).toBe(false);
+    const late: SendWindow = {
+      days: [2],
+      startHour: 0,
+      endHour: 2,
+      tzBasis: 'recipient',
+    };
+    expect(
+      isInsideWindow(late, new Date('2026-11-23T15:30:00Z'), 'Asia/Tokyo'),
+    ).toBe(true);
+    expect(isInsideWindow(late, new Date('2026-11-23T15:30:00Z'), 'UTC')).toBe(
+      false,
+    );
   });
 
   it('endHour 24 runs to local midnight', () => {
-    const evening: SendWindow = { days: [2], startHour: 20, endHour: 24, tzBasis: 'recipient' };
+    const evening: SendWindow = {
+      days: [2],
+      startHour: 20,
+      endHour: 24,
+      tzBasis: 'recipient',
+    };
     // Tue 2026-11-24 23:30 IST = 18:00Z
-    expect(isInsideWindow(evening, new Date('2026-11-24T18:00:00Z'), 'Asia/Kolkata')).toBe(true);
+    expect(
+      isInsideWindow(evening, new Date('2026-11-24T18:00:00Z'), 'Asia/Kolkata'),
+    ).toBe(true);
     // Wed 00:00 IST = 18:30Z: outside
-    expect(isInsideWindow(evening, new Date('2026-11-24T18:30:00Z'), 'Asia/Kolkata')).toBe(false);
+    expect(
+      isInsideWindow(evening, new Date('2026-11-24T18:30:00Z'), 'Asia/Kolkata'),
+    ).toBe(false);
   });
 });
 
@@ -217,7 +254,7 @@ describe('slotAtOrAfter: the next opening', () => {
     expect(iso(slot!.end)).toBe('2026-03-09T21:00:00.000Z'); // 17:00 EDT
   });
 
-  it('still inside on Friday at 16:00 EST: the slot is today\'s, already open', () => {
+  it("still inside on Friday at 16:00 EST: the slot is today's, already open", () => {
     const at = new Date('2026-03-06T21:00:00Z');
     const slot = slotAtOrAfter(MON_FRI_9_17, at, 'America/New_York');
     expect(iso(slot!.start)).toBe('2026-03-06T14:00:00.000Z');
@@ -233,32 +270,73 @@ describe('slotAtOrAfter: the next opening', () => {
     expect(iso(slot!.start)).toBe('2026-12-01T03:30:00.000Z'); // Tue 09:00 IST
   });
 
-  it('before opening on a window day: today\'s slot. After closing: the next window day\'s', () => {
+  it("before opening on a window day: today's slot. After closing: the next window day's", () => {
     const tz = 'Asia/Kolkata';
-    const before = slotAtOrAfter(TUE_THU_9_11, new Date('2026-11-24T01:00:00Z'), tz); // Tue 06:30 IST
+    const before = slotAtOrAfter(
+      TUE_THU_9_11,
+      new Date('2026-11-24T01:00:00Z'),
+      tz,
+    ); // Tue 06:30 IST
     expect(iso(before!.start)).toBe('2026-11-24T03:30:00.000Z');
-    const after = slotAtOrAfter(TUE_THU_9_11, new Date('2026-11-24T06:00:00Z'), tz); // Tue 11:30 IST
+    const after = slotAtOrAfter(
+      TUE_THU_9_11,
+      new Date('2026-11-24T06:00:00Z'),
+      tz,
+    ); // Tue 11:30 IST
     expect(iso(after!.start)).toBe('2026-11-25T03:30:00.000Z'); // Wed
   });
 
   it('a single-day window is found a week later at most', () => {
-    const sundayOnly: SendWindow = { days: [7], startHour: 10, endHour: 12, tzBasis: 'workspace' };
-    const slot = slotAtOrAfter(sundayOnly, new Date('2026-11-23T00:00:00Z'), 'UTC'); // Monday
+    const sundayOnly: SendWindow = {
+      days: [7],
+      startHour: 10,
+      endHour: 12,
+      tzBasis: 'workspace',
+    };
+    const slot = slotAtOrAfter(
+      sundayOnly,
+      new Date('2026-11-23T00:00:00Z'),
+      'UTC',
+    ); // Monday
     expect(iso(slot!.start)).toBe('2026-11-29T10:00:00.000Z');
   });
 
   it('DST day lengths: spring forward is an hour shorter, fall back an hour longer', () => {
-    const allDay: SendWindow = { days: [1, 2, 3, 4, 5, 6, 7], startHour: 0, endHour: 24, tzBasis: 'workspace' };
-    const spring = slotAtOrAfter(allDay, new Date('2026-03-08T12:00:00Z'), 'America/New_York');
-    expect((spring!.end.getTime() - spring!.start.getTime()) / 3_600_000).toBe(23);
-    const fall = slotAtOrAfter(allDay, new Date('2026-11-01T12:00:00Z'), 'America/New_York');
+    const allDay: SendWindow = {
+      days: [1, 2, 3, 4, 5, 6, 7],
+      startHour: 0,
+      endHour: 24,
+      tzBasis: 'workspace',
+    };
+    const spring = slotAtOrAfter(
+      allDay,
+      new Date('2026-03-08T12:00:00Z'),
+      'America/New_York',
+    );
+    expect((spring!.end.getTime() - spring!.start.getTime()) / 3_600_000).toBe(
+      23,
+    );
+    const fall = slotAtOrAfter(
+      allDay,
+      new Date('2026-11-01T12:00:00Z'),
+      'America/New_York',
+    );
     expect((fall!.end.getTime() - fall!.start.getTime()) / 3_600_000).toBe(25);
   });
 
   it('a window that falls entirely inside the skipped hour is empty that day: skip to the next', () => {
     // Sunday 2026-03-08 02:00-03:00 does not exist in New York
-    const skipped: SendWindow = { days: [7], startHour: 2, endHour: 3, tzBasis: 'workspace' };
-    const slot = slotAtOrAfter(skipped, new Date('2026-03-08T00:00:00Z'), 'America/New_York');
+    const skipped: SendWindow = {
+      days: [7],
+      startHour: 2,
+      endHour: 3,
+      tzBasis: 'workspace',
+    };
+    const slot = slotAtOrAfter(
+      skipped,
+      new Date('2026-03-08T00:00:00Z'),
+      'America/New_York',
+    );
     expect(iso(slot!.start)).toBe('2026-03-15T06:00:00.000Z'); // the following Sunday, 02:00 EDT
   });
 });
@@ -272,33 +350,52 @@ describe('scheduleInWindow', () => {
   };
 
   it('inside the window: send now, no new time', () => {
-    const r = scheduleInWindow({ ...base, now: new Date('2026-11-24T04:00:00Z') });
+    const r = scheduleInWindow({
+      ...base,
+      now: new Date('2026-11-24T04:00:00Z'),
+    });
     expect(r.inside).toBe(true);
     expect(r.nextSendAt).toBeNull();
     expect(r.tz).toBe('Asia/Kolkata');
   });
 
   it('outside: pushed into the NEXT slot, never before it opens, never after it closes', () => {
-    const r = scheduleInWindow({ ...base, now: new Date('2026-11-24T08:00:00Z') }); // Tue 13:30 IST
+    const r = scheduleInWindow({
+      ...base,
+      now: new Date('2026-11-24T08:00:00Z'),
+    }); // Tue 13:30 IST
     expect(r.inside).toBe(false);
     // Wednesday 09:00-11:00 IST = 03:30Z-05:30Z
-    expect(r.nextSendAt!.getTime()).toBeGreaterThanOrEqual(Date.parse('2026-11-25T03:30:00Z'));
-    expect(r.nextSendAt!.getTime()).toBeLessThan(Date.parse('2026-11-25T05:30:00Z'));
+    expect(r.nextSendAt!.getTime()).toBeGreaterThanOrEqual(
+      Date.parse('2026-11-25T03:30:00Z'),
+    );
+    expect(r.nextSendAt!.getTime()).toBeLessThan(
+      Date.parse('2026-11-25T05:30:00Z'),
+    );
     // and it IS inside the window when it comes due
-    expect(isInsideWindow(TUE_THU_9_11, r.nextSendAt!, 'Asia/Kolkata')).toBe(true);
+    expect(isInsideWindow(TUE_THU_9_11, r.nextSendAt!, 'Asia/Kolkata')).toBe(
+      true,
+    );
   });
 
   it('a pushed time is stable: the same lead and step always get the same time', () => {
     const now = new Date('2026-11-24T08:00:00Z');
     const a = scheduleInWindow({ ...base, now });
-    const b = scheduleInWindow({ ...base, now: new Date(now.getTime() + 60_000) });
+    const b = scheduleInWindow({
+      ...base,
+      now: new Date(now.getTime() + 60_000),
+    });
     expect(iso(a.nextSendAt!)).toBe(iso(b.nextSendAt!));
   });
 
   it('1,000 leads due overnight are spread across the window, not fired at the opening', () => {
     const now = new Date('2026-11-24T20:00:00Z'); // Wed 01:30 IST (outside)
     const times = Array.from({ length: 1000 }, (_, i) =>
-      scheduleInWindow({ ...base, seed: `lead-${i}:0`, now }).nextSendAt!.getTime(),
+      scheduleInWindow({
+        ...base,
+        seed: `lead-${i}:0`,
+        now,
+      }).nextSendAt!.getTime(),
     );
     const open = Date.parse('2026-11-25T03:30:00Z');
     const close = Date.parse('2026-11-25T05:30:00Z');
@@ -306,10 +403,16 @@ describe('scheduleInWindow', () => {
     expect(Math.max(...times)).toBeLessThan(close);
     // not bursting: no single minute holds more than ~3% of them (uniform would be ~0.8%)
     const perMinute = new Map<number, number>();
-    for (const t of times) perMinute.set(Math.floor(t / 60_000), (perMinute.get(Math.floor(t / 60_000)) ?? 0) + 1);
+    for (const t of times)
+      perMinute.set(
+        Math.floor(t / 60_000),
+        (perMinute.get(Math.floor(t / 60_000)) ?? 0) + 1,
+      );
     expect(Math.max(...perMinute.values())).toBeLessThan(30);
     // and it reaches into the later half of the window
-    expect(times.filter((t) => t > open + 3_600_000).length).toBeGreaterThan(300);
+    expect(times.filter((t) => t > open + 3_600_000).length).toBeGreaterThan(
+      300,
+    );
   });
 
   it('recipient without a timezone is read on the workspace clock, and says so', () => {
@@ -322,12 +425,21 @@ describe('scheduleInWindow', () => {
     expect(r.usedWorkspaceFallback).toBe(true);
     expect(r.tz).toBe('America/New_York');
     // Tue 09:00-11:00 EST = 14:00Z-16:00Z
-    expect(r.nextSendAt!.getTime()).toBeGreaterThanOrEqual(Date.parse('2026-11-24T14:00:00Z'));
-    expect(r.nextSendAt!.getTime()).toBeLessThan(Date.parse('2026-11-24T16:00:00Z'));
+    expect(r.nextSendAt!.getTime()).toBeGreaterThanOrEqual(
+      Date.parse('2026-11-24T14:00:00Z'),
+    );
+    expect(r.nextSendAt!.getTime()).toBeLessThan(
+      Date.parse('2026-11-24T16:00:00Z'),
+    );
   });
 
   it('a short window still spreads inside itself', () => {
-    const short: SendWindow = { days: [2], startHour: 9, endHour: 10, tzBasis: 'workspace' };
+    const short: SendWindow = {
+      days: [2],
+      startHour: 9,
+      endHour: 10,
+      tzBasis: 'workspace',
+    };
     for (let i = 0; i < 50; i++) {
       const r = scheduleInWindow({
         window: short,
@@ -336,8 +448,12 @@ describe('scheduleInWindow', () => {
         workspaceTz: 'UTC',
         seed: `s-${i}`,
       });
-      expect(r.nextSendAt!.getTime()).toBeGreaterThanOrEqual(Date.parse('2026-11-24T09:00:00Z'));
-      expect(r.nextSendAt!.getTime()).toBeLessThan(Date.parse('2026-11-24T10:00:00Z'));
+      expect(r.nextSendAt!.getTime()).toBeGreaterThanOrEqual(
+        Date.parse('2026-11-24T09:00:00Z'),
+      );
+      expect(r.nextSendAt!.getTime()).toBeLessThan(
+        Date.parse('2026-11-24T10:00:00Z'),
+      );
     }
   });
 });

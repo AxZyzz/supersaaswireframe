@@ -132,8 +132,7 @@ export function resolveWindowZone(
   recipientTz: string | null | undefined,
   workspaceTz: string | null | undefined,
 ): { tz: string; usedWorkspaceFallback: boolean } {
-  const ws =
-    workspaceTz && isValidTimeZone(workspaceTz) ? workspaceTz : 'UTC';
+  const ws = workspaceTz && isValidTimeZone(workspaceTz) ? workspaceTz : 'UTC';
   if (basis === 'recipient' && recipientTz && isValidTimeZone(recipientTz)) {
     return { tz: recipientTz, usedWorkspaceFallback: false };
   }
