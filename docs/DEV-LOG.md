@@ -13,6 +13,14 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ## Sessions
 
+### 2026-11-23 — T16 follow-up: the workspace id in Settings
+
+Aman could not find the demo workspace id (the operator console that lists it is only for A2B staff accounts), and said "Yes, add it" to showing it to admins. Branch `ll/T16-ws-id` from
+`google-stack` `89459d8`, one web-only change: **Settings > Workspace** now shows the workspace id (select-all, with a Copy button) to admins and managers; agents do not see it. No API change, no
+migration. Copy says "Copied" only when the browser allowed clipboard access (the preview pane denied it, which showed my first version wrongly saying "Copied"; fixed, with a toast that tells the
+user to select the id instead). Checked: web `tsc` clean, web build passes, looked at locally (the id on the page equals the workspace's id; screenshot `docs/calendar-screenshots/06-workspace-id-in-settings.jpg`).
+The agent-hides-it case is from the code (`canSeeId` is admin or manager), not clicked as an agent. **Not pushed, not merged, not deployed.**
+
 ### 2026-11-22 — Learning Loop T16: Google Calendar booked calls + Looker Studio dashboard
 
 Built on `ll/T16` from `google-stack` `087f24b` (11 commits `3deb097`..`4ffe527` plus a docs commit, about 40 files). **Pushed and merged into `google-stack` (fast-forward, 2026-11-23, `24abd25`); **deployed 2026-11-23: API `supersaas-api-00024-p66`, web `supersaas-web-00014-vbx`, migration `0061` on Cloud SQL, Calendar API enabled.** Aman asked for T16 after T14 (order: T07, T14, T16, one at a time); T15 was left out on purpose (it needs the
