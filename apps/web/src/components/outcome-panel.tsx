@@ -97,7 +97,11 @@ export function OutcomePanel({
               )}
               {!provisional && (
                 <span className="text-tiny text-faint">
-                  {o.verified_by_name ? `by ${o.verified_by_name}` : "by the team"}
+                  {o.verified_by_name
+                    ? `by ${o.verified_by_name}`
+                    : o.source === "calendar"
+                      ? "from Google Calendar"
+                      : "by the team"}
                   {o.verified_at ? ` · ${when(o.verified_at)}` : ""}
                   {o.reason ? ` · “${o.reason}”` : ""}
                 </span>

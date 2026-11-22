@@ -9,6 +9,20 @@ export interface IntegrationsOverview {
     connectedAt: string | null;
     syncs: number;
   };
+  /** Google Calendar booked calls (T16). */
+  googleCalendar: {
+    available: boolean;
+    connected: boolean;
+    accountEmail: string | null;
+    connectedAt: string | null;
+    lastSyncedAt: string | null;
+    lastStatus: "ok" | "error" | null;
+    lastError: string | null;
+    /** Google revoked or expired the access: reconnect to resume. */
+    needsReconnect: boolean;
+    /** Verified booked calls that came from the calendar. */
+    bookedCalls: number;
+  };
   ses: { available: boolean };
 }
 
@@ -49,6 +63,13 @@ export const connectSheets = (returnTo: "/leads" | "/settings") =>
 
 export const disconnectSheets = () =>
   api<{ disconnected: boolean }>("/integrations/google-sheets", { method: "DELETE" });
+
+/** Google consent URL for the optional, read-only calendar connection; navigate there. */
+export const connectCalendar = () =>
+  api<{ url: string }>("/integrations/google-calendar/connect", { method: "POST" });
+
+export const disconnectCalendar = () =>
+  api<{ disconnected: boolean }>("/integrations/google-calendar", { method: "DELETE" });
 
 export const previewSheet = (url: string, sheet?: string) =>
   api<SheetPreview>("/integrations/google-sheets/preview", {
