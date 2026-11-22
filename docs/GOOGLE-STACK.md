@@ -416,3 +416,77 @@ BigQuery is inside the free tier. **Turn on:** `INSIGHTS_SOURCE=bigquery`. **Tur
 **Plan B** if Datastream is blocked: a BigQuery connection plus federated `EXTERNAL_QUERY` views with the same view names.
 
 Setup steps, commands and the exact state: `infra/bigquery/README.md`.
+
+---
+
+## Phase 5: Playbook memory (T14; code done, cloud steps listed below)
+
+**What it is.** A **playbook** is a lesson a person approved: "a short question as the subject beat a plain greeting for
+this offer" (kind `message`), or "Pune replied more for this offer" (kind `audience`). It is saved with the offer, the
+segment, plain-words text (3 to 500 characters), the evidence it came from, a validity window (default 90 days, max 1
+year) and a version. Editing saves a **new version**; the old one stays in the history (`supersedes_id`, status
+`superseded`). Retiring keeps the row (status `retired`). Postgres (`playbooks`, RLS on `org_id`, migration `0060`) is the
+source of truth.
+
+**How one is made.** Review > pause the losing version of a promoted test (or Discover > Search profile) shows
+**Save as playbook**. Code writes the draft from the review's own numbers (`playbook-drafter.ts`); the model may reword it
+(`playbook_draft` task, fast tier, 8 s, Model Armor on) but the wording is kept only if every number in it is one the
+evidence supports and an audience draft claims no proof or cause. Otherwise the template stays. The evidence under the form is
+read-only: the server rebuilds it from the review, so a client cannot invent it. A person edits and saves. Nothing is saved
+without that. Needs a `promote` decision whose losing version was paused (and not simulated), or an active or expired search preference.
+
+**How it is found.** Each playbook's `title + body + segment` is embedded with **`gemini-embedding-001`** (768 dimensions,
+`RETRIEVAL_DOCUMENT`); a Discover goal or a challenger request is embedded as `RETRIEVAL_QUERY`. Vectors live in BigQuery
+`expelly_memory.playbook_vectors` (DDL: `infra/bigquery/playbooks.sql`) as ids + the offer + the expiry + the vector, **no title, no
+body, no lead data**. Retrieval is `VECTOR_SEARCH` (cosine, exact) over the rows where `org_id = @org_id AND offer_id =
+@offer_id AND valid_to > now`, top 3. The API then **re-checks every hit in Postgres** (same org, same offer, still active, not
+expired) before using it, so a stale vector can never leak a retired or expired playbook.
+
+```
+Save ─► Postgres playbooks (text, evidence, versions) ─► embed (Vertex) ─► BigQuery expelly_memory.playbook_vectors (ids + numbers)
+Draft / Discover ─► embed the question ─► VECTOR_SEARCH (org, offer, unexpired, top 3) ─► re-check in Postgres ─► hints in the prompt
+```
+
+**Use.** The Copywriter request (T09) and the Discover plan request (T10) get `playbooks: [{title, body, validTo}]` (at most 5;
+the shared JSON schema and the Python models agree). The prompt says: "Prior approved learnings ... Treat them as hints, not
+facts. Prefer the current evidence." The AI never sees lead data (playbooks hold none). The UI shows **Used N playbooks** on a
+challenger draft and on a Discover run, linked to the playbook; the run and the draft store which playbooks they used
+(`playbook_ids`). `/review/playbooks` lists playbooks by offer with status, validity, version history, retire, edit, and a link back
+to the evidence review.
+
+**Switches.**
+
+| Setting | Values | Meaning |
+|---|---|---|
+| `PLAYBOOK_SEARCH` | `postgres` (default) / `bigquery` | `postgres` = keyword search only (no vectors written). `bigquery` = vectors + `VECTOR_SEARCH`, keyword fallback if anything fails. |
+| `EMBEDDING_DRIVER` | `gemini` (default when `AI_DRIVER=gemini`) / `mock` | Jest always uses `mock`. |
+| `EMBEDDINGS_USE_VERTEX` | `true` | Embeddings on Vertex AI with the runtime service account (needs `roles/aiplatform.user`); otherwise `GEMINI_API_KEY`. |
+| `EMBEDDINGS_LOCATION` | default `us-central1` | Vertex may not offer the embedding model in `asia-south1`, so embeddings are called in `us-central1` while the data stays in `asia-south1`. Only playbook text and the search goal text are sent (no lead data). |
+| `BIGQUERY_MEMORY_DATASET` | default `expelly_memory` | The vector dataset. |
+
+Saving never fails because the vector store is down: the playbook is saved, its `vector_status` shows `pending` or `failed`, and an
+admin can press **Rebuild search index** (`POST /playbooks/reindex`). Keyword search finds it meanwhile.
+
+**Why BigQuery and not Agent Engine Memory Bank (the task asked for the reason).** Memory Bank needs a deployed Agent Engine, and
+the Expelly agents are code-only so far (`apps/agents/deploy/README.md` not run), so choosing it would make this task wait for, and
+depend on, a billed service that is not there. More important, Memory Bank is built around memories an agent *derives from
+conversations*, keyed by a scope. We need the opposite: text a person wrote and approved, hard filters (workspace, offer, expiry),
+versions, and evidence. In BigQuery the workspace wall is a `WHERE` clause that tests check on every statement, and Postgres re-checks
+the result. BigQuery is also already in the stack (T07), the table is tiny and testable with a fake client.
+Revisit Memory Bank if the agents are ever deployed and we want agent-written memories.
+
+**Dataset choice.** The task note said `expelly_learning.playbook_vectors`. That dataset holds only authorised views over the locked
+copy and the API's service account only reads it, so the writable vector table is in its own dataset `expelly_memory`, with its
+own grant. Playbooks are **not** replicated to `expelly_raw` (`replication-set.json` is unchanged), so their text never reaches BigQuery.
+
+**Cost.** Embeddings: a few hundred short texts, cents a month. BigQuery: a table of a few hundred rows; a search scans kilobytes
+(the 1 GiB per-job cap still applies); well inside the free tier. No vector index until past about 5,000 rows.
+
+**Real smoke run.** `npm run playbooks:smoke -w apps/api` (also as `node dist/scripts/playbook-smoke.js` in a Cloud Run job) writes five
+throwaway vectors under two made-up workspaces and offers, searches, checks that only workspace A's unexpired playbooks of
+that offer come back (an expired one, another offer and another workspace all carry the same text), checks a removed one disappears, then
+deletes its rows. It touches no real workspace and no Postgres.
+
+**Turn on / off.** On: create the dataset and table (`infra/bigquery/playbooks.sql`), give the API's service account write access to
+`expelly_memory` and `roles/aiplatform.user`, set `EMBEDDINGS_USE_VERTEX=true` and `PLAYBOOK_SEARCH=bigquery`, run **Rebuild search
+index** once. Off: `PLAYBOOK_SEARCH=postgres`.

@@ -13,6 +13,57 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ## Sessions
 
+### 2026-11-22 — Learning Loop T14: playbook memory (approved learnings, versioned, found by vector search)
+
+Built on `ll/T14` from `google-stack` `353da81` (9 commits `d157918`..`53de71b`, 54 files). **Not pushed, not merged. No Google Cloud command has
+been run for T14 yet** (see "Cloud steps" at the end). Migration `0060` is applied on the local database only.
+
+- **What it does:** after a promoted test's losing version is paused (Review) or on an active or expired search preference (Discover), a manager
+  can **Save as playbook**: offer + segment + plain-words text + evidence + validity + version. Next Discover plans and challenger drafts get the
+  closest few as hints ("Prior approved learnings... hints, not facts. Prefer the current evidence."), and the UI says **Used N playbooks** (linked).
+  `/review/playbooks` lists them by offer with history, edit (new version), retire, validity and a link to the evidence review.
+- **Data:** migration `0060_playbooks.sql`: table `playbooks` (RLS, `playbooks_tenant_isolation`, `owner_bypass`; one active title per offer; one
+  successor per version) plus `playbook_ids jsonb` on `prospect_runs` and `challenger_drafts` (which playbooks a run or draft used). Additive only.
+- **Draft rules (code decides, AI drafts, people approve):** `playbook-drafter.ts` builds the text from the review's numbers and rebuilds the evidence
+  on the server (a client cannot supply it). The model (`playbook_draft` task, fast tier, 8 s timeout, Model Armor on) may reword; the wording is kept
+  only if every number is one the evidence supports (reuses the explanation validator) and an audience draft claims no proof or cause. Unchanged
+  wording is labelled `template`, not AI. AI never sees lead data (playbooks contain none).
+- **Search:** `PlaybookRetriever` interface. `VectorRetriever` (BigQuery `VECTOR_SEARCH`, cosine, org + offer + unexpired, top 3) wrapped by
+  `FallbackRetriever` (keyword search if the vector side fails, and it also finds playbooks not indexed yet). **Every hit is re-checked in Postgres**
+  (org, offer, active, not expired). `PLAYBOOK_SEARCH=postgres|bigquery`, default `postgres`. Embeddings: `gemini-embedding-001`, 768 dims, document
+  vs query task types; `EmbeddingProvider` interface with a deterministic mock (Jest never calls Gemini, Vertex or BigQuery).
+- **Wiring:** Copywriter and Discover contracts gained optional `playbooks[{title, body, validTo}]` (max 5): JSON schema in `packages/shared`, synced
+  copy, pydantic models and fixtures agree (Python 38 pass); native and ADK Discover drivers both send it; run and draft store the ids.
+- **API:** 8 routes (`docs/AUTHZ-MATRIX.md` regenerated): list, get, versions, draft, create, edit, retire (admin, manager; edit/retire check the role
+  server side) and reindex (admin). Vector failure never blocks saving (`vector_status` pending or failed; admin "Rebuild search index").
+- **Decisions:**
+  1. **BigQuery, not Agent Engine Memory Bank.** Memory Bank needs a deployed Agent Engine (the agents are still code-only) and is built for memories an agent
+     derives from conversations; we need person-approved text with hard workspace, offer and expiry filters, versions and evidence. BigQuery is already in the
+     stack, the table is tiny, and the tenant wall is a `WHERE org_id = @org_id` that tests check on every statement.
+  2. **Own dataset `expelly_memory`**, not `expelly_learning` as the task note said: `expelly_learning` holds only authorised views and the API only
+     reads it; the writable vector table gets its own dataset and grant. Playbooks are **not** added to `replication-set.json` (text never reaches BigQuery;
+     the vector table holds ids, offer, expiry and the vector only).
+  3. **Vertex for embeddings** (`EMBEDDINGS_USE_VERTEX=true`, runtime service account, `us-central1` because `asia-south1` may not offer the model); AI Studio key
+     as the alternative.
+- **UI proof (local, seeded demo workspace; screenshots in `docs/playbooks-screenshots/`):** Save as playbook from a promoted, paused review; the next
+  challenger draft showed "Used 1 playbook"; Playbooks page with an Audience and a Message playbook (version 2 with History); the evidence link opens the
+  campaign's Review tab; Save as playbook from Discover's Search profile (AI wording passed the number gate); a Discover run showing "Used 1 playbook as
+  hints: Pune Segment Observation". (The Discover run row was inserted by hand to see the line; it was deleted afterwards.)
+- **Bugs and gaps found on the way:** evidence needed the campaign id to link back to the review (added); the first Search profile button had no dialog
+  (wired); one-active-preference index tripped a test helper (helper fixed); the model-router spec now counts 10 tasks.
+- **Checks:** API lint clean; `tsc` clean; API build clean; web build clean (web lint 0 errors, 10 warnings, same `set-state-in-effect` style as the rest
+  of the repo); Python 38 pass; API suite: **858 pass, 1 skipped, 1 fail**: the Gemini provider spec (calls the network when a Gemini key is in `.env`;
+  it fails the same on the base tree). In the full run `templates.integration` hit its 5 s `beforeAll` timeout because the machine was busy with a web build;
+  it passes alone (7/7). New tests: 60 for playbooks (retrieval, text gate, roles, RLS, versions, tenant isolation, wiring), plus contract and authz.
+- **Not done / not verified:** the real embeddings + `VECTOR_SEARCH` smoke run (acceptance 2, second half) and the BigQuery table do not exist yet; the migration
+  is not on Cloud SQL; nothing deployed.
+
+**Cloud steps (each explained and run only on Aman's go):** (1) create dataset `expelly_memory` (`asia-south1`) and the table from
+`infra/bigquery/playbooks.sql`; (2) give the API's service account `roles/bigquery.dataEditor` on that dataset only; (3) enable `aiplatform.googleapis.com` and
+give `roles/aiplatform.user`; (4) run the smoke script as a temporary Cloud Run job (`npm run playbooks:smoke`), delete the job; (5) run migration
+`0060` on Cloud SQL (migrate job; no core-lane chat may be running); (6) deploy API + web; (7) `PLAYBOOK_SEARCH=bigquery` only on a separate go.
+
+
 ### 2026-11-22 — Learning Loop T07: BigQuery learning plane, Datastream, Knowledge Catalog
 
 Built on `ll/T07` from `google-stack` `3d10fd0` (9 commits `78f6896`..`fd1c98b`). **Pushed, merged into `google-stack` (`2d187e4`) and deployed.** The cloud
