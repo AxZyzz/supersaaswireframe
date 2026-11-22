@@ -64,8 +64,10 @@ Aman's go (dataset, table, one dataset grant, Vertex on, **real smoke run passed
 - **Bug the real run found (the Jest fake client could not):** the first run (image `t14-7f80829`) failed with `Required field valid_to cannot be null`. The BigQuery client reads
   `.value` of a TIMESTAMP parameter, so an ISO string reached BigQuery as NULL. Fixed by passing a `Date` (`b78aa93`), plus a test that runs every upsert parameter through the
   real client's conversion. Second run: pass.
-- **Not done / not verified:** the migration job succeeded (`migrations applied`, exit 0) but nothing has read the new table in production yet (the first read
-  will be the Playbooks page, which Aman opens after the deploy; grants come from the default privileges set in `0002`, as for every table); `PLAYBOOK_SEARCH` is still `postgres` in production, so no real playbook has been
+- **First production read, verified 2026-11-22:** Aman opened Review > Playbooks on the live web (rev 00013): the page loads with the offer dropdown and "No playbooks yet"; the API log shows
+  `GET /playbooks` and `GET /playbooks?offerId=...` both 200 on `supersaas-api-00022-9zb`, so the new table is readable through the app role and the row-level security policy (the grants
+  from the default privileges set in `0002` work). Still not verified: saving a playbook, and any real embedding or `VECTOR_SEARCH` from the live API.
+- **Not done:** `PLAYBOOK_SEARCH` is still `postgres` in production, so no real playbook has been
   embedded or searched there yet.
 
 **Cloud steps (each explained and run only on Aman's go; project `supersaas-513613`):** (1) **DONE 2026-11-22** `bq mk` dataset `expelly_memory`
