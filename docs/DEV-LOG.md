@@ -59,7 +59,12 @@ Aman asked for T17 ("what time should we send?") as the last core-lane task. Pla
   services update supersaas-web --image=...web:t17-3274050` -> `supersaas-web-00016-cnc` (rollback `00015-lv2`). Settings unchanged. Checked: API `/health/ready` 200 (`db` and `redis` true), the same
   through the web proxy, `/`, `/login`, `/campaigns`, `/review/insights` 200, a request without a token 401, no errors on either new revision (the only warning-level line was my own 401 probe).
   No new monthly cost (a few cents for two more images). The images were built from `3274050`; later commits on `google-stack` are docs only.
-- **Not done / not verified.** Not looked at on the live site logged in (needs a login: Campaigns > Setup should show the Send window box and "Test two send times"). A real send-time test over
+- **Looked at on the live site, signed in (2026-11-23, view only, nothing changed).** Aman first reported "no Setup in the Campaigns page": with no campaign selected the page only says "Select or
+  create a campaign to build its sequence", and the Setup | Review tabs appear only after a campaign is clicked. Aman signed in himself in the built-in pane (I do not type passwords on production);
+  on the paused campaign `Test` the page shows Setup | Review, the Send window box, the A/B test panel and "Test two send times" (windows A Tue-Thu 09:00-11:00 and B Tue-Thu 14:00-16:00, clock option
+  "Our workspace time (Asia/Calcutta)", so his workspace timezone is already set); `/review/insights` shows the "Run a send-time test" link to `/campaigns?sendtest=1`. The live bundle also contains the new strings.
+  UX note: the new panels sit low on the Setup tab, below the sequence steps; a first-time user has to select a campaign and scroll. Not changed.
+- **Not done / not verified.** A real send-time test over
   days with real replies, so the "which time wins" verdict has never been exercised on live data. The per-sender hour window still uses the server clock (unchanged).
 - **Datastream checked after the deploy (2026-11-23, read-only).** It does NOT see the two new columns, by design: T07 replicates listed columns only (the Postgres `datastream_reader` grant, publication `expelly_bq`,
   `datastream-include.json` and `replication-set.json` all name them), and `campaigns.send_window` / `experiment_variants.send_window` are on none of the four lists. A later task that wants a new column in
