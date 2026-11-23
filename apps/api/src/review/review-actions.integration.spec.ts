@@ -843,6 +843,55 @@ describe('Review actions: approvals, pause, resume, challenger (T11)', () => {
     expect(laterVariants).toContain(m.b);
   });
 
+  it('a company ASSIGNED to a version before it was paused, with nothing sent yet, keeps that version (reassigning would bias the test)', async () => {
+    const m = await mkCampaign('keep', 6); // 6 companies enrolled and due, nothing sent yet
+    // company 0 was assigned to B earlier (a failed attempt or a deferral leaves exactly this:
+    // an assignment row and no sent email)
+    const keptCompany = `${m.tag}-0.example.org`;
+    await q((c) =>
+      c.query(
+        `INSERT INTO experiment_assignments (org_id, experiment_id, company_key, variant_id, hash)
+         VALUES ($1, $2, $3, $4, 'pre-assigned')`,
+        [orgId, m.experimentId, keptCompany, m.b],
+      ),
+    );
+    expect(await sentRows(m.campaignId)).toHaveLength(0);
+
+    // B is paused while that company's first touch is still queued
+    const r = await mkReview(m.experimentId, 1, [
+      { type: 'pause_variant', variantId: m.b },
+    ]);
+    await approve(token, r.reviewId, r.actions[0].actionId, {
+      revision: 1,
+      reason: 'test',
+    }).expect(200);
+    expect(await variantStatus(m.b)).toBe('paused');
+
+    await tick();
+    const sent = await sentRows(m.campaignId);
+    expect(sent).toHaveLength(6);
+    // the pre-assigned company still gets B, with B's subject and attribution
+    const kept = sent.find((s) => s.company_key === keptCompany)!;
+    expect(kept.variant_id).toBe(m.b);
+    expect(kept.subject).toBe(`Bravo ${m.tag}`);
+    // every company that had no assignment was given an ACTIVE version only
+    for (const s of sent.filter((x) => x.company_key !== keptCompany)) {
+      expect(s.variant_id).toBe(m.a);
+    }
+    // and its assignment row was not rewritten
+    const row = await q(
+      async (c) =>
+        (
+          await c.query<{ variant_id: string; reassigned_from: string | null }>(
+            `SELECT variant_id, reassigned_from FROM experiment_assignments
+            WHERE experiment_id = $1 AND company_key = $2`,
+            [m.experimentId, keptCompany],
+          )
+        ).rows,
+    );
+    expect(row).toEqual([{ variant_id: m.b, reassigned_from: null }]);
+  });
+
   it('in-flight follow-ups after a pause still send with the original variant attribution', async () => {
     const m = await mkCampaign('follow', 10, 2);
     await tick();

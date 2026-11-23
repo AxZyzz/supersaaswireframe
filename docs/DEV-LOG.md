@@ -32,7 +32,12 @@ cloud can be checked or changed until he restores it). Branch `ll/T18` from `goo
 - **Tests.** New `src/auth/security-t18.integration.spec.ts` (5): the three route limits are set, and the simulated-review cap keeps the newest 20, drops the oldest, leaves another workspace alone
   and the newest can still be opened. Full API suite: 969 pass, 1 skipped, 1 fail = the known `gemini.provider.spec.ts` network test. Lint, `tsc` and the API build are clean. The authz matrix is unchanged (no new
   routes).
-- **Rest of T18 still to do:** the spec-checklist mapping to test names, the demo script and rollback plan (local), then the live end-to-end run and the deploy (need billing and Aman's go).
+- **Spec checklist mapped (T18 section 2), on Aman's "Start checklist mapping".** All 11 cases map to existing passing tests; the map is `docs/LEARNING-LOOP-TEST-MAP.md` (35 test names, each checked to exist in the
+  file named). Two had no test that actually said so, so two were written: (1) "a company ASSIGNED to a version before it was paused, with nothing sent yet, keeps that version" in
+  `review/review-actions.integration.spec.ts` (the documented T11 rule, previously only a code comment in `send.service.ts`); (2) "another workspace cannot read, edit, start, stop or create a test on this
+  workspace's campaign (404), and nothing changes" in `campaigns/experiments.integration.spec.ts` (eight requests from a second workspace, including a send-time test and the campaign's send window).
+  No production code changed. Both specs pass (23/23), lint and `tsc` clean. Not re-run: the full API suite (only test files changed since the last full run, 969 pass + the known Gemini spec).
+- **Rest of T18 still to do:** the demo script, rollback plan and restore-day runbook (local), then the live end-to-end run and the deploy (need billing and Aman's go).
 
 ### 2026-11-23 — Learning Loop T17: send windows + "Test two send times"
 

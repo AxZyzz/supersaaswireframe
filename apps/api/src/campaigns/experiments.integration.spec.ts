@@ -645,4 +645,122 @@ describe('Offers, enrollment snapshot, experiments and assignment (T02)', () => 
       expect(sends.rows[0].variant_id).toBeNull();
     });
   });
+
+  // T18 spec checklist: wrong-tenant access, for tests (experiments) themselves.
+  it("another workspace cannot read, edit, start, stop or create a test on this workspace's campaign (404), and nothing changes", async () => {
+    const camp = await http()
+      .post('/campaigns')
+      .set('Authorization', auth())
+      .send({ name: 'Tenant fence' })
+      .expect(201);
+    const step = await http()
+      .post(`/campaigns/${camp.body.id}/steps`)
+      .set('Authorization', auth())
+      .send({ templateId, delayHours: 0 })
+      .expect(201);
+    const exp = await http()
+      .post(`/campaigns/${camp.body.id}/experiments`)
+      .set('Authorization', auth())
+      .send({
+        stepId: step.body.id,
+        variants: [
+          { label: 'A', subject: 'Mine A' },
+          { label: 'B', subject: 'Mine B' },
+        ],
+      })
+      .expect(201);
+    const before = exp.body.baseline_rate;
+
+    const asOther = () => ({ Authorization: otherAuth() });
+    await http()
+      .get(`/campaigns/${camp.body.id}/experiments`)
+      .set(asOther())
+      .expect(404);
+    await http().get(`/experiments/${exp.body.id}`).set(asOther()).expect(404);
+    await http()
+      .patch(`/experiments/${exp.body.id}`)
+      .set(asOther())
+      .send({ baselineRate: 0.5 })
+      .expect(404);
+    await http()
+      .post(`/experiments/${exp.body.id}/start`)
+      .set(asOther())
+      .expect(404);
+    await http()
+      .post(`/experiments/${exp.body.id}/stop`)
+      .set(asOther())
+      .expect(404);
+    // a subject test and a send-time test on someone else's campaign
+    await http()
+      .post(`/campaigns/${camp.body.id}/experiments`)
+      .set(asOther())
+      .send({
+        variants: [
+          { label: 'A', subject: 'Theirs A' },
+          { label: 'B', subject: 'Theirs B' },
+        ],
+      })
+      .expect(404);
+    await http()
+      .post(`/campaigns/${camp.body.id}/experiments`)
+      .set(asOther())
+      .send({
+        kind: 'send_time',
+        windows: [
+          {
+            window: {
+              days: [2],
+              startHour: 9,
+              endHour: 11,
+              tzBasis: 'recipient',
+            },
+          },
+          {
+            window: {
+              days: [3],
+              startHour: 9,
+              endHour: 11,
+              tzBasis: 'recipient',
+            },
+          },
+        ],
+      })
+      .expect(404);
+    // and the campaign's own send window (T17)
+    await http()
+      .patch(`/campaigns/${camp.body.id}`)
+      .set(asOther())
+      .send({
+        sendWindow: {
+          days: [1],
+          startHour: 9,
+          endHour: 17,
+          tzBasis: 'workspace',
+        },
+      })
+      .expect(404);
+
+    // nothing moved: still this workspace's draft test, unchanged, one test, no window
+    const mine = await http()
+      .get(`/experiments/${exp.body.id}`)
+      .set('Authorization', auth())
+      .expect(200);
+    expect(mine.body.status).toBe('draft');
+    expect(mine.body.baseline_rate).toBe(before);
+    expect(
+      (mine.body.variants as { subject: string }[])
+        .map((v) => v.subject)
+        .sort(),
+    ).toEqual(['Mine A', 'Mine B']);
+    const list = await http()
+      .get(`/campaigns/${camp.body.id}/experiments`)
+      .set('Authorization', auth())
+      .expect(200);
+    expect(list.body).toHaveLength(1);
+    const campaign = await http()
+      .get(`/campaigns/${camp.body.id}`)
+      .set('Authorization', auth())
+      .expect(200);
+    expect(campaign.body.send_window).toBeNull();
+  });
 });
