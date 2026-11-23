@@ -37,7 +37,16 @@ cloud can be checked or changed until he restores it). Branch `ll/T18` from `goo
   `review/review-actions.integration.spec.ts` (the documented T11 rule, previously only a code comment in `send.service.ts`); (2) "another workspace cannot read, edit, start, stop or create a test on this
   workspace's campaign (404), and nothing changes" in `campaigns/experiments.integration.spec.ts` (eight requests from a second workspace, including a send-time test and the campaign's send window).
   No production code changed. Both specs pass (23/23), lint and `tsc` clean. Not re-run: the full API suite (only test files changed since the last full run, 969 pass + the known Gemini spec).
-- **Rest of T18 still to do:** the demo script, rollback plan and restore-day runbook (local), then the live end-to-end run and the deploy (need billing and Aman's go).
+- **Demo script, rollback plan and restore-day runbook written (T18 sections 4 and 5), on Aman's "Yes, write them".** Three new docs, all written without the live site (billing closed), so none was rehearsed or
+  run: `docs/DEMO-SCRIPT.md` (3 to 4 minutes, a day-before checklist, a Plan B that runs locally, what to claim and what not to, likely questions, the Google Cloud services slide with live / built-not-deployed /
+  designed-not-built marked, and a rule that simulated data is always said to be simulated); `docs/ROLLBACK-PLAN.md` (what is live and what each part rolls back to, when to roll back, code rollback by traffic
+  switch with no database change, every environment switch with its off value, scheduler and Datastream pauses, the emergency stop for email via `SEND_SCHEDULER=off`); `docs/RESTORE-RUNBOOK.md` (Aman restores
+  billing, read-only checks, the database, the overdue-email problem, the waiting deploy with no migration, then turning Model Armor on). Found while writing: (1) if the API starts by itself the moment billing returns,
+  its 30-second send loop can start on overdue emails before any switch can be set, and no existing campaign has a send window: documented, with `SEND_SCHEDULER=off` as the first move and an offer to add a
+  "skip or spread leads overdue by more than N hours" guard before restore day; (2) the app works out "companies needed per version" from the lift observed so far, so the demo script quotes the formula's real
+  range (about 1,850 per version at a 4-point lift, 900 at 5, 280 at 8, 6,700 at 3; 3% baseline, 2-point minimum) instead of a fixed number; checked by hand, not by running the function. Docs only, no code
+  change. Every file the docs point to exists. Not verified: any command in them (none was run), `update-traffic` in this project, a Cloud SQL restore, and the demo labels marked "confirm in rehearsal".
+- **Rest of T18 still to do:** the live end-to-end run, the smoke test and the deploy (need billing and Aman's go), then turn Model Armor on.
 
 ### 2026-11-23 — Learning Loop T17: send windows + "Test two send times"
 
