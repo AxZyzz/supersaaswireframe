@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AiContentService } from './ai-content.service';
 import { AiController } from './ai.controller';
@@ -26,11 +26,21 @@ import { NoopSafetyScreen, SAFETY_SCREEN } from './safety/safety-screen';
       // SAFETY_DRIVER=modelarmor turns Model Armor on; anything else is a no-op.
       provide: SAFETY_SCREEN,
       inject: [ConfigService],
-      useFactory: (config: ConfigService) =>
-        config.get<string>('SAFETY_DRIVER', 'off').toLowerCase() ===
-        'modelarmor'
-          ? new ModelArmorSafetyScreen(config)
-          : new NoopSafetyScreen(),
+      useFactory: (config: ConfigService) => {
+        const on =
+          config.get<string>('SAFETY_DRIVER', 'off').toLowerCase() ===
+          'modelarmor';
+        if (!on && process.env.NODE_ENV === 'production') {
+          // Visible, not silent (security review T18, finding 3): with the
+          // screen off, replies and web pages reach the model unscreened and AI
+          // text a person will send is not checked. Code still verifies every
+          // claim and people still approve, but this is the second layer.
+          new Logger('AiSafety').warn(
+            'SAFETY_DRIVER is off in production: Model Armor screening is NOT active',
+          );
+        }
+        return on ? new ModelArmorSafetyScreen(config) : new NoopSafetyScreen();
+      },
     },
     AiService,
     AiContentService,

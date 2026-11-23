@@ -9,6 +9,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Type } from 'class-transformer';
 import {
   IsArray,
@@ -84,6 +85,9 @@ export class SearchPreferencesController {
     return this.prefs.list(user.orgId, offerId || undefined);
   }
 
+  // Reads the evidence (BigQuery when it is on) without storing anything; a
+  // person previews a few times, so 20/min is plenty (security review T18, finding 2).
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Roles('admin', 'manager')
   @Post('propose')
   @HttpCode(200)

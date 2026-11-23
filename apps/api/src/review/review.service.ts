@@ -89,6 +89,9 @@ export function inputsHash(input: ReviewInput): string {
   return createHash('sha256').update(JSON.stringify(stable)).digest('hex');
 }
 
+/** How many simulated ("Try simulation") reviews a workspace keeps. */
+export const SIMULATED_REVIEWS_KEPT = 20;
+
 /** Refresh is limited to once per 30 s per campaign (per API instance). */
 export const REFRESH_COOLDOWN_MS = 30_000;
 
@@ -355,6 +358,19 @@ export class ReviewService {
           JSON.stringify(result),
           JSON.stringify(explanation),
         ],
+      );
+      // Any role can press "Try simulation", so these rows must not pile up
+      // without limit (security review T18, finding 1): keep this workspace's
+      // newest SIMULATED_REVIEWS_KEPT and drop the rest, in the same
+      // transaction. Real reviews are never touched (simulated = false), and
+      // the tenant policy limits the delete to this workspace.
+      await c.query(
+        `DELETE FROM reviews
+          WHERE simulated
+            AND id NOT IN (
+              SELECT id FROM reviews WHERE simulated
+               ORDER BY computed_at DESC, id DESC LIMIT $1)`,
+        [SIMULATED_REVIEWS_KEPT],
       );
       return r.rows[0];
     });

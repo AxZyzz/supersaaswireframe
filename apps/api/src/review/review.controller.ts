@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   Post,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   IsInt,
   IsOptional,
@@ -92,6 +93,9 @@ export class ReviewController {
     return SCENARIOS;
   }
 
+  // Any role may try it and every call stores a (flagged) row, so it has its own
+  // limit, tighter than the global 100/min (security review T18, finding 1).
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('review/simulate')
   @HttpCode(200)
   simulate(@CurrentUser() user: AuthUser, @Body() dto: SimulateDto) {

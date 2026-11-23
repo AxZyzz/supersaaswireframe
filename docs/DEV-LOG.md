@@ -13,6 +13,27 @@ How to keep this up to date: every session appends a dated entry at the top of
 
 ## Sessions
 
+### 2026-11-23 — Learning Loop T18 (part): security review of the Learning Loop, done locally
+
+Aman asked for the security review first ("Start security review") because the Google Cloud billing account for `supersaas-513613` was found **closed** the same day (live site down, nothing in the
+cloud can be checked or changed until he restores it). Branch `ll/T18` from `google-stack` `65bf3a0`. Local only: no `gcloud`, no deploy, nothing pushed.
+
+- **What was reviewed** (T18 section 3): RLS and the authz matrix, the cron and agent-tool endpoints, SSRF on agent fetches, prompt-injection paths, PII in BigQuery and agents, idempotency keys,
+  rate limits, secrets in tracked files, and the T17 surface. By reading the code and querying the local database (50 tables, 23 `SECURITY DEFINER` functions, 219 routes, 17 replicated tables).
+  Result in `docs/SECURITY-REVIEW.md` (new addendum "the Learning Loop (T01 to T17)"): **no high findings**; 7 findings, 2 fixed, 1 open that needs the cloud, 4 informational.
+- **Fixed (code).** (1) `POST /review/simulate` (any role) stored a row per call with no cap: now a 10/min route limit and only the newest 20 simulated reviews per workspace are kept (same
+  transaction, real reviews untouched, other workspaces untouched). (2) `GET /insights` (30/min) and `POST /search-preferences/propose` (20/min) get their own limits because with
+  `INSIGHTS_SOURCE=bigquery` they can run billed queries. (3) A start-up warning when `SAFETY_DRIVER` is off in production.
+- **Open: Model Armor is not active in production.** `SAFETY_DRIVER` defaults to `off`, `off` is allowed in production, and the template was never created (T08), so replies and web pages reach the
+  model unscreened. The other layers hold (claims verified in code, aggregates-only analyst, provisional AI labels, human approval). Fix needs the cloud: create the template, set
+  `SAFETY_DRIVER=modelarmor` + `MODEL_ARMOR_TEMPLATE`, decide `SAFETY_FAIL_MODE`. It belongs in the T18 deploy checklist.
+- **Not verified (needs the cloud).** `TRUST_PROXY` behind Cloud Run (the global limit is per IP), the scheduler service account and audience, the Agent Engine identity, Model Armor on real traffic,
+  Agent Gateway and Apigee (T15, not built), real injection attempts against live Gemini, and the V1 live attack script (`scripts/security/pentest.js`) was not re-run.
+- **Tests.** New `src/auth/security-t18.integration.spec.ts` (5): the three route limits are set, and the simulated-review cap keeps the newest 20, drops the oldest, leaves another workspace alone
+  and the newest can still be opened. Full API suite: 969 pass, 1 skipped, 1 fail = the known `gemini.provider.spec.ts` network test. Lint, `tsc` and the API build are clean. The authz matrix is unchanged (no new
+  routes).
+- **Rest of T18 still to do:** the spec-checklist mapping to test names, the demo script and rollback plan (local), then the live end-to-end run and the deploy (need billing and Aman's go).
+
 ### 2026-11-23 — Learning Loop T17: send windows + "Test two send times"
 
 Aman asked for T17 ("what time should we send?") as the last core-lane task. Plan shown first and approved with "Go". Built on `ll/T17` from `google-stack` `126645f`

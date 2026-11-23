@@ -1,4 +1,5 @@
 import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../auth/types';
 import { InsightsService } from './insights.service';
@@ -22,6 +23,10 @@ function date(v: string | undefined, name: string): Date | undefined {
 export class InsightsController {
   constructor(private readonly insights: InsightsService) {}
 
+  // With INSIGHTS_SOURCE=bigquery each call can run BigQuery queries (billed per
+  // byte scanned), so it has its own limit, below the global 100/min
+  // (security review T18, finding 2).
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Get()
   get(
     @CurrentUser() user: AuthUser,
