@@ -23,6 +23,11 @@ import {
 } from '../campaigns/experiment-assignment';
 import { isValidTimeZone } from '../prospects/attributes';
 import {
+  catchUpConfigFrom,
+  catchUpDecision,
+  type CatchUpConfig,
+} from './catch-up';
+import {
   parseSendWindow,
   scheduleInWindow,
   type SendWindow,
@@ -91,6 +96,23 @@ export class SendService implements BeforeApplicationShutdown {
    */
   clock: () => Date = () => new Date();
 
+  /** Sends the catch-up guard has moved since start-up (logged per tick). */
+  private catchUpMoved = 0;
+
+  /**
+   * The catch-up guard's settings (SEND_STALE_AFTER_HOURS, default 24;
+   * SEND_CATCHUP_SPREAD_HOURS, default 24). Read on each use, so a changed
+   * environment variable on a new revision, or a test, takes effect at once.
+   */
+  private catchUpConfig(): CatchUpConfig {
+    return catchUpConfigFrom(
+      process.env.SEND_STALE_AFTER_HOURS ??
+        this.config.get<string>('SEND_STALE_AFTER_HOURS'),
+      process.env.SEND_CATCHUP_SPREAD_HOURS ??
+        this.config.get<string>('SEND_CATCHUP_SPREAD_HOURS'),
+    );
+  }
+
   /**
    * Deploys and scale-downs: finish the lead in hand, start no new one. The
    * tick scheduler waits (capped) for the in-flight tick, so no email is left
@@ -119,6 +141,7 @@ export class SendService implements BeforeApplicationShutdown {
       suppressed: 0,
     };
     const touched = new Set<string>();
+    const movedBefore = this.catchUpMoved;
     for (const row of due.rows) {
       if (this.stopping) break; // shutting down: leave the rest for next tick
       try {
@@ -136,6 +159,13 @@ export class SendService implements BeforeApplicationShutdown {
           err as Error,
         );
       }
+    }
+    const moved = this.catchUpMoved - movedBefore;
+    if (moved > 0) {
+      // visible in the logs after an outage or a long pause (see docs/RESTORE-RUNBOOK.md)
+      this.logger.warn(
+        `catch-up guard: moved ${moved} overdue send${moved === 1 ? '' : 's'} into the next ${this.catchUpConfig().spreadHours} h instead of sending them now`,
+      );
     }
     // one "campaign stats changed" per workspace per tick, not per email
     for (const org of touched) this.realtime.toOrg(org, { type: 'campaigns' });
@@ -373,6 +403,8 @@ export class SendService implements BeforeApplicationShutdown {
         status: string;
         unsub_token: string;
         snapshot: Record<string, unknown> | null;
+        /** How long ago it was due, by the DATABASE clock (catch-up guard). */
+        overdue_seconds: number | null;
       }>(
         // Claim with a lease: atomically push next_send_at out, but only if
         // the lead is still due. Overlapping ticks (two instances, a slow
@@ -380,10 +412,20 @@ export class SendService implements BeforeApplicationShutdown {
         // the loser sees it's no longer due and skips — no double sends.
         // Phase 3 sets the real next_send_at; if we crash before that, the
         // lease simply expires and the lead is retried.
-        `UPDATE campaign_leads
-         SET next_send_at = now() + interval '10 minutes'
-         WHERE id = $1 AND next_send_at IS NOT NULL AND next_send_at <= now()
-         RETURNING id, campaign_id, lead_id, current_step, status, unsub_token, snapshot`,
+        // The lease overwrites next_send_at, so the ORIGINAL due time is read
+        // under the same row lock (the FROM subquery) to tell how overdue this
+        // send is: the catch-up guard below needs it, and a competing claimer
+        // waits on the lock and then finds the lead no longer due.
+        `UPDATE campaign_leads cl
+            SET next_send_at = now() + interval '10 minutes'
+           FROM (SELECT id, next_send_at FROM campaign_leads
+                  WHERE id = $1 FOR UPDATE) prev
+          WHERE cl.id = prev.id
+            AND cl.next_send_at IS NOT NULL AND cl.next_send_at <= now()
+        RETURNING cl.id, cl.campaign_id, cl.lead_id, cl.current_step, cl.status,
+                  cl.unsub_token, cl.snapshot,
+                  EXTRACT(EPOCH FROM (now() - prev.next_send_at))::float8
+                    AS overdue_seconds`,
         [leadStateId],
       );
       if (clRes.rowCount === 0) return { outcome: 'skipped' as Outcome };
@@ -504,6 +546,31 @@ export class SendService implements BeforeApplicationShutdown {
           await this.advance(c, cl.id, cl.current_step + 1, steps);
           return { outcome: 'skipped' as Outcome };
         }
+      }
+
+      // Catch-up guard (T18 follow-up). A send overdue by more than
+      // SEND_STALE_AFTER_HOURS (default 24) is NOT sent in a burst after an
+      // outage or a long pause: it moves to a deterministic point inside the
+      // next SEND_CATCHUP_SPREAD_HOURS (default 24), then goes out normally
+      // (caps, windows, suppression and the rest are checked again then). It
+      // sits after the checks that stop a lead for good (no email, suppression,
+      // condition) so those still win, and before assignment and the sender, so
+      // a moved lead creates no assignment and uses no capacity.
+      const late = catchUpDecision({
+        overdueSeconds: cl.overdue_seconds ?? 0,
+        config: this.catchUpConfig(),
+        seed: `${cl.id}:${cl.current_step}`,
+      });
+      if (late.stale) {
+        await c.query(
+          `UPDATE campaign_leads
+              SET next_send_at = now() + make_interval(secs => $2),
+                  updated_at = now()
+            WHERE id = $1`,
+          [cl.id, late.delaySeconds],
+        );
+        this.catchUpMoved += 1;
+        return { outcome: 'deferred' as Outcome };
       }
 
       // Send window (Learning Loop T17). Which window applies:

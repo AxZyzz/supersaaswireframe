@@ -46,6 +46,17 @@ cloud can be checked or changed until he restores it). Branch `ll/T18` from `goo
   "skip or spread leads overdue by more than N hours" guard before restore day; (2) the app works out "companies needed per version" from the lift observed so far, so the demo script quotes the formula's real
   range (about 1,850 per version at a 4-point lift, 900 at 5, 280 at 8, 6,700 at 3; 3% baseline, 2-point minimum) instead of a fixed number; checked by hand, not by running the function. Docs only, no code
   change. Every file the docs point to exists. Not verified: any command in them (none was run), `update-traffic` in this project, a Cloud SQL restore, and the demo labels marked "confirm in rehearsal".
+- **Catch-up guard added (2026-11-24), on Aman's "Yes, add the guard".** After an outage or a long pause every send is overdue at once and the loop would work through them in a burst, at any hour (no existing
+  campaign has a send window). Now a send overdue by more than `SEND_STALE_AFTER_HOURS` (default 24) is moved to a deterministic point inside the next `SEND_CATCHUP_SPREAD_HOURS` (default 24) and then goes out
+  normally; fresher sends are untouched; `SEND_STALE_AFTER_HOURS=0` turns it off; a paused-then-resumed campaign gets the same treatment. How: the claim query in `send.service.ts` now reads the original due time under the
+  same row lock (it was overwritten by the lease) and returns how overdue it was **by the database clock**; `sending/catch-up.ts` (pure) decides; the guard sits after the checks that stop a lead for good (no email,
+  suppression, condition) and before assignment, window and sender, so a moved lead creates no assignment and uses no capacity. Capacity backlogs are not "stale" (the lease re-dates them every 10 minutes). Both
+  settings are validated at boot. Logged per tick: "catch-up guard: moved N overdue sends". **Limit, stated plainly:** the live API (revision 00026) has no guard and new code cannot be deployed until billing is back, so it cannot
+  protect the first minutes after the restart; the restore order is: `SEND_SCHEDULER=off` first, deploy the guarded API, then remove the switch (`docs/RESTORE-RUNBOOK.md`, updated; `docs/ROLLBACK-PLAN.md` has the new switch).
+  Tests: `catch-up.spec.ts` (23: config parsing, the limit exactly, determinism, 1,000 sends spread evenly over the window, off, nonsense values), `catch-up.integration.spec.ts` (7, real loop and database: 3 days
+  overdue moves 30 leads spread over the next 24 h and then they send normally; 2 hours late sends at once; an overdue follow-up is moved; off; adjustable limits; a suppressed lead is stopped not moved; a campaign resumed after 4 days
+  does not burst), env validation (1). All sending, campaigns and config suites pass (147), lint, `tsc` and the API build clean. Local Docker Desktop had to be started first (it was off after the overnight restart; it came
+  up in 10 seconds, no stale-socket crash).
 - **Rest of T18 still to do:** the live end-to-end run, the smoke test and the deploy (need billing and Aman's go), then turn Model Armor on.
 
 ### 2026-11-23 — Learning Loop T17: send windows + "Test two send times"

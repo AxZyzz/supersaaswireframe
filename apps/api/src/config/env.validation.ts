@@ -110,6 +110,19 @@ export function validateEnv(
     errors.push('TRACING must be "on" or "off"');
   }
 
+  // Catch-up guard (T18 follow-up): a typo must fail loudly at boot, not
+  // quietly switch the guard off or change how it spreads overdue sends.
+  const stale = str('SEND_STALE_AFTER_HOURS');
+  if (stale && !(Number.isFinite(Number(stale)) && Number(stale) >= 0)) {
+    errors.push(
+      'SEND_STALE_AFTER_HOURS must be a number of hours, 0 or more (0 turns the guard off)',
+    );
+  }
+  const spread = str('SEND_CATCHUP_SPREAD_HOURS');
+  if (spread && !(Number.isFinite(Number(spread)) && Number(spread) > 0)) {
+    errors.push('SEND_CATCHUP_SPREAD_HOURS must be a number of hours above 0');
+  }
+
   // ADK agents (T09): a switch set to "agent" needs the agent's address.
   const re = str('REVIEW_EXPLAINER').toLowerCase();
   if (re && !['template', 'agent', 'gemini'].includes(re)) {

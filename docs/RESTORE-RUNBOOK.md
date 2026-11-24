@@ -58,7 +58,16 @@ warm-up, the plan's email caps, suppression and unsubscribes, and a campaign's s
 existing campaigns has a send window**, so late emails can go out at any hour.
 
 **Cannot be prevented from our side if the API restarts by itself the moment billing returns** (Cloud Run keeps one instance
-running). If that happens the first ticks may already be sending when we look. To reduce the risk:
+running). If that happens the first ticks may already be sending when we look. **The catch-up guard (added 2026-11-24).** From the API image built after `google-stack` `90df4eb`, a send that is overdue by
+more than `SEND_STALE_AFTER_HOURS` (default **24**) is not sent in a burst: it is moved to a fixed point inside the next
+`SEND_CATCHUP_SPREAD_HOURS` (default **24**), then goes out normally (caps, windows, suppression are checked again then). Sends
+less than 24 hours late still go out at once. The log says `catch-up guard: moved N overdue sends …`. `SEND_STALE_AFTER_HOURS=0`
+turns it off. A campaign paused for days and resumed gets the same treatment.
+**Its limit:** the API running in the cloud today (revision `supersaas-api-00026-548`) does **not** have the guard, and new code
+cannot be built or deployed until billing is back. So it cannot protect the very first minutes after the restart. The order
+below makes it protect everything after that.
+
+To reduce the risk:
 
 1. As soon as billing is back, before anything else, set the stop switch:
    `gcloud run services update supersaas-api --region=asia-south1 --update-env-vars=SEND_SCHEDULER=off`
@@ -66,13 +75,16 @@ running). If that happens the first ticks may already be sending when we look. T
 2. Check `/health/ready`, sign in, and open each active campaign. Decide per campaign: **pause it**, or let it continue.
 3. Look at how overdue things are (Campaigns, the Performance numbers and "Run due sends" count; the operator console shows
    failures and daily sends).
-4. Resume sending: pause what should stay paused first, then
+4. **While sending is still off**, deploy the API that has the guard (section 6, steps 1 to 3) and confirm it is the live
+   revision. Decide per campaign what to pause.
+5. Resume sending: pause what should stay paused first, then
    `gcloud run services update supersaas-api --region=asia-south1 --remove-env-vars=SEND_SCHEDULER`.
+   Watch the first ticks in the logs: expect `catch-up guard: moved N overdue sends` for everything more than a day late,
+   and normal sends for anything fresher.
 
 **Effects to tell Aman:** emails will go out late (after the outage); replies that arrive more than 14 days after a company's
 first send are stored but not counted by Review (the response window), so any running test loses days; a send-time test's
-windows are respected, a plain campaign's are not. If Aman wants a protection against overdue bursts after future outages,
-that is a small change to the send path (skip or spread leads overdue by more than N hours): ask before restore day.
+windows are respected, a plain campaign's are not. The catch-up guard now covers future outages and long pauses too.
 
 ## 5. Check the running system (read-only, then sign in)
 
@@ -87,7 +99,7 @@ that is a small change to the send path (skip or spread leads overdue by more th
 ## 6. Deploy what is waiting (needs Aman's go, one command at a time)
 
 Waiting since 2026-11-23, no migration: the web **Send timing** layout (`65bf3a0`), the API **security fixes** (`80fdafd`: the
-simulate cap, the BigQuery-route limits, the Model Armor start-up warning), tests and docs. Build from a clean checkout of
+simulate cap, the BigQuery-route limits, the Model Armor start-up warning), the **catch-up guard**, tests and docs. Build from a clean checkout of
 `google-stack` (today `9806aa0`):
 
 1. `gcloud builds submit --region=asia-south1 --config deploy/cloudbuild-api.yaml --substitutions=_IMAGE=asia-south1-docker.pkg.dev/supersaas-513613/supersaas/api:t18-<sha> .` (about 5 minutes, free tier)
@@ -96,6 +108,8 @@ simulate cap, the BigQuery-route limits, the Model Armor start-up warning), test
 4. `gcloud builds submit --region=asia-south1 --config deploy/cloudbuild-web.yaml --substitutions=_IMAGE=...web:t18-<sha>,_API_URL=https://supersaas-api-108226687455.asia-south1.run.app .` (about 3 minutes)
 5. `gcloud run services update supersaas-web --region=asia-south1 --image=...web:t18-<sha>`
 6. Checks as in section 5, plus: Campaigns, Setup tab, **Send timing** sits directly under Performance.
+
+Do steps 1 to 3 **while `SEND_SCHEDULER=off` is still set** (section 4); remove it only after the guarded API is live.
 
 ## 7. Then the open security item: turn Model Armor on (own go, see `infra/model-armor/README.md`)
 

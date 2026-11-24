@@ -150,6 +150,32 @@ describe('validateEnv', () => {
     ).toThrow(/must differ/);
   });
 
+  it('the catch-up guard settings must be real numbers (a typo fails at boot)', () => {
+    const dev = { DATABASE_URL: 'x' };
+    expect(() =>
+      validateEnv({
+        ...dev,
+        SEND_STALE_AFTER_HOURS: '12',
+        SEND_CATCHUP_SPREAD_HOURS: '6',
+      }),
+    ).not.toThrow();
+    expect(() =>
+      validateEnv({ ...dev, SEND_STALE_AFTER_HOURS: '0' }),
+    ).not.toThrow(); // 0 = off
+    expect(() =>
+      validateEnv({ ...dev, SEND_STALE_AFTER_HOURS: 'a day' }),
+    ).toThrow(/SEND_STALE_AFTER_HOURS/);
+    expect(() => validateEnv({ ...dev, SEND_STALE_AFTER_HOURS: '-1' })).toThrow(
+      /SEND_STALE_AFTER_HOURS/,
+    );
+    expect(() =>
+      validateEnv({ ...dev, SEND_CATCHUP_SPREAD_HOURS: '0' }),
+    ).toThrow(/SEND_CATCHUP_SPREAD_HOURS/);
+    expect(() =>
+      validateEnv({ ...dev, SEND_CATCHUP_SPREAD_HOURS: 'x' }),
+    ).toThrow(/SEND_CATCHUP_SPREAD_HOURS/);
+  });
+
   it('production forbids the mock email driver', () => {
     expect(() => validateEnv({ ...prod, EMAIL_DRIVER: 'mock' })).toThrow(
       /EMAIL_DRIVER/,

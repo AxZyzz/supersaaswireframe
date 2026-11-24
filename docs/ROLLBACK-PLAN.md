@@ -61,6 +61,7 @@ changed: `gcloud run services update supersaas-api --region=asia-south1 --update
 | `DISCOVER_DRIVER` | `agent` | `native` | Discover runs on the API's own AI instead of the ADK agent |
 | `CRON_MODE` | `scheduler` | `internal` | the API's own timers replace Cloud Scheduler (nothing is left without a caller) |
 | `TRACING` | `on` | remove it | Cloud Trace spans stop |
+| `SEND_STALE_AFTER_HOURS` | unset = **24** | `0` | the catch-up guard is off: a send overdue after an outage or a long pause goes out at once again (also `SEND_CATCHUP_SPREAD_HOURS`, default 24: how far ahead stale sends are spread) |
 | `LOOKER_DASHBOARD_URL` | the report link | remove it | the operator console card disappears |
 
 **Cloud Scheduler** (`expelly-weekly-review`, `expelly-expire-preferences`, `expelly-loop-health`): pause one with
