@@ -1,0 +1,26 @@
+{
+  "runId": "run-1",
+  "mode": "baseline",
+  "candidates": [
+    {
+      "name": "Sunrise Clinic",
+      "domain": "sunrise-clinic.example",
+      "companyKey": "sunrise-clinic.example",
+      "isRealBusinessSite": true,
+      "summary": "A family clinic in Pune.",
+      "evidence": [
+        { "fact": "Open six days a week", "quote": "Our clinic is open six days a week in Pune", "url": "https://sunrise-clinic.example/" }
+      ],
+      "attributes": { "city": "Pune", "country": "India", "industry": "healthcare_clinic", "size_band": "11-50" },
+      "triggers": [
+        { "type": "expansion", "quote": "We are opening a second branch in Baner", "url": "https://sunrise-clinic.example/news" }
+      ],
+      "emailsSeen": [{ "email": "hello@sunrise-clinic.example", "url": "https://sunrise-clinic.example/contact" }],
+      "opportunity": { "hypothesis": "Calls may go unanswered during consultations.", "service": "Missed-call text-back", "discoveryQuestion": "How do you handle calls during consultations?" },
+      "unknowns": ["Call volume"],
+      "scores": { "icp": 24, "opportunity": 18, "timing": 12, "commercial": 10 },
+      "matchedPreference": false
+    }
+  ],
+  "stats": { "proposed": 12, "fetched": 10, "verified": 1, "droppedUnverified": 8, "droppedSafety": 1 }
+}

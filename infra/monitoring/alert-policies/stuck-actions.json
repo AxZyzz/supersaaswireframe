@@ -1,0 +1,25 @@
+{
+  "displayName": "Expelly: review action stuck",
+  "documentation": {
+    "content": "A review action (pause, resume, challenger) was requested but not applied for more than 10 minutes. Open Review > Loop health in the app, then look at the campaign's Review tab. Runbook: docs/OPS-RUNBOOK.md.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "A workspace reports stuck review actions",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/expelly_loop_stuck_actions\" AND resource.type=\"cloud_run_revision\"",
+        "aggregations": [
+          { "alignmentPeriod": "1800s", "perSeriesAligner": "ALIGN_SUM", "crossSeriesReducer": "REDUCE_SUM" }
+        ],
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 0,
+        "duration": "0s",
+        "trigger": { "count": 1 }
+      }
+    }
+  ],
+  "notificationChannels": ["CHANNEL_NAME"],
+  "enabled": true
+}

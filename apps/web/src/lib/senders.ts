@@ -16,6 +16,10 @@ export interface Sender {
   status: string;
   created_at: string;
   updated_at: string;
+  /** Gmail granted read access: replies and bounces are pulled in (T5.7). */
+  reply_sync_enabled: boolean;
+  reply_sync_at: string | null;
+  reply_sync_error: string | null;
 }
 
 export interface DnsRecordCheck {
@@ -72,10 +76,13 @@ export const gmailStatus = () =>
   api<{ enabled: boolean }>("/senders/gmail/status");
 
 /** Google consent URL; navigate the browser to it. */
-export const gmailConnect = (fromName?: string) =>
+export const gmailConnect = (
+  fromName?: string,
+  returnTo: "/settings" | "/onboarding" = "/settings",
+) =>
   api<{ url: string }>("/senders/gmail/connect", {
     method: "POST",
-    body: JSON.stringify(fromName ? { fromName } : {}),
+    body: JSON.stringify({ ...(fromName ? { fromName } : {}), returnTo }),
   });
 
 export const dnsCheck = (domain: string) =>
@@ -83,6 +90,14 @@ export const dnsCheck = (domain: string) =>
 
 export const updateSender = (
   id: string,
-  body: Partial<{ warmupEnabled: boolean; restartWarmup: boolean; dailyLimit: number }>,
+  body: Partial<{
+    warmupEnabled: boolean;
+    restartWarmup: boolean;
+    dailyLimit: number;
+    fromName: string;
+    // null clears the field
+    replyTo: string | null;
+    signature: string | null;
+  }>,
 ) =>
   api<Sender>(`/senders/${id}`, { method: "PATCH", body: JSON.stringify(body) });

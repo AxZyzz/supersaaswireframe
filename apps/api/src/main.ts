@@ -1,3 +1,5 @@
+// first: tracing has to hook http/express/pg before they are loaded
+import './tracing/register';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -45,7 +47,7 @@ async function bootstrap() {
   // API docs are a recon map — dev only unless explicitly switched on.
   if (!isProd || process.env.SWAGGER === 'on') {
     const swagger = new DocumentBuilder()
-      .setTitle('SuperSaaS API')
+      .setTitle('Expelly API')
       .setDescription('AI outreach platform — V1 API')
       .setVersion('0.1.0')
       .addBearerAuth()
@@ -57,7 +59,8 @@ async function bootstrap() {
     );
   }
 
-  // API_PORT matches .env.example; loaded via ConfigModule from root .env
-  await app.listen(process.env.API_PORT ?? 4000);
+  // API_PORT matches .env.example; loaded via ConfigModule from root .env.
+  // Cloud Run (and most container hosts) inject PORT instead.
+  await app.listen(process.env.PORT ?? process.env.API_PORT ?? 4000);
 }
 void bootstrap();

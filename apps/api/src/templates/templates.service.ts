@@ -8,6 +8,7 @@ import {
 import { DatabaseError, Pool } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
+import { assertTemplateNotFrozenInTx } from '../campaigns/experiments.service';
 import { SendersService } from '../senders/senders.service';
 import {
   renderTemplate,
@@ -149,7 +150,14 @@ export class TemplatesService {
     if (sets.length === 0) return this.get(orgId, id);
     sets.push('updated_at = now()');
     params.push(id);
+    const touchesCopy =
+      dto.subject !== undefined ||
+      dto.bodyHtml !== undefined ||
+      dto.bodyText !== undefined;
     return withOrgContext(this.pool, orgId, async (c) => {
+      if (touchesCopy) {
+        await assertTemplateNotFrozenInTx(c, id);
+      }
       const res = await c.query<TemplateRow>(
         `UPDATE templates SET ${sets.join(', ')} WHERE id = $${params.length}
          RETURNING ${COLS}`,
@@ -162,6 +170,7 @@ export class TemplatesService {
 
   async remove(orgId: string, id: string) {
     const affected = await withOrgContext(this.pool, orgId, async (c) => {
+      await assertTemplateNotFrozenInTx(c, id);
       const res = await c.query(`DELETE FROM templates WHERE id = $1`, [id]);
       return res.rowCount ?? 0;
     });
@@ -209,7 +218,7 @@ export class TemplatesService {
           [leadId],
         );
         if (lead.rowCount === 0) throw new NotFoundException('Lead not found');
-        vars = { ...varsFromLead(lead.rows[0]), sender_name: 'Jordan Lee' };
+        vars = { ...SAMPLE_VARS, ...varsFromLead(lead.rows[0]) };
       }
       return {
         subject: renderTemplate(tpl.subject, vars),

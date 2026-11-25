@@ -12,6 +12,8 @@ import {
   integer,
   boolean,
   real,
+  numeric,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
 // Tenant model: users are global (one login, many orgs); everything org-scoped
@@ -55,6 +57,9 @@ export const users = pgTable(
     // A2B staff with access to the cross-tenant operator console (T8.6).
     // Granted only via `npm run operator:grant`, never through the API.
     isOperator: boolean('is_operator').notNull().default(false),
+    // Set when the owner clicked the confirmation link (or joined by invite).
+    // Sign-in is refused while null if email verification is on.
+    emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -154,6 +159,28 @@ export const passwordResets = pgTable(
   ],
 );
 
+// Email confirmation links (sign-up). Same shape and rules as
+// password_resets: only the SHA-256 is stored, single use, expiring.
+export const emailVerifications = pgTable(
+  'email_verifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('email_verifications_token_idx').on(t.tokenHash),
+    index('email_verifications_user_idx').on(t.userId, t.createdAt),
+  ],
+);
+
 export const refreshTokens = pgTable(
   'refresh_tokens',
   {
@@ -197,6 +224,13 @@ export const leads = pgTable(
     custom: jsonb('custom')
       .notNull()
       .default(sql`'{}'::jsonb`),
+    // Learning Loop T01: the company this lead belongs to + Discover factors
+    companyKey: text('company_key'),
+    mailProvider: text('mail_provider'),
+    timezone: text('timezone'),
+    city: text('city'),
+    region: text('region'),
+    country: text('country'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -208,6 +242,7 @@ export const leads = pgTable(
     index('leads_org_idx').on(t.orgId),
     index('leads_org_status_idx').on(t.orgId, t.status),
     index('leads_org_created_idx').on(t.orgId, t.createdAt),
+    index('leads_org_company_key_idx').on(t.orgId, t.companyKey),
     // Dedupe key: one lead per email per org (case-insensitive), NULL emails
     // allowed and never collide (partial index).
     uniqueIndex('leads_org_email_idx')
@@ -356,6 +391,9 @@ export const senderAccounts = pgTable(
       .notNull()
       .defaultNow(),
     status: text('status').notNull().default('unverified'),
+    // Gmail reply reading (T5.7): last poll and its error, if any.
+    replySyncAt: timestamp('reply_sync_at', { withTimezone: true }),
+    replySyncError: text('reply_sync_error'),
     config: jsonb('config')
       .notNull()
       .default(sql`'{}'::jsonb`),
@@ -528,6 +566,25 @@ export const campaignLeadStatusEnum = pgEnum('campaign_lead_status', [
   'stopped',
 ]);
 
+// Learning Loop T02: what the workspace sells (scopes campaigns, Discover runs,
+// and later search preferences).
+export const offers = pgTable(
+  'offers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    description: text('description'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+  },
+  (t) => [index('offers_org_idx').on(t.orgId, t.createdAt)],
+);
+
 export const campaigns = pgTable(
   'campaigns',
   {
@@ -541,10 +598,17 @@ export const campaigns = pgTable(
     segmentId: uuid('segment_id').references(() => segments.id, {
       onDelete: 'set null',
     }),
+    // Learning Loop T02: offer this campaign promotes.
+    offerId: uuid('offer_id').references(() => offers.id, {
+      onDelete: 'set null',
+    }),
     // sender_account ids to rotate across (validated at launch).
     senderIds: jsonb('sender_ids')
       .notNull()
       .default(sql`'[]'::jsonb`),
+    // Learning Loop T17: when this campaign may send (days + hours in the
+    // recipient's or workspace timezone). NULL = no window (legacy behaviour).
+    sendWindow: jsonb('send_window'),
     scheduledAt: timestamp('scheduled_at', { withTimezone: true }),
     startedAt: timestamp('started_at', { withTimezone: true }),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
@@ -576,6 +640,8 @@ export const campaignSteps = pgTable(
     delayHours: integer('delay_hours').notNull().default(0),
     condition: stepConditionEnum('condition').notNull().default('always'),
     // A/B subject variants (strings). Empty = use the template's subject.
+    // Approved A/B winner: original index into subject_variants (0051).
+    winnerIndex: integer('winner_index'),
     subjectVariants: jsonb('subject_variants')
       .notNull()
       .default(sql`'[]'::jsonb`),
@@ -609,6 +675,8 @@ export const campaignLeads = pgTable(
     nextSendAt: timestamp('next_send_at', { withTimezone: true }),
     // Opaque token for the per-recipient unsubscribe link.
     unsubToken: uuid('unsub_token').notNull().defaultRandom(),
+    // Learning Loop T02: frozen factor snapshot at enrollment (never updated).
+    snapshot: jsonb('snapshot'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -620,6 +688,152 @@ export const campaignLeads = pgTable(
     uniqueIndex('campaign_leads_unique_idx').on(t.campaignId, t.leadId),
     index('campaign_leads_due_idx').on(t.status, t.nextSendAt),
     index('campaign_leads_org_idx').on(t.orgId),
+  ],
+);
+
+// Learning Loop T02: company-level experiments, variants, and assignments.
+export const experiments = pgTable(
+  'experiments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    campaignId: uuid('campaign_id')
+      .notNull()
+      .references(() => campaigns.id, { onDelete: 'cascade' }),
+    stepId: uuid('step_id')
+      .notNull()
+      .references(() => campaignSteps.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull().default('subject'),
+    status: text('status').notNull().default('draft'),
+    unit: text('unit').notNull().default('company'),
+    primaryMetric: text('primary_metric').notNull().default('qualified_reply'),
+    secondaryMetric: text('secondary_metric').notNull().default('booked_call'),
+    baselineRate: real('baseline_rate').notNull().default(0.03),
+    minLiftPp: real('min_lift_pp').notNull().default(2),
+    targetNPerArm: integer('target_n_per_arm'),
+    responseWindowDays: integer('response_window_days').notNull().default(14),
+    decisionDate: timestamp('decision_date', { withTimezone: true }),
+    guardrails: jsonb('guardrails')
+      .notNull()
+      .default(
+        sql`'{"bounce":0.05,"unsubscribe":0.02,"complaint":0.003}'::jsonb`,
+      ),
+    allocation: jsonb('allocation')
+      .notNull()
+      .default(sql`'{"weights":[0.5,0.5]}'::jsonb`),
+    policyVersion: text('policy_version').notNull().default('v1'),
+    offerRef: uuid('offer_ref').references(() => offers.id, {
+      onDelete: 'set null',
+    }),
+    createdBy: uuid('created_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    startedAt: timestamp('started_at', { withTimezone: true }),
+    stoppedAt: timestamp('stopped_at', { withTimezone: true }),
+    // Learning Loop T11: the test this one replaced (challenger approved) and
+    // how the old one ended.
+    previousExperimentId: uuid('previous_experiment_id').references(
+      (): AnyPgColumn => experiments.id,
+      { onDelete: 'set null' },
+    ),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    decision: jsonb('decision'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('experiments_org_campaign_idx').on(
+      t.orgId,
+      t.campaignId,
+      t.createdAt,
+    ),
+    uniqueIndex('experiments_running_step_idx')
+      .on(t.campaignId, t.stepId)
+      .where(sql`${t.status} = 'running'`),
+  ],
+);
+
+export const experimentVariants = pgTable(
+  'experiment_variants',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    experimentId: uuid('experiment_id')
+      .notNull()
+      .references(() => experiments.id, { onDelete: 'cascade' }),
+    label: text('label').notNull(),
+    subject: text('subject').notNull(),
+    templateId: uuid('template_id').references(() => templates.id, {
+      onDelete: 'set null',
+    }),
+    templateVersion: integer('template_version').notNull().default(1),
+    isControl: boolean('is_control').notNull().default(false),
+    status: text('status').notNull().default('active'),
+    // Learning Loop T17: the send window of this arm in a send-time test
+    // (experiments.kind = 'send_time'). NULL for subject tests.
+    sendWindow: jsonb('send_window'),
+    createdBy: uuid('created_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    approvedBy: uuid('approved_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+    pausedBy: uuid('paused_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    pausedAt: timestamp('paused_at', { withTimezone: true }),
+    pauseReason: text('pause_reason'),
+    resumedBy: uuid('resumed_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    resumedAt: timestamp('resumed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('experiment_variants_experiment_idx').on(t.experimentId, t.createdAt),
+  ],
+);
+
+export const experimentAssignments = pgTable(
+  'experiment_assignments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    experimentId: uuid('experiment_id')
+      .notNull()
+      .references(() => experiments.id, { onDelete: 'cascade' }),
+    companyKey: text('company_key').notNull(),
+    variantId: uuid('variant_id')
+      .notNull()
+      .references(() => experimentVariants.id, { onDelete: 'restrict' }),
+    assignedAt: timestamp('assigned_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    hash: text('hash').notNull(),
+    reassignedFrom: uuid('reassigned_from').references(
+      () => experimentVariants.id,
+      { onDelete: 'set null' },
+    ),
+  },
+  (t) => [
+    uniqueIndex('experiment_assignments_exp_company_idx').on(
+      t.experimentId,
+      t.companyKey,
+    ),
+    index('experiment_assignments_org_idx').on(t.orgId, t.experimentId),
   ],
 );
 
@@ -657,6 +871,12 @@ export const sentEmails = pgTable(
     provider: text('provider'),
     status: text('status').notNull().default('sent'),
     variantIndex: integer('variant_index').notNull().default(0),
+    experimentId: uuid('experiment_id').references(() => experiments.id, {
+      onDelete: 'set null',
+    }),
+    variantId: uuid('variant_id').references(() => experimentVariants.id, {
+      onDelete: 'set null',
+    }),
     trackingId: uuid('tracking_id').notNull().defaultRandom(),
     error: text('error'),
     sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
@@ -667,6 +887,7 @@ export const sentEmails = pgTable(
     index('sent_emails_lead_idx').on(t.leadId),
     uniqueIndex('sent_emails_tracking_idx').on(t.trackingId),
     index('sent_emails_sender_day_idx').on(t.senderId, t.sentAt),
+    index('sent_emails_experiment_idx').on(t.experimentId, t.variantId),
   ],
 );
 
@@ -736,6 +957,8 @@ export const orgKnowledge = pgTable('org_knowledge', {
   usps: text('usps'),
   competitors: text('competitors'),
   testimonials: text('testimonials'),
+  // Learning Loop T03: what counts as a "qualified" reply (shown to reviewers)
+  qualificationRubric: text('qualification_rubric'),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -829,6 +1052,8 @@ export const conversationMessages = pgTable(
     inReplyTo: text('in_reply_to'),
     classification: text('classification'),
     confidence: real('confidence'),
+    // Model Armor flagged/blocked this inbound message (T08): no AI draft.
+    safetyFlag: boolean('safety_flag').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -949,5 +1174,367 @@ export const sheetSyncs = pgTable(
       t.spreadsheetId,
       t.sheetTitle,
     ),
+  ],
+);
+
+// Gmail reply reading (T5.7): Gmail message ids already processed per sender,
+// so overlapping polls never handle a message twice. Ids only, no content.
+export const gmailSeenMessages = pgTable(
+  'gmail_seen_messages',
+  {
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    senderId: uuid('sender_id')
+      .notNull()
+      .references(() => senderAccounts.id, { onDelete: 'cascade' }),
+    gmailMessageId: text('gmail_message_id').notNull(),
+    kind: text('kind').notNull(), // reply | bounce | ignored
+    seenAt: timestamp('seen_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.senderId, t.gmailMessageId] }),
+    index('gmail_seen_messages_org_idx').on(t.orgId, t.seenAt),
+  ],
+);
+
+// ── Learning Loop T03: outcome events ────────────────────────────────────
+// Idempotent record of every result that matters. Corrections insert a new
+// row with supersedes_id; v_outcomes_current (SQL view, migration 0054) shows
+// the latest. experiment_id / variant_id stay null when the event can't be
+// attributed with certainty (never guessed).
+export const outcomeEvents = pgTable(
+  'outcome_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    campaignLeadId: uuid('campaign_lead_id').references(
+      () => campaignLeads.id,
+      { onDelete: 'set null' },
+    ),
+    leadId: uuid('lead_id').references(() => leads.id, {
+      onDelete: 'set null',
+    }),
+    companyKey: text('company_key'),
+    experimentId: uuid('experiment_id').references(() => experiments.id, {
+      onDelete: 'set null',
+    }),
+    variantId: uuid('variant_id').references(() => experimentVariants.id, {
+      onDelete: 'set null',
+    }),
+    conversationId: uuid('conversation_id').references(() => conversations.id, {
+      onDelete: 'set null',
+    }),
+    sentEmailId: uuid('sent_email_id').references(() => sentEmails.id, {
+      onDelete: 'set null',
+    }),
+    type: text('type').notNull(),
+    source: text('source').notNull(),
+    verification: text('verification').notNull(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: uuid('created_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    verifiedBy: uuid('verified_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    reason: text('reason'),
+    supersedesId: uuid('supersedes_id'),
+    idempotencyKey: text('idempotency_key').notNull(),
+  },
+  (t) => [
+    uniqueIndex('outcome_events_idem_idx').on(t.orgId, t.idempotencyKey),
+    index('outcome_events_exp_type_idx').on(t.orgId, t.experimentId, t.type),
+    index('outcome_events_company_idx').on(t.orgId, t.companyKey),
+    index('outcome_events_cl_type_idx').on(t.orgId, t.campaignLeadId, t.type),
+  ],
+);
+
+// ── Learning Loop T05: Review revisions ──────────────────────────────────
+// One row per Review revision. inputs = what the T04 policy was given,
+// result = what it said (+ audience slices), explanation = plain words.
+// Simulated rows ("Try simulation") have no experiment and are filtered out of
+// every query that reads real results.
+export const reviews = pgTable(
+  'reviews',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    experimentId: uuid('experiment_id').references(() => experiments.id, {
+      onDelete: 'cascade',
+    }),
+    revision: integer('revision').notNull().default(1),
+    policyVersion: text('policy_version').notNull(),
+    simulated: boolean('simulated').notNull().default(false),
+    scenario: text('scenario'),
+    inputsHash: text('inputs_hash').notNull(),
+    computedAt: timestamp('computed_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: uuid('created_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    inputs: jsonb('inputs').notNull(),
+    result: jsonb('result').notNull(),
+    explanation: jsonb('explanation').notNull(),
+    explanationSource: text('explanation_source').notNull().default('template'),
+  },
+  (t) => [
+    uniqueIndex('reviews_experiment_revision_idx').on(
+      t.experimentId,
+      t.revision,
+    ),
+    index('reviews_org_experiment_idx').on(t.orgId, t.experimentId),
+  ],
+);
+
+// ── Learning Loop T11: review actions + challenger drafts ────────────────
+// review_actions is the audit trail of every approval: who, what, when, the
+// state before/after, and the idempotency key that makes a retry a no-op.
+export const reviewActions = pgTable(
+  'review_actions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    reviewId: uuid('review_id')
+      .notNull()
+      .references(() => reviews.id, { onDelete: 'cascade' }),
+    experimentId: uuid('experiment_id')
+      .notNull()
+      .references(() => experiments.id, { onDelete: 'cascade' }),
+    revision: integer('revision').notNull(),
+    actionId: text('action_id').notNull(),
+    type: text('type').notNull(),
+    payload: jsonb('payload')
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    status: text('status').notNull().default('requested'),
+    error: text('error'),
+    reason: text('reason'),
+    requestedBy: uuid('requested_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    approvedBy: uuid('approved_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    idempotencyKey: text('idempotency_key').notNull(),
+    before: jsonb('before'),
+    after: jsonb('after'),
+    requestedAt: timestamp('requested_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    appliedAt: timestamp('applied_at', { withTimezone: true }),
+    revertedAt: timestamp('reverted_at', { withTimezone: true }),
+    revertedBy: uuid('reverted_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    revertsActionId: uuid('reverts_action_id').references(
+      (): AnyPgColumn => reviewActions.id,
+      { onDelete: 'set null' },
+    ),
+  },
+  (t) => [
+    uniqueIndex('review_actions_idem_idx').on(t.orgId, t.idempotencyKey),
+    uniqueIndex('review_actions_one_applied_idx')
+      .on(t.reviewId, t.actionId)
+      .where(sql`${t.status} = 'applied' AND ${t.revertsActionId} IS NULL`),
+    index('review_actions_experiment_idx').on(
+      t.orgId,
+      t.experimentId,
+      t.requestedAt,
+    ),
+  ],
+);
+
+// AI-suggested challenger subjects. A draft is only a suggestion; approving one
+// creates a new experiment (it never edits the running one).
+export const challengerDrafts = pgTable(
+  'challenger_drafts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    reviewId: uuid('review_id')
+      .notNull()
+      .references(() => reviews.id, { onDelete: 'cascade' }),
+    experimentId: uuid('experiment_id')
+      .notNull()
+      .references(() => experiments.id, { onDelete: 'cascade' }),
+    subject: text('subject').notNull(),
+    source: text('source').notNull().default('template'),
+    // Learning Loop T14: the playbooks this draft was written with ("Used 1 playbook").
+    playbookIds: jsonb('playbook_ids')
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    createdBy: uuid('created_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index('challenger_drafts_review_idx').on(t.orgId, t.reviewId)],
+);
+
+// ── Learning Loop T12: search preferences ────────────────────────────────
+// A bounded, expiring, reversible "find more of these" for the next Discover
+// runs of one offer. quota mode reserves at most 20% of a batch. The
+// prospect_runs / prospects columns it adds (preference_id, allocation,
+// via_preference) live in migration 0058 like the rest of the Discover tables.
+export const searchPreferences = pgTable(
+  'search_preferences',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    offerId: uuid('offer_id')
+      .notNull()
+      .references(() => offers.id, { onDelete: 'cascade' }),
+    factor: text('factor').notNull(),
+    value: text('value').notNull(),
+    label: text('label').notNull(),
+    filter: jsonb('filter').notNull(),
+    mode: text('mode').notNull().default('quota'),
+    capShare: numeric('cap_share', { precision: 4, scale: 3 }).notNull(),
+    startsAt: timestamp('starts_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    evidence: jsonb('evidence').notNull(),
+    evidenceHash: text('evidence_hash').notNull(),
+    evidenceReviewId: uuid('evidence_review_id').references(() => reviews.id, {
+      onDelete: 'set null',
+    }),
+    approvedBy: uuid('approved_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    status: text('status').notNull().default('active'),
+    revision: integer('revision').notNull().default(1),
+    priorProfile: jsonb('prior_profile'),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    endedReason: text('ended_reason'),
+    idempotencyKey: text('idempotency_key').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('search_preferences_idem_idx').on(t.orgId, t.idempotencyKey),
+    uniqueIndex('search_preferences_one_active_idx')
+      .on(t.orgId, t.offerId)
+      .where(sql`${t.status} = 'active'`),
+    index('search_preferences_offer_idx').on(t.orgId, t.offerId, t.createdAt),
+  ],
+);
+
+export const searchPreferenceRevisions = pgTable(
+  'search_preference_revisions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    preferenceId: uuid('preference_id')
+      .notNull()
+      .references(() => searchPreferences.id, { onDelete: 'cascade' }),
+    revision: integer('revision').notNull(),
+    action: text('action').notNull(),
+    before: jsonb('before'),
+    after: jsonb('after'),
+    actor: uuid('actor').references(() => users.id, { onDelete: 'set null' }),
+    reason: text('reason'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('search_preference_revisions_idx').on(
+      t.orgId,
+      t.preferenceId,
+      t.createdAt,
+    ),
+  ],
+);
+
+// ── Learning Loop T13: scheduled-job runs ────────────────────────────────
+// One row per (workspace, job, period): a job that runs twice in one period
+// (a Cloud Scheduler retry, two API instances) does its work once.
+export const cronRuns = pgTable(
+  'cron_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    job: text('job').notNull(),
+    period: text('period').notNull(),
+    ranAt: timestamp('ran_at', { withTimezone: true }).notNull().defaultNow(),
+    result: jsonb('result'),
+  },
+  (t) => [
+    uniqueIndex('cron_runs_org_job_period_idx').on(t.orgId, t.job, t.period),
+  ],
+);
+
+// ── Learning Loop T14: playbook memory ───────────────────────────────────
+// An approved learning (what worked, for which offer and segment) with its
+// evidence and validity dates. Editing inserts a new version (supersedes_id);
+// old versions stay. Only status 'active' rows are retrieved. The vector copy
+// lives in BigQuery (expelly_memory.playbook_vectors); the text stays here.
+// (The unique indexes on (supersedes_id) and (org, offer, lower(title)) for
+// active rows are in migration 0060.)
+export const playbooks = pgTable(
+  'playbooks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    offerId: uuid('offer_id')
+      .notNull()
+      .references(() => offers.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    segment: jsonb('segment'),
+    title: text('title').notNull(),
+    body: text('body').notNull(),
+    evidence: jsonb('evidence').notNull(),
+    validFrom: timestamp('valid_from', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    validTo: timestamp('valid_to', { withTimezone: true }).notNull(),
+    version: integer('version').notNull().default(1),
+    supersedesId: uuid('supersedes_id').references(
+      (): AnyPgColumn => playbooks.id,
+      { onDelete: 'set null' },
+    ),
+    status: text('status').notNull().default('active'),
+    vectorStatus: text('vector_status').notNull().default('pending'),
+    createdBy: uuid('created_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    retiredAt: timestamp('retired_at', { withTimezone: true }),
+    retiredBy: uuid('retired_by').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+  },
+  (t) => [
+    index('playbooks_offer_idx').on(t.orgId, t.offerId, t.status, t.validTo),
   ],
 );

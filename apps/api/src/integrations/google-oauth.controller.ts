@@ -7,6 +7,7 @@ import {
   stateType,
 } from '../google/google-oauth';
 import { GmailOAuthService } from '../senders/gmail-oauth.service';
+import { CalendarOAuthService } from './calendar-oauth.service';
 import { SheetsOAuthService } from './sheets-oauth.service';
 
 /**
@@ -21,6 +22,7 @@ export class GoogleOAuthController {
   constructor(
     private readonly gmail: GmailOAuthService,
     private readonly sheets: SheetsOAuthService,
+    private readonly calendar: CalendarOAuthService,
   ) {}
 
   @Public()
@@ -34,10 +36,13 @@ export class GoogleOAuthController {
   ) {
     const q = { code, state, error };
     const nonce = readBrowserBinding(req);
+    const type = stateType(state);
     const next =
-      stateType(state) === 'sheets-connect'
+      type === 'sheets-connect'
         ? await this.sheets.handleCallback(q, nonce)
-        : await this.gmail.handleCallback(q, nonce);
+        : type === 'calendar-connect'
+          ? await this.calendar.handleCallback(q, nonce)
+          : await this.gmail.handleCallback(q, nonce);
     clearBrowserBinding(res); // single use
     res.redirect(302, next);
   }

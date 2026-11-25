@@ -35,7 +35,7 @@ export function WaitlistForm() {
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded bg-accent text-tiny font-semibold text-white">
-            SS
+            Ex
           </div>
           <span className="text-section font-semibold text-ink2">{BRAND.name}</span>
         </div>

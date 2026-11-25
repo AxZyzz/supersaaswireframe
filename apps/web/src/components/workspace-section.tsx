@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Building2, Check, ImagePlus, Palette, RotateCcw } from "lucide-react";
+import { Building2, Check, Copy, ImagePlus, Palette, RotateCcw } from "lucide-react";
 import { api, errorMessage } from "@/lib/api";
+import { toast } from "@/components/feedback";
 import { applyBrand, DEFAULT_ACCENT, logoToDataUrl } from "@/lib/branding";
 import {
   getOrg,
@@ -136,6 +137,9 @@ export function WorkspaceSection() {
   const [org, setOrg] = useState<Org | null>(null);
   const [draft, setDraft] = useState<OrgPatch>({});
   const [canEdit, setCanEdit] = useState(false);
+  // admins and managers see the workspace id (data tools such as the Looker Studio demo views ask for it)
+  const [canSeeId, setCanSeeId] = useState(false);
+  const [idCopied, setIdCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -145,6 +149,7 @@ export function WorkspaceSection() {
       ([o, me]) => {
         setOrg(o);
         setCanEdit(me.role === "admin");
+        setCanSeeId(me.role === "admin" || me.role === "manager");
       },
     );
   }, []);
@@ -179,6 +184,17 @@ export function WorkspaceSection() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function copyId() {
+    // say "Copied" only when it worked (the browser can refuse clipboard access)
+    navigator.clipboard.writeText(org!.id).then(
+      () => {
+        setIdCopied(true);
+        setTimeout(() => setIdCopied(false), 1500);
+      },
+      () => toast("Couldn't copy. Click the id to select it, then press Ctrl+C.", "error"),
+    );
   }
 
   function discard() {
@@ -293,6 +309,27 @@ export function WorkspaceSection() {
           applyBrand(brandColor); // live preview across the app
         }}
       />
+
+      {canSeeId && (
+        <div
+          className="mt-5 flex flex-wrap items-center gap-2 border-t border-line pt-4 text-tiny text-muted"
+          data-testid="workspace-id"
+        >
+          <span>Workspace id</span>
+          <code className="select-all rounded bg-panel px-1.5 py-0.5 font-mono text-micro text-ink2">{org.id}</code>
+          <button
+            onClick={copyId}
+            title="Copy the workspace id"
+            className="flex items-center gap-1 rounded border border-line-mid px-1.5 py-0.5 text-micro text-ink2 hover:bg-hover"
+          >
+            {idCopied ? <Check size={11} /> : <Copy size={11} />}
+            {idCopied ? "Copied" : "Copy"}
+          </button>
+          <span className="basis-full sm:basis-auto">
+            Data tools and support ask for it, for example the Looker Studio demo views. It is not a password.
+          </span>
+        </div>
+      )}
 
       {canEdit && (
         <div className="mt-5 flex items-center gap-2">

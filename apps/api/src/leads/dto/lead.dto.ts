@@ -1,7 +1,10 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   ArrayNotEmpty,
   IsArray,
+  IsBoolean,
+  ValidateNested,
   IsEmail,
   IsEnum,
   IsIn,
@@ -46,6 +49,31 @@ const SORTABLE = [
   'company',
   'last_name',
 ] as const;
+
+/** The list filters on their own (bulk delete "all matching"). */
+export class LeadFilter {
+  @IsOptional() @IsString() @MaxLength(200) search?: string;
+  @IsOptional() @IsString() @MaxLength(80) status?: string;
+  @IsOptional() @IsEnum(SCORES) score?: (typeof SCORES)[number];
+  @IsOptional() @IsString() @MaxLength(120) source?: string;
+  @IsOptional() @IsUUID() tagId?: string;
+}
+
+export class BulkDeleteLeadsDto {
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsUUID('4', { each: true })
+  leadIds?: string[];
+
+  /** Must be true to delete by filters (protects against an empty body). */
+  @IsOptional() @IsBoolean() allMatching?: boolean;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LeadFilter)
+  filters?: LeadFilter;
+}
 
 export class ListLeadsQuery {
   @IsOptional() @IsString() @MaxLength(200) search?: string;

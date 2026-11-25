@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { api, ApiError, errorMessage, setSession } from "@/lib/api";
 import { WaitlistForm } from "@/components/waitlist-form";
+import { CheckInbox } from "@/components/check-inbox";
 
 const noopSubscribe = () => () => {};
 
@@ -18,6 +19,8 @@ export default function SignupPage() {
   });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Email confirmation on: the account exists but has no session yet.
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   // Invite-only beta: ?code=… comes from the operator's invite link.
   const [mode, setMode] = useState<"open" | "waitlist" | null>(null);
   // Read from the URL without an effect: "" on the server/hydration, then the
@@ -52,13 +55,17 @@ export default function SignupPage() {
     setBusy(true);
     setError(null);
     try {
-      const res = await api<{ accessToken: string }>(
-        "/auth/signup",
-        {
-          method: "POST",
-          body: JSON.stringify({ ...form, inviteCode: code ?? undefined }),
-        },
-      );
+      const res = await api<
+        { accessToken: string } | { verificationRequired: true; email: string }
+      >("/auth/signup", {
+        method: "POST",
+        body: JSON.stringify({ ...form, inviteCode: code ?? undefined }),
+      });
+      if ("verificationRequired" in res) {
+        setPendingEmail(res.email);
+        setBusy(false);
+        return;
+      }
       setSession(res.accessToken);
       router.replace("/dashboard");
     } catch (err) {
@@ -80,15 +87,31 @@ export default function SignupPage() {
 
   if (mode === "waitlist" && !code) return <WaitlistForm />;
 
+  if (pendingEmail) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-page px-4">
+        <div className="w-full max-w-sm">
+          <CheckInbox email={pendingEmail} />
+          <p className="mt-6 text-sm text-muted">
+            Confirmed already?{" "}
+            <Link href="/login" className="font-medium text-accent">
+              Log in
+            </Link>
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-page px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded bg-accent text-tiny font-semibold text-white">
-            SS
+            Ex
           </div>
           <span className="text-section font-semibold text-ink2">
-            SuperSaaS
+            Expelly
           </span>
         </div>
         <h1 className="mb-1 text-title font-semibold text-ink2">

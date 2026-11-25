@@ -11,6 +11,9 @@ const env = {
   EMAIL_DRIVER: 'mock',
   AI_DRIVER: 'mock',
   SEND_SCHEDULER: 'off',
+  // The happy path signs up and goes straight in; email confirmation has
+  // its own API tests (CI runs the production build, where it's on).
+  EMAIL_VERIFICATION: 'off',
 };
 
 export default defineConfig({

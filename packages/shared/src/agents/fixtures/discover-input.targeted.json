@@ -1,0 +1,10 @@
+{
+  "runId": "run-2",
+  "orgId": "org-1",
+  "offer": { "id": "offer-1", "name": "Missed-call follow-up for clinics" },
+  "goal": "Find independent clinics in India that miss patient calls",
+  "targetCount": 4,
+  "mode": "targeted",
+  "preference": { "id": "pref-1", "revision": 1, "filter": { "factor": "city", "value": "Pune" } },
+  "excludeCompanyKeys": []
+}

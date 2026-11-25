@@ -153,4 +153,75 @@ describe('CSV import integration', () => {
   it('rejects a mapping without an email column', async () => {
     await upload('First\nBob', { First: 'firstName' }).expect(400);
   });
+
+  it('cleans messy rows: splits full names, drops bad emails, JSON and unknown statuses', async () => {
+    const json =
+      '"{""url"":""https://www.linkedin.com/posts/x"",""likes"":25}"';
+    const csv = [
+      'Name,Email,Org,State',
+      `Mindy Lee,mindy-clean@nowcfo.test,${json},Verified`,
+      'Chris van der Berg,not-an-email,Alpaca,interested',
+    ].join('\n');
+    const start = await upload(csv, {
+      Name: 'fullName',
+      Email: 'email',
+      Org: 'company',
+      State: 'status',
+    }).expect(201);
+    const result = await poll(start.body.jobId);
+    expect(result).toMatchObject({ status: 'completed', imported: 2 });
+    const reasons = (result.errors as { reason: string }[]).map(
+      (e) => e.reason,
+    );
+    expect(reasons[0]).toMatch(/company .*not plain text/);
+    expect(reasons[0]).toMatch(/status "Verified" \(unknown\)/);
+    expect(reasons[1]).toMatch(/email \(not a valid address\)/);
+
+    const rows = await withOrgContext(
+      pool,
+      orgId,
+      async (c) =>
+        (
+          await c.query(
+            `SELECT first_name, last_name, email, company, status FROM leads
+           WHERE first_name IN ('Mindy', 'Chris') ORDER BY first_name`,
+          )
+        ).rows,
+    );
+    expect(rows).toEqual([
+      {
+        first_name: 'Chris',
+        last_name: 'van der Berg',
+        email: null,
+        company: 'Alpaca',
+        status: 'interested',
+      },
+      {
+        first_name: 'Mindy',
+        last_name: 'Lee',
+        email: 'mindy-clean@nowcfo.test',
+        company: null,
+        status: 'new',
+      },
+    ]);
+  });
+
+  it('suggests a column mapping (rules under the mock AI)', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/leads/import/suggest-mapping')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        headers: ['Full Name', 'Work Email', 'company_recent_post'],
+        rows: [['Ana Ruiz', 'ana@x.com', '{"likes":3}']],
+      })
+      .expect(200);
+    expect(res.body).toEqual({
+      source: 'rules',
+      mapping: {
+        'Full Name': 'fullName',
+        'Work Email': 'email',
+        company_recent_post: '',
+      },
+    });
+  });
 });

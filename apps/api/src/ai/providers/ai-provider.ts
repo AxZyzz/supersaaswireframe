@@ -24,6 +24,10 @@ export interface AIGenerateOptions {
   // Which prompt template + revision produced this request (logged to
   // ai_usage so output quality can be traced to a prompt change).
   promptVersion?: string;
+  // Set by the ModelRouter (T08), never by call sites: a concrete model to
+  // use (the provider then skips its own fallback) and a per-call timeout.
+  model?: string;
+  timeoutMs?: number;
 }
 
 export interface AIUsage {

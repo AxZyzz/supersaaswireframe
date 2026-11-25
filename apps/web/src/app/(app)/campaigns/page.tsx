@@ -31,6 +31,8 @@ import {
   resumeCampaign,
   runDueSends,
   StepCondition,
+  updateCampaign,
+  Experiment,
 } from "@/lib/campaigns";
 import { listTemplates, Template } from "@/lib/templates";
 import { listSegments, Segment } from "@/lib/segments";
@@ -38,6 +40,13 @@ import { listSenders, Sender } from "@/lib/senders";
 import CampaignWizard from "./campaign-wizard";
 import AiBuilder from "./ai-builder";
 import { useLive } from "@/lib/realtime";
+import { WinnerPanel } from "@/components/winner-panel";
+import { ExperimentPanel } from "@/components/experiment-panel";
+import { SendTimePanel } from "@/components/send-time-panel";
+import { SendWindowPanel } from "@/components/send-window-panel";
+import { OfferSelect } from "@/components/offer-select";
+import { ReviewPanel } from "@/components/review-panel";
+import { canManage, useRole } from "@/lib/me";
 
 const STATUS_STYLES: Record<string, string> = {
   draft: "bg-neut-bg text-muted",
@@ -62,6 +71,18 @@ export default function CampaignsPage() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  // A campaign runs ONE test at a time: a subject test (T02) or a send-time
+  // test (T17). `activeExp` is whichever is running, else the latest of either.
+  const [subjectExp, setSubjectExp] = useState<Experiment | null>(null);
+  const [timeExp, setTimeExp] = useState<Experiment | null>(null);
+  const activeExp =
+    [subjectExp, timeExp].find((e) => e?.status === "running") ??
+    subjectExp ??
+    timeExp;
+  // the Insights page links here ("Run a send-time test"): /campaigns?sendtest=1
+  const [sendTestHint, setSendTestHint] = useState(false);
+  const [tab, setTab] = useState<"setup" | "review">("setup");
+  const role = useRole();
 
   const applyList = useCallback(
     ([c, t, s, sn]: Awaited<ReturnType<typeof fetchList>>) => {
@@ -101,10 +122,23 @@ export default function CampaignsPage() {
   const open = useCallback(
     async (id: string) => {
       setNote(null);
+      setTab("setup");
       await refresh(id);
     },
     [refresh],
   );
+
+  // A link from a playbook's evidence: /campaigns?open=<id>&tab=review
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("sendtest") === "1") setSendTestHint(true);
+    const id = p.get("open");
+    if (id && /^[0-9a-f-]{36}$/i.test(id)) {
+      void open(id).then(() => {
+        if (p.get("tab") === "review") setTab("review");
+      });
+    }
+  }, [open]);
 
   // Live: sends, pauses and resumes from anywhere update this page.
   useLive("campaigns", () => {
@@ -246,7 +280,25 @@ export default function CampaignsPage() {
       </aside>
 
       {/* detail */}
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
+        {sendTestHint && (
+          <div
+            role="status"
+            className="mb-3 flex items-start justify-between gap-3 rounded-lg border border-accent-soft2 bg-accent-soft px-3 py-2 text-sm text-accent"
+          >
+            <span>
+              To find your best time to send: open a draft or paused campaign, then use{" "}
+              <strong>Test two send times</strong> under its Sequence. Companies are split at random
+              between two send windows and Review compares them.
+            </span>
+            <button
+              onClick={() => setSendTestHint(false)}
+              className="shrink-0 text-tiny underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
         {!selected ? (
           <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-line-mid bg-surface">
             <p className="text-sm text-muted">
@@ -267,8 +319,34 @@ export default function CampaignsPage() {
                     {selected.status}
                   </span>
                 </div>
-                <div className="mt-1 flex items-center gap-1.5 text-sm text-muted">
-                  <Users size={14} /> {audience ?? "…"} lead(s) in audience
+                <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted">
+                  <span className="flex items-center gap-1.5">
+                    <Users size={14} /> {audience ?? "…"} lead(s) in audience
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-tiny uppercase tracking-wide text-faint">
+                      Offer:
+                    </span>
+                    <OfferSelect
+                      value={selected.offer_id ?? ""}
+                      disabled={
+                        !canManage(role) || activeExp?.status === "running"
+                      }
+                      canCreate={canManage(role)}
+                      onChange={(offerId) => {
+                        if (offerId && offerId !== selected.offer_id) {
+                          void updateCampaign(selected.id, { offerId })
+                            .then(() => refresh(selected.id))
+                            .catch((e) =>
+                              setNote({
+                                ok: false,
+                                text: errorMessage(e, "Could not change offer."),
+                              }),
+                            );
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
               <button
@@ -329,6 +407,43 @@ export default function CampaignsPage() {
               </div>
             )}
 
+            <div role="tablist" className="flex gap-1 border-b border-line">
+              {(
+                [
+                  ["setup", "Setup"],
+                  ["review", "Review"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  role="tab"
+                  aria-selected={tab === key}
+                  onClick={() => setTab(key)}
+                  className={`-mb-px border-b-2 px-3 py-1.5 text-sm font-medium ${
+                    tab === key
+                      ? "border-accent text-accent"
+                      : "border-transparent text-muted hover:text-ink"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {tab === "review" ? (
+              <ReviewPanel
+                key={selected.id}
+                campaignId={selected.id}
+                canManage={canManage(role)}
+                templateId={
+                  [...selected.steps].sort(
+                    (a, b) => a.step_order - b.step_order,
+                  )[0]?.template_id ?? null
+                }
+                onChanged={() => void refresh(selected.id)}
+              />
+            ) : (
+              <>
             {/* stats */}
             {stats && (
               <div className="rounded-lg border border-line bg-surface p-4">
@@ -377,10 +492,10 @@ export default function CampaignsPage() {
                   ))}
                 </div>
 
-                {stats.variants.length > 1 && (
+                {stats.variants.length > 1 && !activeExp && (
                   <div className="mt-4">
                     <div className="mb-1.5 text-tiny font-medium uppercase tracking-wide text-faint">
-                      A/B subjects
+                      A/B subjects · Legacy rotation (suggestion only)
                     </div>
                     <table className="w-full text-sm">
                       <thead>
@@ -411,10 +526,42 @@ export default function CampaignsPage() {
                         ))}
                       </tbody>
                     </table>
+                    <WinnerPanel
+                      key={selected.id}
+                      campaignId={selected.id}
+                      canManage={canManage(role)}
+                      onApplied={() => void refresh(selected.id)}
+                    />
                   </div>
                 )}
               </div>
             )}
+
+            {/* send timing (T17): when emails go out, and the send-time test.
+                Above the sequence so it is found without scrolling past the steps. */}
+            <div
+              className="rounded-lg border border-line bg-surface p-4"
+              data-testid="send-timing-card"
+            >
+              <h3 className="text-sm font-semibold text-ink2">Send timing</h3>
+              <SendWindowPanel
+                key={`${selected.id}-${selected.updated_at}`}
+                campaign={selected}
+                canManage={canManage(role)}
+                frozen={activeExp?.status === "running"}
+                onSaved={() => void refresh(selected.id)}
+              />
+
+              {selected.steps[0] && (
+                <SendTimePanel
+                  key={`${selected.id}-${selected.steps[0].id}-time`}
+                  campaignId={selected.id}
+                  campaignStatus={selected.status}
+                  canManage={canManage(role)}
+                  onChanged={setTimeExp}
+                />
+              )}
+            </div>
 
             {/* sequence */}
             <div className="rounded-lg border border-line bg-surface p-4">
@@ -443,15 +590,24 @@ export default function CampaignsPage() {
                             : `after ${s.delay_hours}h`}{" "}
                           · {CONDITION_LABELS[s.condition]}
                           {s.subject_variants.length > 0 &&
-                            ` · A/B ×${s.subject_variants.length}`}
+                            !activeExp &&
+                            ` · Legacy rotation (not a test) ×${s.subject_variants.length}`}
                         </div>
                       </div>
                       <button
+                        disabled={activeExp?.status === "running"}
                         onClick={async () => {
-                          await removeStep(s.id);
-                          await open(selected.id);
+                          try {
+                            await removeStep(s.id);
+                            await open(selected.id);
+                          } catch (e) {
+                            setNote({
+                              ok: false,
+                              text: errorMessage(e, "Cannot remove step."),
+                            });
+                          }
                         }}
-                        className="text-faint hover:text-danger-text"
+                        className="text-faint hover:text-danger-text disabled:opacity-40"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -460,13 +616,32 @@ export default function CampaignsPage() {
                 )}
               </div>
 
+              {selected.steps[0] && (
+                <ExperimentPanel
+                  key={`${selected.id}-${selected.steps[0].id}`}
+                  campaignId={selected.id}
+                  campaignStatus={selected.status}
+                  step1Id={selected.steps[0].id}
+                  defaultSubject={
+                    templates.find((t) => t.id === selected.steps[0].template_id)
+                      ?.subject ?? ""
+                  }
+                  canManage={canManage(role)}
+                  onChanged={setSubjectExp}
+                />
+              )}
+
               <form
                 onSubmit={addStepTo}
                 className="mt-3 flex flex-wrap items-end gap-2 border-t border-line pt-3"
               >
                 <label className="flex flex-col gap-1 text-tiny text-faint">
                   Template
-                  <select name="templateId" className={field}>
+                  <select
+                    name="templateId"
+                    disabled={activeExp?.status === "running"}
+                    className={field}
+                  >
                     <option value="">(none)</option>
                     {templates.map((t) => (
                       <option key={t.id} value={t.id}>
@@ -482,30 +657,43 @@ export default function CampaignsPage() {
                     type="number"
                     min={0}
                     defaultValue={0}
+                    disabled={activeExp?.status === "running"}
                     className={`${field} w-24`}
                   />
                 </label>
                 <label className="flex flex-col gap-1 text-tiny text-faint">
                   Condition
-                  <select name="condition" className={field} defaultValue="always">
+                  <select
+                    name="condition"
+                    disabled={activeExp?.status === "running"}
+                    className={field}
+                    defaultValue="always"
+                  >
                     <option value="always">Always send</option>
                     <option value="opened_no_reply">If opened, no reply</option>
                     <option value="not_opened">If not opened</option>
                   </select>
                 </label>
-                <label className="flex flex-1 flex-col gap-1 text-tiny text-faint">
-                  A/B subjects (comma-separated, optional)
-                  <input
-                    name="variants"
-                    placeholder="Subject A, Subject B"
-                    className={field}
-                  />
-                </label>
-                <button className="rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover">
+                {!activeExp && (
+                  <label className="flex flex-1 flex-col gap-1 text-tiny text-faint">
+                    Legacy rotation (not a test) — comma-separated subjects
+                    <input
+                      name="variants"
+                      placeholder="Subject A, Subject B"
+                      className={field}
+                    />
+                  </label>
+                )}
+                <button
+                  disabled={activeExp?.status === "running"}
+                  className="rounded bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-40"
+                >
                   Add step
                 </button>
               </form>
             </div>
+              </>
+            )}
           </div>
         )}
       </div>

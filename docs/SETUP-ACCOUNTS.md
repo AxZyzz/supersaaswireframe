@@ -98,6 +98,10 @@ importing/syncing leads from Google Sheets.
 
 ---
 
+> **No AWS yet?** On the `google-stack` branch the AI features can run on Google
+> Gemini instead (one API key from Google AI Studio). See `docs/GOOGLE-STACK.md`.
+> Bedrock below stays the main path.
+
 ## §3 — Claude via AWS Bedrock (AI features) ✅ same-day
 
 **Why:** real AI for the sequence builder and reply classification (today it runs

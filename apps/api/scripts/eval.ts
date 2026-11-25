@@ -4,6 +4,7 @@
  *
  *   npm run eval -w apps/api                     # uses AI_DRIVER from .env
  *   AI_DRIVER=bedrock npm run eval -w apps/api -- --min-accuracy=0.85
+ *   AI_DRIVER=gemini npm run eval -w apps/api        # needs GEMINI_API_KEY
  *
  * With AI_DRIVER=mock it only proves the pipeline (the mock always answers
  * the first class). Real quality numbers need Bedrock credentials.
@@ -14,12 +15,45 @@ import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { checkSequence, scoreClassification } from '../src/ai/evals/evaluate';
 import { CLASSIFY_CASES, SEQUENCE_CASES } from '../src/ai/evals/fixtures';
-import { classifyReply, PROMPT_VERSIONS, sequencePrompt } from '../src/ai/prompts';
+import {
+  classifyReply,
+  PROMPT_VERSIONS,
+  sequencePrompt,
+} from '../src/ai/prompts';
 import { BedrockAIProvider } from '../src/ai/providers/bedrock.provider';
+import { GeminiAIProvider } from '../src/ai/providers/gemini.provider';
 import { MockAIProvider } from '../src/ai/providers/mock.provider';
 import { AIProviderResolver } from '../src/ai/providers/provider.resolver';
 
 config({ path: ['.env', '../../.env'] });
+
+// The scorecard fires requests back to back, which trips per-minute quotas
+// (Gemini free tier: 15/min per model) and the odd "high demand" 503. Those
+// aren't quality failures, so wait and retry: honour the provider's
+// "retry in Ns" hint (capped at 60s), up to 4 attempts.
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+async function withQuotaRetry<T>(fn: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (
+        attempt >= 4 ||
+        !/429|RESOURCE_EXHAUSTED|503|UNAVAILABLE|throttl/i.test(msg)
+      ) {
+        throw err;
+      }
+      const hint = /retry in ([\d.]+)s/i.exec(msg);
+      const waitMs = Math.min(
+        60_000,
+        hint ? Math.ceil(Number(hint[1]) * 1000) + 500 : 15_000,
+      );
+      console.log(`  (rate-limited, waiting ${Math.round(waitMs / 1000)}s)`);
+      await sleep(waitMs);
+    }
+  }
+}
 
 async function main() {
   const minArg = process.argv.find((a) => a.startsWith('--min-accuracy='));
@@ -30,37 +64,51 @@ async function main() {
     cfg,
     new MockAIProvider(),
     new BedrockAIProvider(cfg),
+    new GeminiAIProvider(cfg),
   ).resolve();
-  console.log(`Provider: ${provider.name}  ·  prompts: ${JSON.stringify(PROMPT_VERSIONS)}\n`);
+  console.log(
+    `Provider: ${provider.name}  ·  prompts: ${JSON.stringify(PROMPT_VERSIONS)}\n`,
+  );
 
   // ── reply classification ──
   const predictions: Record<string, string | null> = {};
   let tokens = 0;
   for (const c of CLASSIFY_CASES) {
     try {
-      const r = await provider.generate(classifyReply({ replyBody: c.reply, subject: c.subject }));
+      const r = await withQuotaRetry(() =>
+        provider.generate(
+          classifyReply({ replyBody: c.reply, subject: c.subject }),
+        ),
+      );
       tokens += r.usage.inputTokens + r.usage.outputTokens;
-      predictions[c.id] = (JSON.parse(r.text) as { classification?: string }).classification ?? null;
+      predictions[c.id] =
+        (JSON.parse(r.text) as { classification?: string }).classification ??
+        null;
     } catch (err) {
       predictions[c.id] = null;
       console.warn(`  ${c.id}: ${(err as Error).message}`);
     }
   }
   const cls = scoreClassification(CLASSIFY_CASES, predictions);
-  console.log(`Reply classification: ${(cls.accuracy * 100).toFixed(1)}%  (${cls.correct}/${cls.total})`);
+  console.log(
+    `Reply classification: ${(cls.accuracy * 100).toFixed(1)}%  (${cls.correct}/${cls.total})`,
+  );
   for (const [k, v] of Object.entries(cls.byClass)) {
     console.log(`  ${k.padEnd(15)} ${v.correct}/${v.total}`);
   }
   if (cls.misses.length) {
     console.log('  misses:');
-    for (const m of cls.misses) console.log(`    ${m.id}: expected ${m.expected}, got ${m.got}`);
+    for (const m of cls.misses)
+      console.log(`    ${m.id}: expected ${m.expected}, got ${m.got}`);
   }
 
   // ── sequence generation ──
   const seqResults: { id: string; issues: string[] }[] = [];
   for (const c of SEQUENCE_CASES) {
     try {
-      const r = await provider.generate(sequencePrompt(c));
+      const r = await withQuotaRetry(() =>
+        provider.generate(sequencePrompt(c)),
+      );
       tokens += r.usage.inputTokens + r.usage.outputTokens;
       const steps = (JSON.parse(r.text) as { steps?: never[] }).steps ?? [];
       seqResults.push({ id: c.id, issues: checkSequence(c, steps) });
@@ -69,7 +117,9 @@ async function main() {
     }
   }
   const seqPass = seqResults.filter((r) => r.issues.length === 0).length;
-  console.log(`\nSequence generation: ${seqPass}/${seqResults.length} pass all checks`);
+  console.log(
+    `\nSequence generation: ${seqPass}/${seqResults.length} pass all checks`,
+  );
   for (const r of seqResults.filter((x) => x.issues.length)) {
     console.log(`  ${r.id}: ${r.issues.join('; ')}`);
   }
@@ -77,11 +127,20 @@ async function main() {
 
   const dir = join(process.cwd(), 'evals-results');
   mkdirSync(dir, { recursive: true });
-  const file = join(dir, `${new Date().toISOString().replace(/[:.]/g, '-')}-${provider.name}.json`);
+  const file = join(
+    dir,
+    `${new Date().toISOString().replace(/[:.]/g, '-')}-${provider.name}.json`,
+  );
   writeFileSync(
     file,
     JSON.stringify(
-      { provider: provider.name, prompts: PROMPT_VERSIONS, classification: cls, sequences: seqResults, tokens },
+      {
+        provider: provider.name,
+        prompts: PROMPT_VERSIONS,
+        classification: cls,
+        sequences: seqResults,
+        tokens,
+      },
       null,
       2,
     ),
@@ -91,7 +150,9 @@ async function main() {
   if (provider.name === 'mock') {
     console.log('\n(mock provider — pipeline check only, not a quality score)');
   } else if (minAccuracy !== null && cls.accuracy < minAccuracy) {
-    console.error(`\nFAIL: accuracy ${cls.accuracy.toFixed(3)} < ${minAccuracy}`);
+    console.error(
+      `\nFAIL: accuracy ${cls.accuracy.toFixed(3)} < ${minAccuracy}`,
+    );
     process.exitCode = 1;
   }
 }

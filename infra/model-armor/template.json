@@ -1,0 +1,25 @@
+{
+  "_comment": "Model Armor template for Expelly (T08). Create it ONCE with the command in README.md; do not run before Aman says go. Filter settings: prompt injection + jailbreak ENFORCE (LOW_AND_ABOVE is too noisy on marketing pages, so MEDIUM_AND_ABOVE), basic sensitive-data protection ENFORCE, malicious URI filter on, responsible-AI filters at medium.",
+  "filterConfig": {
+    "piAndJailbreakFilterSettings": {
+      "filterEnforcement": "ENABLED",
+      "confidenceLevel": "MEDIUM_AND_ABOVE"
+    },
+    "sdpSettings": {
+      "basicConfig": {
+        "filterEnforcement": "ENABLED"
+      }
+    },
+    "maliciousUriFilterSettings": {
+      "filterEnforcement": "ENABLED"
+    },
+    "raiSettings": {
+      "raiFilters": [
+        { "filterType": "HATE_SPEECH", "confidenceLevel": "MEDIUM_AND_ABOVE" },
+        { "filterType": "HARASSMENT", "confidenceLevel": "MEDIUM_AND_ABOVE" },
+        { "filterType": "SEXUALLY_EXPLICIT", "confidenceLevel": "MEDIUM_AND_ABOVE" },
+        { "filterType": "DANGEROUS", "confidenceLevel": "MEDIUM_AND_ABOVE" }
+      ]
+    }
+  }
+}

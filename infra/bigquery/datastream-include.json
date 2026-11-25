@@ -1,0 +1,574 @@
+{
+  "postgresqlSchemas": [
+    {
+      "schema": "public",
+      "postgresqlTables": [
+        {
+          "table": "orgs",
+          "postgresqlColumns": [
+            {
+              "column": "id"
+            },
+            {
+              "column": "timezone"
+            }
+          ]
+        },
+        {
+          "table": "offers",
+          "postgresqlColumns": [
+            {
+              "column": "id"
+            },
+            {
+              "column": "org_id"
+            },
+            {
+              "column": "name"
+            }
+          ]
+        },
+        {
+          "table": "templates",
+          "postgresqlColumns": [
+            {
+              "column": "id"
+            },
+            {
+              "column": "org_id"
+            },
+            {
+              "column": "subject"
+            }
+          ]
+        },
+        {
+          "table": "campaigns",
+          "postgresqlColumns": [
+            {
+              "column": "id"
+            },
+            {
+              "column": "org_id"
+            },
+            {
+              "column": "offer_id"
+            },
+            {
+              "column": "status"
+            },
+            {
+              "column": "started_at"
+            },
+            {
+              "column": "created_at"
+            }
+          ]
+        },
+        {
+          "table": "campaign_steps",
+          "postgresqlColumns": [
+            {
+              "column": "id"
+            },
+            {
+              "column": "org_id"
+            },
+            {
+              "column": "campaign_id"
+            },
+            {
+              "column": "step_order"
+            },
+            {
+              "column": "template_id"
+            },
+            {
+              "column": "delay_hours"
+            }
+          ]
+        },
+        {
+          "table": "campaign_leads",
+          "postgresqlColumns": [
+            {
+              "column": "id"
+            },
+            {
+              "column": "org_id"
+            },
+            {
+              "column": "campaign_id"
+            },
+            {
+              "column": "status"
+            },
+            {
+              "column": "stop_reason"
+            },
+            {
+              "column": "snapshot"
+            },
+            {
+              "column": "created_at"
+            }
+          ]
+        },
+        {
+          "table": "sent_emails",
+          "postgresqlColumns": [
+            {
+              "column": "id"
+            },
+            {
+              "column": "org_id"
+            },
+            {
+              "column": "campaign_id"
+            },
+            {
+              "column": "campaign_lead_id"
+            },
+            {
+              "column": "step_id"
+            },
+            {
+              "column": "sender_id"
+            },
+            {
+              "column": "status"
+            },
+            {
+              "column": "experiment_id"
+            },
+            {
+              "column": "variant_id"
+            },
+            {
+              "column": "sent_at"
+            }
+          ]
+        },
+        {
+          "table": "email_events",
+          "postgresqlColumns": [
+            {
+              "column": "id"
+            },
+            {
+              "column": "org_id"
+            },
+            {
+              "column": "sent_email_id"
+            },
+            {
+              "column": "campaign_id"
+            },
+            {
+              "column": "type"
+            },
+            {
+              "column": "created_at"
+            }
+          ]
+        },
+        {
+          "table": "outcome_events",
+          "postgresqlColumns": [
+            {
+              "column": "id"
+            },
+            {
+              "column": "org_id"
+            },
+            {
+              "column": "campaign_lead_id"
+            },
+            {
+              "column": "company_key"
+            },
+            {
+              "column": "experiment_id"
+            },
+            {
+              "column": "variant_id"
+            },
+            {
+              "column": "sent_email_id"
+            },
+            {
+              "column": "type"
+            },
+            {
+              "column": "source"
+            },
+            {
+              "column": "verification"
+            },
+            {
+              "column": "occurred_at"
+            },
+            {
+              "column": "created_at"
+            },
+            {
+              "column": "verified_at"
+            },
+            {
+              "column": "supersedes_id"
+            }
+          ]
+        },
+        {
+          "table": "experiments",
+          "postgresqlColumns": [
+            {
+              "column": "id"
+            },
+            {
+              "column": "org_id"
+            },
+            {
+              "column": "campaign_id"
+            },
+            {
+              "column": "step_id"
+            },
+            {
+              "column": "kind"
+            },
+            {
+              "column": "status"
+            },
+            {
+              "column": "unit"
+            },
+            {
+              "column": "primary_metric"
+            },
+            {
+              "column": "secondary_metric"
+            },
+            {
+              "column": "baseline_rate"
+            },
+            {
+              "column": "min_lift_pp"
+            },
+            {
+              "column": "target_n_per_arm"
+            },
+            {
+              "column": "response_window_days"
+            },
+            {
+              "column": "policy_version"
+            },
+            {
+              "column": "offer_ref"
+            },
+            {
+              "column": "previous_experiment_id"
+            },
+            {
+              "column": "started_at"
+            },
+            {
+              "column": "stopped_at"
+            },
+            {
+              "column": "decided_at"
+            },
+            {
+              "column": "created_at"
+            }
+          ]
+        },
+        {
+          "table": "experiment_variants",
+          "postgresqlColumns": [
+            {
+              "column": "id"
+            },
+            {
+              "column": "org_id"
+            },
+            {
+              "column": "experiment_id"
+            },
+            {
+              "column": "label"
+            },
+            {
+              "column": "subject"
+            },
+            {
+              "column": "template_id"
+            },
+            {
+              "column": "template_version"
+            },
+            {
+              "column": "is_control"
+            },
+            {
+              "column": "status"
+            },
+            {
+              "column": "created_at"
+            }
+          ]
+        },
+        {
+          "table": "experiment_assignments",
+          "postgresqlColumns": [
+            {
+              "column": "id"
+            },
+            {
+              "column": "org_id"
+            },
+            {
+              "column": "experiment_id"
+            },
+            {
+              "column": "company_key"
+            },
+            {
+              "column": "variant_id"
+            },
+            {
+              "column": "assigned_at"
+            }
+          ]
+        },
+        {
+          "table": "reviews",
+          "postgresqlColumns": [
+            {
+              "column": "id"
+            },
+            {
+              "column": "org_id"
+            },
+            {
+              "column": "experiment_id"
+            },
+            {
+              "column": "revision"
+            },
+            {
+              "column": "policy_version"
+            },
+            {
+              "column": "simulated"
+            },
+            {
+              "column": "computed_at"
+            },
+            {
+              "column": "result"
+            },
+            {
+              "column": "explanation_source"
+            }
+          ]
+        },
+        {
+          "table": "review_actions",
+          "postgresqlColumns": [
+            {
+              "column": "id"
+            },
+            {
+              "column": "org_id"
+            },
+            {
+              "column": "review_id"
+            },
+            {
+              "column": "experiment_id"
+            },
+            {
+              "column": "revision"
+            },
+            {
+              "column": "action_id"
+            },
+            {
+              "column": "type"
+            },
+            {
+              "column": "status"
+            },
+            {
+              "column": "requested_at"
+            },
+            {
+              "column": "applied_at"
+            },
+            {
+              "column": "reverted_at"
+            },
+            {
+              "column": "reverts_action_id"
+            }
+          ]
+        },
+        {
+          "table": "search_preferences",
+          "postgresqlColumns": [
+            {
+              "column": "id"
+            },
+            {
+              "column": "org_id"
+            },
+            {
+              "column": "offer_id"
+            },
+            {
+              "column": "factor"
+            },
+            {
+              "column": "value"
+            },
+            {
+              "column": "label"
+            },
+            {
+              "column": "mode"
+            },
+            {
+              "column": "cap_share"
+            },
+            {
+              "column": "starts_at"
+            },
+            {
+              "column": "expires_at"
+            },
+            {
+              "column": "status"
+            },
+            {
+              "column": "revision"
+            },
+            {
+              "column": "ended_at"
+            },
+            {
+              "column": "ended_reason"
+            },
+            {
+              "column": "created_at"
+            }
+          ]
+        },
+        {
+          "table": "prospect_runs",
+          "postgresqlColumns": [
+            {
+              "column": "id"
+            },
+            {
+              "column": "org_id"
+            },
+            {
+              "column": "offer_id"
+            },
+            {
+              "column": "status"
+            },
+            {
+              "column": "requested"
+            },
+            {
+              "column": "total"
+            },
+            {
+              "column": "done"
+            },
+            {
+              "column": "verified"
+            },
+            {
+              "column": "preference_id"
+            },
+            {
+              "column": "preference_revision"
+            },
+            {
+              "column": "allocation"
+            },
+            {
+              "column": "created_at"
+            },
+            {
+              "column": "finished_at"
+            }
+          ]
+        },
+        {
+          "table": "prospects",
+          "postgresqlColumns": [
+            {
+              "column": "id"
+            },
+            {
+              "column": "org_id"
+            },
+            {
+              "column": "run_id"
+            },
+            {
+              "column": "company_key"
+            },
+            {
+              "column": "city"
+            },
+            {
+              "column": "region"
+            },
+            {
+              "column": "country"
+            },
+            {
+              "column": "industry"
+            },
+            {
+              "column": "size_band"
+            },
+            {
+              "column": "timezone"
+            },
+            {
+              "column": "triggers"
+            },
+            {
+              "column": "mail_provider"
+            },
+            {
+              "column": "stars"
+            },
+            {
+              "column": "fit_score"
+            },
+            {
+              "column": "status"
+            },
+            {
+              "column": "via_preference"
+            },
+            {
+              "column": "lead_id"
+            },
+            {
+              "column": "created_at"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

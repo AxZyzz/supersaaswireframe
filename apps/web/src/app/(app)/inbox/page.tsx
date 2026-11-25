@@ -8,6 +8,7 @@ import {
   BadgeCheck,
   StickyNote,
   FlaskConical,
+  RefreshCw,
   Mail,
   MailOpen,
   Send,
@@ -28,6 +29,7 @@ import {
   listConversations,
   ReplyClass,
   simulateReply,
+  syncGmail,
   updateConversation,
 } from "@/lib/inbox";
 import { errorMessage } from "@/lib/api";
@@ -36,6 +38,7 @@ import { timeAgo } from "@/lib/analytics";
 import { Campaign, listCampaigns } from "@/lib/campaigns";
 import { draftReply } from "@/lib/ai";
 import { useLive } from "@/lib/realtime";
+import { OutcomePanel } from "@/components/outcome-panel";
 
 const FILTERS: { key: string; label: string }[] = [
   { key: "all", label: "All" },
@@ -94,6 +97,7 @@ function Inbox() {
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [drafting, setDrafting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [mode, setMode] = useState<"reply" | "note">("reply");
 
   useEffect(() => {
@@ -158,6 +162,34 @@ function Inbox() {
       live = false;
     };
   }, [deepLink]);
+
+  async function runGmailSync() {
+    setSyncing(true);
+    try {
+      const r = await syncGmail();
+      if (r.senders === 0) {
+        toast("No Gmail sender can read replies yet. Reconnect Gmail in Settings → Senders.", "error");
+      } else if (r.errors.length) {
+        toast(`Gmail sync problem: ${r.errors[0]}`, "error");
+      } else {
+        toast(
+          r.replies || r.bounces
+            ? `Synced: ${r.replies} new repl${r.replies === 1 ? "y" : "ies"}, ${r.bounces} bounce${r.bounces === 1 ? "" : "s"}.`
+            : "Synced: nothing new.",
+        );
+      }
+      await load();
+    } catch (e) {
+      toast(errorMessage(e, "Couldn't sync Gmail."), "error");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  // T8: no AI draft when Model Armor flagged the latest inbound message.
+  const lastInboundFlagged =
+    [...(selected?.thread ?? [])].reverse().find((m) => m.direction === "inbound")
+      ?.safety_flag === true;
 
   // T6.6: AI drafts the reply; anything already typed is used as guidance.
   async function aiDraft() {
@@ -276,13 +308,24 @@ function Inbox() {
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => setSimOpen(true)}
-              title="Inject a test reply (until real inbox sync is connected)"
-              className="flex items-center gap-1 text-faint hover:text-accent"
-            >
-              <FlaskConical size={12} /> Test reply
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => void runGmailSync()}
+                disabled={syncing}
+                title="Check connected Gmail for new replies and bounces now (it also runs every 2 minutes)"
+                className="flex items-center gap-1 text-faint hover:text-accent disabled:opacity-50"
+              >
+                <RefreshCw size={12} className={syncing ? "animate-spin" : ""} />{" "}
+                {syncing ? "Syncing…" : "Sync Gmail"}
+              </button>
+              <button
+                onClick={() => setSimOpen(true)}
+                title="Inject a made-up reply for testing"
+                className="flex items-center gap-1 text-faint hover:text-accent"
+              >
+                <FlaskConical size={12} /> Test reply
+              </button>
+            </div>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -365,15 +408,15 @@ function Inbox() {
                   title="Undo converted"
                   className="flex items-center gap-1 rounded bg-success-bg px-2 py-1 text-tiny font-medium text-success-text"
                 >
-                  <BadgeCheck size={13} /> Converted
+                  <BadgeCheck size={13} /> Call booked
                 </button>
               ) : (
                 <button
                   onClick={() => void patch({ converted: true })}
-                  title="Mark converted — stops the sequence and sets the lead to converted"
+                  title="Booked a call — stops the sequence and sets the lead to converted"
                   className="flex items-center gap-1 rounded border border-line-mid px-2 py-1 text-tiny text-ink hover:bg-hover"
                 >
-                  <BadgeCheck size={13} /> Convert
+                  <BadgeCheck size={13} /> Booked a call
                 </button>
               )}
               <select
@@ -405,6 +448,10 @@ function Inbox() {
                 {selected.status === "open" ? <Archive size={14} /> : <ArchiveRestore size={14} />}
               </button>
             </div>
+            <OutcomePanel
+              conversationId={selected.id}
+              refreshKey={`${selected.converted_at ?? ""}${selected.classification ?? ""}`}
+            />
             <div className="flex-1 space-y-3 overflow-y-auto bg-panel p-4">
               {selected.thread.map((m, i) => (
                 <div
@@ -420,7 +467,17 @@ function Inbox() {
                       {m.direction === "outbound" ? "You" : m.from_email} ·{" "}
                       {new Date(m.created_at).toLocaleString()}
                     </span>
-                    {m.direction === "inbound" && <ClassBadge c={m.classification} />}
+                    <span className="flex items-center gap-1.5">
+                      {m.direction === "inbound" && m.safety_flag && (
+                        <span
+                          title="Model Armor flagged this message, so the AI never read it"
+                          className="rounded bg-warning-bg px-1.5 py-0.5 text-tiny font-medium text-warning-text"
+                        >
+                          Safety check flagged this message
+                        </span>
+                      )}
+                      {m.direction === "inbound" && <ClassBadge c={m.classification} />}
+                    </span>
                   </div>
                   {m.subject && <div className="font-medium text-ink">{m.subject}</div>}
                   {m.body_text ? (
@@ -476,8 +533,12 @@ function Inbox() {
                     <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => void aiDraft()}
-                      disabled={drafting || sending}
-                      title="Draft with AI — type a few notes first to steer it"
+                      disabled={drafting || sending || lastInboundFlagged}
+                      title={
+                        lastInboundFlagged
+                          ? "AI drafts are off: the safety check flagged this message"
+                          : "Draft with AI — type a few notes first to steer it"
+                      }
                       className="flex items-center gap-1.5 rounded border border-line-mid px-2.5 py-1.5 text-sm text-ink hover:bg-hover disabled:opacity-50"
                     >
                       <Sparkles size={13} className="text-accent" />{" "}

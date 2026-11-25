@@ -42,6 +42,8 @@ export interface ThreadMessage {
   created_at: string;
   classification: ReplyClass | null;
   confidence: number | null;
+  /** Model Armor flagged this message: no AI draft is offered for it. */
+  safety_flag?: boolean;
 }
 
 export interface ConversationDetail {
@@ -114,6 +116,13 @@ export const updateConversation = (id: string, body: ConversationPatch) =>
   });
 
 export const unreadCount = () => api<{ unread: number }>("/inbox/unread-count");
+
+/** Pull replies and bounces from connected Gmail now (T5.7). */
+export const syncGmail = () =>
+  api<{ senders: number; replies: number; bounces: number; errors: string[] }>(
+    "/inbox/gmail-sync",
+    { method: "POST" },
+  );
 
 export const simulateReply = (body: {
   fromEmail: string;

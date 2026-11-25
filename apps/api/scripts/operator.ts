@@ -39,7 +39,9 @@ async function main() {
       console.error(`No user with email ${email}`);
       process.exitCode = 1;
     } else {
-      console.log(`${cmd === 'grant' ? 'Granted' : 'Revoked'} operator: ${email}`);
+      console.log(
+        `${cmd === 'grant' ? 'Granted' : 'Revoked'} operator: ${email}`,
+      );
     }
   } finally {
     await client.end();

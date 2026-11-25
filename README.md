@@ -25,6 +25,9 @@ npm run dev:wireframe       # Phase 0 prototype (Vite)
 ```
 
 Account prerequisites (AWS/SES + Bedrock, Google Cloud): see [`docs/SETUP-ACCOUNTS.md`](docs/SETUP-ACCOUNTS.md).
+Full Windows walkthrough (folders, `.env`, migrations, tests, troubleshooting):
+[`docs/RUNNING-LOCALLY.md`](docs/RUNNING-LOCALLY.md). Architecture + build-status
+diagram: [`docs/architecture/`](docs/architecture/README.md).
 
 ## Status
 

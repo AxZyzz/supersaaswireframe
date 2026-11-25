@@ -24,6 +24,116 @@ describe('validateEnv', () => {
     ).toThrow(/64 hex/);
   });
 
+  it('AI_DRIVER=gemini needs a key, or a project on Vertex AI', () => {
+    const dev = { DATABASE_URL: 'x', AI_DRIVER: 'gemini' };
+    expect(() => validateEnv(dev)).toThrow(/GEMINI_API_KEY/);
+    expect(() => validateEnv({ ...dev, GEMINI_API_KEY: 'k' })).not.toThrow();
+    expect(() => validateEnv({ ...dev, GEMINI_USE_VERTEX: 'true' })).toThrow(
+      /GOOGLE_CLOUD_PROJECT/,
+    );
+    expect(() =>
+      validateEnv({
+        ...dev,
+        GEMINI_USE_VERTEX: 'true',
+        GOOGLE_CLOUD_PROJECT: 'p',
+      }),
+    ).not.toThrow();
+  });
+
+  it('T07: INSIGHTS_SOURCE is postgres or bigquery, and bigquery needs a project', () => {
+    const dev = { DATABASE_URL: 'x' };
+    expect(() =>
+      validateEnv({ ...dev, INSIGHTS_SOURCE: 'postgres' }),
+    ).not.toThrow();
+    expect(() => validateEnv({ ...dev, INSIGHTS_SOURCE: 'excel' })).toThrow(
+      /INSIGHTS_SOURCE must be/,
+    );
+    expect(() => validateEnv({ ...dev, INSIGHTS_SOURCE: 'bigquery' })).toThrow(
+      /BIGQUERY_PROJECT/,
+    );
+    expect(() =>
+      validateEnv({
+        ...dev,
+        INSIGHTS_SOURCE: 'bigquery',
+        GOOGLE_CLOUD_PROJECT: 'p',
+      }),
+    ).not.toThrow();
+    expect(() =>
+      validateEnv({
+        ...dev,
+        INSIGHTS_SOURCE: 'BigQuery',
+        BIGQUERY_PROJECT: 'p',
+      }),
+    ).not.toThrow();
+  });
+
+  it('T14: PLAYBOOK_SEARCH is postgres or bigquery; bigquery needs a project and a way to embed', () => {
+    const dev = { DATABASE_URL: 'x' };
+    expect(() =>
+      validateEnv({ ...dev, PLAYBOOK_SEARCH: 'postgres' }),
+    ).not.toThrow();
+    expect(() => validateEnv({ ...dev, PLAYBOOK_SEARCH: 'solr' })).toThrow(
+      /PLAYBOOK_SEARCH must be/,
+    );
+    expect(() => validateEnv({ ...dev, EMBEDDING_DRIVER: 'openai' })).toThrow(
+      /EMBEDDING_DRIVER must be/,
+    );
+    expect(() => validateEnv({ ...dev, PLAYBOOK_SEARCH: 'bigquery' })).toThrow(
+      /BIGQUERY_PROJECT/,
+    );
+    // mock embeddings need nothing else
+    expect(() =>
+      validateEnv({
+        ...dev,
+        PLAYBOOK_SEARCH: 'bigquery',
+        BIGQUERY_PROJECT: 'p',
+        EMBEDDING_DRIVER: 'mock',
+      }),
+    ).not.toThrow();
+    // gemini embeddings need a key, or Vertex
+    expect(() =>
+      validateEnv({
+        ...dev,
+        PLAYBOOK_SEARCH: 'bigquery',
+        BIGQUERY_PROJECT: 'p',
+        EMBEDDING_DRIVER: 'gemini',
+      }),
+    ).toThrow(/GEMINI_API_KEY or EMBEDDINGS_USE_VERTEX/);
+    expect(() =>
+      validateEnv({
+        ...dev,
+        PLAYBOOK_SEARCH: 'bigquery',
+        BIGQUERY_PROJECT: 'p',
+        EMBEDDING_DRIVER: 'gemini',
+        EMBEDDINGS_USE_VERTEX: 'true',
+      }),
+    ).not.toThrow();
+  });
+
+  it('T09: agent switches need their address, and reject unknown values', () => {
+    const dev = { DATABASE_URL: 'x' };
+    expect(() => validateEnv({ ...dev, REVIEW_EXPLAINER: 'agent' })).toThrow(
+      /REVIEW_ANALYST_URL/,
+    );
+    expect(() =>
+      validateEnv({
+        ...dev,
+        REVIEW_EXPLAINER: 'agent',
+        REVIEW_ANALYST_URL: 'http://localhost:8101',
+      }),
+    ).not.toThrow();
+    expect(() => validateEnv({ ...dev, COPYWRITER_DRIVER: 'agent' })).toThrow(
+      /COPYWRITER_URL/,
+    );
+    expect(() => validateEnv({ ...dev, REVIEW_EXPLAINER: 'robot' })).toThrow(
+      /REVIEW_EXPLAINER must be/,
+    );
+    // blank values (as in .env.example) mean "off"
+    expect(() =>
+      validateEnv({ ...dev, REVIEW_EXPLAINER: '', COPYWRITER_DRIVER: '' }),
+    ).not.toThrow();
+  });
+
   it('accepts a complete production env', () => {
     expect(() => validateEnv(prod)).not.toThrow();
   });
@@ -38,6 +148,32 @@ describe('validateEnv', () => {
     expect(() =>
       validateEnv({ ...prod, JWT_REFRESH_SECRET: prod.JWT_ACCESS_SECRET }),
     ).toThrow(/must differ/);
+  });
+
+  it('the catch-up guard settings must be real numbers (a typo fails at boot)', () => {
+    const dev = { DATABASE_URL: 'x' };
+    expect(() =>
+      validateEnv({
+        ...dev,
+        SEND_STALE_AFTER_HOURS: '12',
+        SEND_CATCHUP_SPREAD_HOURS: '6',
+      }),
+    ).not.toThrow();
+    expect(() =>
+      validateEnv({ ...dev, SEND_STALE_AFTER_HOURS: '0' }),
+    ).not.toThrow(); // 0 = off
+    expect(() =>
+      validateEnv({ ...dev, SEND_STALE_AFTER_HOURS: 'a day' }),
+    ).toThrow(/SEND_STALE_AFTER_HOURS/);
+    expect(() => validateEnv({ ...dev, SEND_STALE_AFTER_HOURS: '-1' })).toThrow(
+      /SEND_STALE_AFTER_HOURS/,
+    );
+    expect(() =>
+      validateEnv({ ...dev, SEND_CATCHUP_SPREAD_HOURS: '0' }),
+    ).toThrow(/SEND_CATCHUP_SPREAD_HOURS/);
+    expect(() =>
+      validateEnv({ ...dev, SEND_CATCHUP_SPREAD_HOURS: 'x' }),
+    ).toThrow(/SEND_CATCHUP_SPREAD_HOURS/);
   });
 
   it('production forbids the mock email driver', () => {

@@ -107,6 +107,7 @@ describe('Notification emails integration', () => {
       'reply',
       'assigned',
       'member_joined',
+      'search_preference',
       'weekly_summary',
     ]);
     expect(prefs.every((p) => p.enabled)).toBe(true);

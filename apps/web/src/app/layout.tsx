@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "SuperSaaS",
+  title: "Expelly",
   description: "AI-powered outreach platform",
 };
 

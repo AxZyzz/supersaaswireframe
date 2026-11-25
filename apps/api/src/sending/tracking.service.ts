@@ -3,6 +3,8 @@ import { Pool } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { botReason } from './bot-detect';
+import { keys } from '../outcomes/outcome-logic';
+import { OutcomesService } from '../outcomes/outcomes.service';
 
 interface TrackingRef {
   sent_email_id: string;
@@ -29,7 +31,10 @@ interface UnsubRef {
 export class TrackingService {
   private readonly logger = new Logger(TrackingService.name);
 
-  constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
+  constructor(
+    @Inject(PG_POOL) private readonly pool: Pool,
+    private readonly outcomes: OutcomesService,
+  ) {}
 
   private async resolveTracking(
     trackingId: string,
@@ -190,6 +195,22 @@ export class TrackingService {
          VALUES ($1,$2,'unsubscribed','{}'::jsonb)`,
         [u.org_id, u.lead_id],
       );
+      // T03: the unsubscribe is a (verified, idempotent) outcome event too;
+      // re-hitting the link maps to the same key, so it records once.
+      const last = await c.query<{ id: string }>(
+        `SELECT id FROM sent_emails WHERE campaign_lead_id = $1
+          ORDER BY sent_at DESC NULLS LAST LIMIT 1`,
+        [u.campaign_lead_id],
+      );
+      await this.outcomes.record(c, u.org_id, {
+        type: 'unsubscribe',
+        source: 'system',
+        verification: 'verified',
+        idempotencyKey: keys.unsubscribe(u.campaign_lead_id),
+        leadId: u.lead_id,
+        campaignLeadId: u.campaign_lead_id,
+        sentEmailId: last.rows[0]?.id ?? null,
+      });
     });
     return { ok: true, email: u.email };
   }

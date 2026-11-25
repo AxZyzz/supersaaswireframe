@@ -1,0 +1,8 @@
+{
+  "summary": "Version B is the winner.",
+  "points": [
+    { "text": "Version B got confirmed qualified replies from 5 of 118 companies (4.2%); version A got 3 of 120 companies (2.5%).", "findingIds": ["F2", "F1"] }
+  ],
+  "caveats": [],
+  "suggestedNextStep": "keep_testing"
+}

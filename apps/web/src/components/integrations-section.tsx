@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Cloud, FileSpreadsheet, Mail, Plug, RefreshCw, Trash2, X } from "lucide-react";
+import { CalendarCheck, Cloud, FileSpreadsheet, Mail, Plug, RefreshCw, Trash2, X } from "lucide-react";
 import { errorMessage } from "@/lib/api";
 import { timeAgo } from "@/lib/analytics";
 import {
+  connectCalendar,
   connectSheets,
   deleteSheetSync,
+  disconnectCalendar,
   disconnectSheets,
   getIntegrations,
   IntegrationsOverview,
@@ -41,7 +43,8 @@ function Status({ on, label }: { on: boolean; label: string }) {
 /**
  * Settings → Integrations (T9.2): every outside account the workspace uses.
  * Gmail lives on sender accounts; Google Sheets has its own connection and
- * synced sheets (T2.8); Amazon SES waits on the AWS setup.
+ * synced sheets (T2.8); Google Calendar confirms booked calls (T16); Amazon
+ * SES waits on the AWS setup.
  */
 export function IntegrationsSection({ canManage }: { canManage: boolean }) {
   const [o, setO] = useState<IntegrationsOverview | null>(null);
@@ -91,6 +94,7 @@ export function IntegrationsSection({ canManage }: { canManage: boolean }) {
 
   if (!o) return null;
   const gs = o.googleSheets;
+  const gc = o.googleCalendar;
 
   return (
     <section id="integrations" className="rounded-lg border border-line bg-surface p-5">
@@ -103,7 +107,8 @@ export function IntegrationsSection({ canManage }: { canManage: boolean }) {
       </p>
 
       <Suspense fallback={null}>
-        <SheetsConnectResult />
+        <ConnectResult param="sheets" name="Google Sheets" />
+        <ConnectResult param="calendar" name="Google Calendar" />
       </Suspense>
 
       <div className="space-y-3">
@@ -177,7 +182,7 @@ export function IntegrationsSection({ canManage }: { canManage: boolean }) {
           </div>
           <p className="mt-1.5 text-tiny text-muted">
             {gs.available
-              ? "Import leads from a sheet and keep them in sync every hour. View-only access: SuperSaaS never edits your sheets."
+              ? "Import leads from a sheet and keep them in sync every hour. View-only access: Expelly never edits your sheets."
               : "Not available on this server yet (Google OAuth credentials missing)."}
           </p>
 
@@ -255,6 +260,66 @@ export function IntegrationsSection({ canManage }: { canManage: boolean }) {
           )}
         </div>
 
+        {/* Google Calendar */}
+        <div className={card} data-testid="calendar-card">
+          <div className="flex flex-wrap items-center gap-2">
+            <CalendarCheck size={16} className="text-faint" />
+            <span className="font-medium text-ink">Google Calendar</span>
+            <Status
+              on={gc.connected && !gc.needsReconnect}
+              label={
+                !gc.connected
+                  ? "Not connected"
+                  : gc.needsReconnect
+                    ? "Reconnect needed"
+                    : `Connected · ${gc.accountEmail}`
+              }
+            />
+            <div className="flex-1" />
+            {canManage && gc.available && (!gc.connected || gc.needsReconnect) && (
+              <button onClick={() => void go(() => connectCalendar())} className={primary}>
+                {gc.connected ? "Reconnect Google Calendar" : "Connect Google Calendar"}
+              </button>
+            )}
+            {canManage && gc.connected && (
+              <button
+                disabled={busy === "disconnect-calendar"}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Disconnect Google Calendar? Booked calls it already confirmed stay.",
+                    )
+                  )
+                    void act("disconnect-calendar", disconnectCalendar, "Google Calendar disconnected.");
+                }}
+                className="text-sm text-muted hover:text-danger-text"
+              >
+                Disconnect
+              </button>
+            )}
+          </div>
+          <p className="mt-1.5 text-tiny text-muted">
+            {gc.available
+              ? "When a lead you emailed books a meeting, Expelly records a confirmed booked call by itself, so nobody has to click “Booked a call”. View-only: it reads event times and attendee email addresses, never titles or descriptions, and checks every 15 minutes."
+              : "Not available on this server yet (Google OAuth credentials missing)."}
+          </p>
+          {gc.connected && (
+            <p className="mt-1.5 text-tiny text-muted">
+              {gc.lastStatus === "error" ? (
+                <span className="text-danger-text">{gc.lastError}</span>
+              ) : gc.lastSyncedAt ? (
+                <>Checked {timeAgo(gc.lastSyncedAt)}</>
+              ) : (
+                "Not checked yet. The first check runs within 15 minutes."
+              )}
+              {" · "}
+              {gc.bookedCalls === 1
+                ? "1 booked call confirmed from your calendar"
+                : `${gc.bookedCalls} booked calls confirmed from your calendar`}
+            </p>
+          )}
+        </div>
+
         {/* Amazon SES */}
         <div className={`${card} opacity-70`}>
           <div className="flex items-center gap-2">
@@ -272,17 +337,17 @@ export function IntegrationsSection({ canManage }: { canManage: boolean }) {
   );
 }
 
-/** Result of "Connect Google Sheets" (/settings?sheets=connected|error). */
-function SheetsConnectResult() {
+/** Result of a Google connect (/settings?sheets=connected|error, /settings?calendar=...). */
+function ConnectResult({ param, name }: { param: "sheets" | "calendar"; name: string }) {
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const result = params.get("sheets");
+  const result = params.get(param);
   if (!result) return null;
   const ok = result !== "error";
   const text = ok
-    ? `Google Sheets ${result === "reconnected" ? "reconnected" : "connected"}: ${params.get("email") ?? ""}.`
-    : params.get("reason") || "Connecting Google Sheets failed.";
+    ? `${name} ${result === "reconnected" ? "reconnected" : "connected"}: ${params.get("email") ?? ""}.`
+    : params.get("reason") || `Connecting ${name} failed.`;
   return (
     <div
       className={`mb-4 flex items-start gap-3 rounded-lg border px-3 py-2 text-sm ${

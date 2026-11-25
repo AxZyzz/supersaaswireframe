@@ -17,6 +17,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthUser } from '../auth/types';
 import {
   AttachTagDto,
+  BulkDeleteLeadsDto,
   CreateLeadDto,
   CreateNoteDto,
   ListLeadsQuery,
@@ -48,6 +49,14 @@ export class LeadsController {
   @Get('duplicates')
   duplicates(@CurrentUser() user: AuthUser) {
     return this.leads.duplicates(user.orgId);
+  }
+
+  // Agents can't delete leads (same rule as the single delete).
+  @Roles('admin', 'manager')
+  @HttpCode(200)
+  @Post('bulk-delete')
+  bulkDelete(@CurrentUser() user: AuthUser, @Body() dto: BulkDeleteLeadsDto) {
+    return this.leads.bulkRemove(user.orgId, dto);
   }
 
   @Roles('admin', 'manager')

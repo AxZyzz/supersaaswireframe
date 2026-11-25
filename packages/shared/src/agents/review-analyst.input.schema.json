@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://expelly.app/schemas/agents/review-analyst.input.schema.json",
+  "title": "ReviewAnalystInput",
+  "description": "The T04 evidence package. Aggregates only: no lead names, emails or companies ever go in here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reviewId", "revision", "decision", "simulated", "minLiftPp", "gates", "findings", "arms", "allowedActions"],
+  "properties": {
+    "reviewId": { "type": "string", "minLength": 1 },
+    "revision": { "type": "integer", "minimum": 1 },
+    "simulated": { "type": "boolean" },
+    "decision": { "enum": ["keep_collecting", "guardrail_breach", "promote", "inconclusive"] },
+    "minLiftPp": { "type": "number" },
+    "gates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "passed", "reason"],
+        "properties": {
+          "id": { "type": "string" },
+          "passed": { "type": "boolean" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "kind"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^F[0-9]+$" },
+          "kind": { "enum": ["rate", "lift", "gate", "guardrail", "sample_plan", "diagnostic"] }
+        },
+        "additionalProperties": true
+      }
+    },
+    "arms": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["variantId", "label", "isControl", "assigned", "qualifiedVerified", "qualifiedRate"],
+        "properties": {
+          "variantId": { "type": "string" },
+          "label": { "type": "string" },
+          "isControl": { "type": "boolean" },
+          "assigned": { "type": "integer", "minimum": 0 },
+          "qualifiedVerified": { "type": "integer", "minimum": 0 },
+          "qualifiedRate": { "type": ["number", "null"] }
+        }
+      }
+    },
+    "allowedActions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type"],
+        "properties": {
+          "type": { "enum": ["keep_testing", "pause_variant", "draft_challenger", "test_next_batch"] },
+          "label": { "type": "string" }
+        }
+      }
+    },
+    "slices": {
+      "type": "array",
+      "description": "Audience slices (city, industry, ...) as aggregates.",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    }
+  }
+}

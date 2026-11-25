@@ -93,7 +93,7 @@ export class NotificationEmailService {
   private compose(due: Pending[]) {
     const first = due[0];
     const prefs = `${this.webUrl}/settings#notifications`;
-    const footer = `You get these emails from ${first.org_name} on SuperSaaS. Change which ones: ${prefs}`;
+    const footer = `You get these emails from ${first.org_name} on Expelly. Change which ones: ${prefs}`;
     if (due.length === 1) {
       return {
         to: first.user_email,
@@ -116,7 +116,7 @@ export class NotificationEmailService {
       to: first.user_email,
       subject: `[${first.org_name}] ${due.length} new notifications`,
       text: `Hi ${first.user_name},\n\n${lines}${more}\n\n${footer}`,
-      action: { label: 'Open SuperSaaS', url: `${this.webUrl}/dashboard` },
+      action: { label: 'Open Expelly', url: `${this.webUrl}/dashboard` },
     };
   }
 }

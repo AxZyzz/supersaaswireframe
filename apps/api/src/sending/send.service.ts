@@ -1,17 +1,37 @@
 import { clickKey, signClick } from './link-signing';
 import { GmailAuthError } from '../senders/providers/gmail.provider';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  BeforeApplicationShutdown,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { Pool, PoolClient } from 'pg';
 import { PG_POOL } from '../db/db.module';
 import { withOrgContext } from '../db/tenant-context';
 import { SendersService } from '../senders/senders.service';
-import { varsFromLead } from '../templates/render';
+import { varsFromLead, websiteUrl } from '../templates/render';
 import { buildEmail } from './send-render';
 import { UsageService } from '../usage/usage.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { effectiveLimitSql } from '../senders/warmup';
+import {
+  type AssignableVariant,
+  pickExperimentVariant,
+} from '../campaigns/experiment-assignment';
+import { isValidTimeZone } from '../prospects/attributes';
+import {
+  catchUpConfigFrom,
+  catchUpDecision,
+  type CatchUpConfig,
+} from './catch-up';
+import {
+  parseSendWindow,
+  scheduleInWindow,
+  type SendWindow,
+} from './send-window';
 
 type Outcome =
   'sent' | 'failed' | 'skipped' | 'deferred' | 'completed' | 'suppressed';
@@ -22,12 +42,23 @@ interface StepRow {
   delay_hours: number;
   condition: string;
   subject_variants: string[];
+  winner_index: number | null;
+}
+
+interface RunningExperiment {
+  id: string;
+  step_id: string;
+  /** 'subject' (T02) or 'send_time' (T17). */
+  kind: string;
+  allocation: { weights?: number[] } | null;
+  previous_experiment_id: string | null;
 }
 
 interface SenderRow {
   id: string;
   from_name: string;
   from_email: string;
+  reply_to: string | null;
   daily_limit: number;
   effective_daily_limit: number;
   send_window_start: number | null;
@@ -35,7 +66,7 @@ interface SenderRow {
 }
 
 @Injectable()
-export class SendService {
+export class SendService implements BeforeApplicationShutdown {
   private readonly logger = new Logger(SendService.name);
 
   constructor(
@@ -52,6 +83,43 @@ export class SendService {
 
   private get baseUrl(): string {
     return this.config.get<string>('API_URL', 'http://localhost:4000');
+  }
+
+  /** Set when the API is shutting down: the loop stops between leads. */
+  private stopping = false;
+
+  /**
+   * The clock the send windows are read against (Learning Loop T17). Mutable so
+   * a test can walk a fake clock across a weekend or a DST change. Lease and
+   * cap queries still use the database clock; only "is it inside the window"
+   * and "when is the next opening" use this one.
+   */
+  clock: () => Date = () => new Date();
+
+  /** Sends the catch-up guard has moved since start-up (logged per tick). */
+  private catchUpMoved = 0;
+
+  /**
+   * The catch-up guard's settings (SEND_STALE_AFTER_HOURS, default 24;
+   * SEND_CATCHUP_SPREAD_HOURS, default 24). Read on each use, so a changed
+   * environment variable on a new revision, or a test, takes effect at once.
+   */
+  private catchUpConfig(): CatchUpConfig {
+    return catchUpConfigFrom(
+      process.env.SEND_STALE_AFTER_HOURS ??
+        this.config.get<string>('SEND_STALE_AFTER_HOURS'),
+      process.env.SEND_CATCHUP_SPREAD_HOURS ??
+        this.config.get<string>('SEND_CATCHUP_SPREAD_HOURS'),
+    );
+  }
+
+  /**
+   * Deploys and scale-downs: finish the lead in hand, start no new one. The
+   * tick scheduler waits (capped) for the in-flight tick, so no email is left
+   * half-recorded and nothing is sent twice by the next instance.
+   */
+  beforeApplicationShutdown() {
+    this.stopping = true;
   }
 
   // Process all due sends (optionally for one org). Returns per-outcome counts.
@@ -73,7 +141,9 @@ export class SendService {
       suppressed: 0,
     };
     const touched = new Set<string>();
+    const movedBefore = this.catchUpMoved;
     for (const row of due.rows) {
+      if (this.stopping) break; // shutting down: leave the rest for next tick
       try {
         const outcome = await this.processLead(
           row.org_id,
@@ -89,6 +159,13 @@ export class SendService {
           err as Error,
         );
       }
+    }
+    const moved = this.catchUpMoved - movedBefore;
+    if (moved > 0) {
+      // visible in the logs after an outage or a long pause (see docs/RESTORE-RUNBOOK.md)
+      this.logger.warn(
+        `catch-up guard: moved ${moved} overdue send${moved === 1 ? '' : 's'} into the next ${this.catchUpConfig().spreadHours} h instead of sending them now`,
+      );
     }
     // one "campaign stats changed" per workspace per tick, not per email
     for (const org of touched) this.realtime.toOrg(org, { type: 'campaigns' });
@@ -118,6 +195,153 @@ export class SendService {
       [campaignId, leadId, type],
     );
     return (r.rowCount ?? 0) > 0;
+  }
+
+  /**
+   * The running experiment of a campaign, with a FOR SHARE lock on its row.
+   * Re-reads if the test stopped being the running one while we waited for the
+   * lock (a challenger approval closes it and starts the next).
+   */
+  private async lockRunningExperiment(
+    c: PoolClient,
+    campaignId: string,
+  ): Promise<RunningExperiment | null> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const r = await c.query<RunningExperiment>(
+        `SELECT id, step_id, kind, allocation, previous_experiment_id FROM experiments
+         WHERE campaign_id = $1 AND status = 'running' LIMIT 1`,
+        [campaignId],
+      );
+      const exp = r.rows[0];
+      if (!exp) return null;
+      const locked = await c.query(
+        `SELECT 1 FROM experiments WHERE id = $1 AND status = 'running' FOR SHARE`,
+        [exp.id],
+      );
+      if ((locked.rowCount ?? 0) > 0) return exp;
+    }
+    return null;
+  }
+
+  /**
+   * The company's assignment in any EARLIER test of the chain that led to
+   * this one (previous_experiment_id, and its previous, ...), newest first,
+   * with the version's subject and its position in that test.
+   */
+  private async priorAssignment(
+    c: PoolClient,
+    experimentId: string,
+    companyKey: string,
+  ): Promise<{
+    experiment_id: string;
+    variant_id: string;
+    variant_index: number;
+    subject: string;
+  } | null> {
+    const r = await c.query<{ experiment_id: string; variant_id: string }>(
+      `WITH RECURSIVE chain AS (
+         SELECT id, previous_experiment_id FROM experiments WHERE id = $1
+         UNION ALL
+         SELECT e.id, e.previous_experiment_id
+           FROM experiments e JOIN chain ch ON e.id = ch.previous_experiment_id
+       )
+       SELECT ea.experiment_id, ea.variant_id
+         FROM experiment_assignments ea
+         JOIN chain ON chain.id = ea.experiment_id
+        WHERE ea.experiment_id <> $1 AND ea.company_key = $2
+        ORDER BY ea.assigned_at DESC LIMIT 1`,
+      [experimentId, companyKey],
+    );
+    const a = r.rows[0];
+    if (!a) return null;
+    const vs = await c.query<{ id: string; subject: string }>(
+      `SELECT id, subject FROM experiment_variants
+        WHERE experiment_id = $1 ORDER BY created_at ASC, id ASC`,
+      [a.experiment_id],
+    );
+    const idx = vs.rows.findIndex((v) => v.id === a.variant_id);
+    return {
+      experiment_id: a.experiment_id,
+      variant_id: a.variant_id,
+      variant_index: idx >= 0 ? idx : 0,
+      subject: vs.rows[idx >= 0 ? idx : 0]?.subject ?? '',
+    };
+  }
+
+  /**
+   * The company's arm in a send-time test (Learning Loop T17), with that arm's
+   * window. The FIRST touch (the test's step) creates the assignment, in the
+   * same transaction and before anything is dispatched, with the same hash as
+   * a subject test. Any later step only READS it: a company that was already
+   * past its first touch when the test started is not in the test, and is
+   * never pulled in half-way through its sequence.
+   */
+  private async sendTimeArm(
+    c: PoolClient,
+    orgId: string,
+    exp: RunningExperiment,
+    companyKey: string,
+    mayAssign: boolean,
+  ): Promise<{ id: string; index: number; window: SendWindow | null } | null> {
+    const vs = await c.query<AssignableVariant & { send_window: unknown }>(
+      `SELECT id, label, subject, status, is_control, created_at, send_window
+         FROM experiment_variants
+        WHERE experiment_id = $1
+        ORDER BY created_at ASC, id ASC`,
+      [exp.id],
+    );
+    const variants = vs.rows;
+    if (mayAssign) {
+      const weights = Array.isArray(exp.allocation?.weights)
+        ? exp.allocation.weights
+        : undefined;
+      // paused arms get no NEW companies; a company already assigned keeps its
+      // arm even if that arm was paused later (the assignment is the
+      // randomisation, same rule as T11 for subjects)
+      const candidate = pickExperimentVariant(
+        exp.id,
+        companyKey,
+        variants,
+        weights,
+      );
+      await c.query(
+        `INSERT INTO experiment_assignments
+           (org_id, experiment_id, company_key, variant_id, hash)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (experiment_id, company_key) DO NOTHING`,
+        [orgId, exp.id, companyKey, candidate.variant.id, candidate.hash],
+      );
+    }
+    const a = await c.query<{ variant_id: string }>(
+      `SELECT variant_id FROM experiment_assignments
+        WHERE experiment_id = $1 AND company_key = $2`,
+      [exp.id, companyKey],
+    );
+    const idx = variants.findIndex((v) => v.id === a.rows[0]?.variant_id);
+    if (idx < 0) return null;
+    return {
+      id: variants[idx].id,
+      index: idx,
+      window: parseSendWindow(variants[idx].send_window),
+    };
+  }
+
+  /**
+   * The recipient's timezone: the one frozen in the enrollment snapshot (so a
+   * later edit of the lead's city cannot move a company between arms' clocks),
+   * else the lead's own. Anything that is not a real IANA zone ("unknown") is
+   * skipped; null means "use the workspace clock".
+   */
+  private recipientTimezone(
+    snapshot: Record<string, unknown> | null,
+    leadTz: string | null,
+  ): string | null {
+    const fromSnapshot =
+      typeof snapshot?.timezone === 'string' ? snapshot.timezone : null;
+    for (const tz of [fromSnapshot, leadTz]) {
+      if (tz && isValidTimeZone(tz)) return tz;
+    }
+    return null;
   }
 
   private conditionMet(
@@ -178,6 +402,9 @@ export class SendService {
         current_step: number;
         status: string;
         unsub_token: string;
+        snapshot: Record<string, unknown> | null;
+        /** How long ago it was due, by the DATABASE clock (catch-up guard). */
+        overdue_seconds: number | null;
       }>(
         // Claim with a lease: atomically push next_send_at out, but only if
         // the lead is still due. Overlapping ticks (two instances, a slow
@@ -185,18 +412,32 @@ export class SendService {
         // the loser sees it's no longer due and skips — no double sends.
         // Phase 3 sets the real next_send_at; if we crash before that, the
         // lease simply expires and the lead is retried.
-        `UPDATE campaign_leads
-         SET next_send_at = now() + interval '10 minutes'
-         WHERE id = $1 AND next_send_at IS NOT NULL AND next_send_at <= now()
-         RETURNING id, campaign_id, lead_id, current_step, status, unsub_token`,
+        // The lease overwrites next_send_at, so the ORIGINAL due time is read
+        // under the same row lock (the FROM subquery) to tell how overdue this
+        // send is: the catch-up guard below needs it, and a competing claimer
+        // waits on the lock and then finds the lead no longer due.
+        `UPDATE campaign_leads cl
+            SET next_send_at = now() + interval '10 minutes'
+           FROM (SELECT id, next_send_at FROM campaign_leads
+                  WHERE id = $1 FOR UPDATE) prev
+          WHERE cl.id = prev.id
+            AND cl.next_send_at IS NOT NULL AND cl.next_send_at <= now()
+        RETURNING cl.id, cl.campaign_id, cl.lead_id, cl.current_step, cl.status,
+                  cl.unsub_token, cl.snapshot,
+                  EXTRACT(EPOCH FROM (now() - prev.next_send_at))::float8
+                    AS overdue_seconds`,
         [leadStateId],
       );
       if (clRes.rowCount === 0) return { outcome: 'skipped' as Outcome };
       const cl = clRes.rows[0];
       if (cl.status !== 'active') return { outcome: 'skipped' as Outcome };
 
-      const campRes = await c.query<{ sender_ids: string[]; status: string }>(
-        `SELECT sender_ids, status FROM campaigns WHERE id = $1`,
+      const campRes = await c.query<{
+        sender_ids: string[];
+        status: string;
+        send_window: unknown;
+      }>(
+        `SELECT sender_ids, status, send_window FROM campaigns WHERE id = $1`,
         [cl.campaign_id],
       );
       if (campRes.rowCount === 0) return { outcome: 'skipped' as Outcome };
@@ -214,9 +455,11 @@ export class SendService {
         );
       }
       const senderIds = campRes.rows[0].sender_ids ?? [];
+      // T17: null = no window = send whenever due, exactly as before.
+      const campaignWindow = parseSendWindow(campRes.rows[0].send_window);
 
       const stepsRes = await c.query<StepRow>(
-        `SELECT id, template_id, delay_hours, condition, subject_variants
+        `SELECT id, template_id, delay_hours, condition, subject_variants, winner_index
          FROM campaign_steps WHERE campaign_id = $1 ORDER BY step_order`,
         [cl.campaign_id],
       );
@@ -240,8 +483,10 @@ export class SendService {
         company: string | null;
         title: string | null;
         phone: string | null;
+        company_key: string | null;
+        timezone: string | null;
       }>(
-        `SELECT email, first_name, last_name, company, title, phone
+        `SELECT email, first_name, last_name, company, title, phone, company_key, timezone
          FROM leads WHERE id = $1`,
         [cl.lead_id],
       );
@@ -250,6 +495,23 @@ export class SendService {
         return { outcome: 'skipped' as Outcome };
       }
       const lead = leadRes.rows[0];
+
+      // Check whether this step has a running experiment (Learning Loop T02).
+      // The running test is read, then locked FOR SHARE (T11): an approval that
+      // pauses a version or starts a challenger holds FOR UPDATE on the same
+      // row, so a dispatch never straddles it (it waits, then sees the new
+      // state: the paused version, or the new test).
+      const runningExp = await this.lockRunningExperiment(c, cl.campaign_id);
+      const isExperimentStep =
+        runningExp !== null && runningExp.step_id === step.id;
+
+      // Experiment eligibility: lead must have a company_key. If ineligible,
+      // do not assign and do not send.
+      if (isExperimentStep && !lead.company_key) {
+        await this.stop(c, cl.id, 'experiment_ineligible');
+        return { outcome: 'skipped' as Outcome };
+      }
+
       if (!lead.email) {
         await this.stop(c, cl.id, 'no_email');
         return { outcome: 'skipped' as Outcome };
@@ -286,6 +548,80 @@ export class SendService {
         }
       }
 
+      // Catch-up guard (T18 follow-up). A send overdue by more than
+      // SEND_STALE_AFTER_HOURS (default 24) is NOT sent in a burst after an
+      // outage or a long pause: it moves to a deterministic point inside the
+      // next SEND_CATCHUP_SPREAD_HOURS (default 24), then goes out normally
+      // (caps, windows, suppression and the rest are checked again then). It
+      // sits after the checks that stop a lead for good (no email, suppression,
+      // condition) so those still win, and before assignment and the sender, so
+      // a moved lead creates no assignment and uses no capacity.
+      const late = catchUpDecision({
+        overdueSeconds: cl.overdue_seconds ?? 0,
+        config: this.catchUpConfig(),
+        seed: `${cl.id}:${cl.current_step}`,
+      });
+      if (late.stale) {
+        await c.query(
+          `UPDATE campaign_leads
+              SET next_send_at = now() + make_interval(secs => $2),
+                  updated_at = now()
+            WHERE id = $1`,
+          [cl.id, late.delaySeconds],
+        );
+        this.catchUpMoved += 1;
+        return { outcome: 'deferred' as Outcome };
+      }
+
+      // Send window (Learning Loop T17). Which window applies:
+      //  - a running SEND-TIME test: the window of the company's arm, for every
+      //    step of its sequence (the arm is the schedule). The first touch
+      //    creates the assignment here, before anything is dispatched, so a
+      //    deferred company is already assigned and stays on its arm;
+      //  - otherwise the campaign's own window, if it has one;
+      //  - otherwise none: send now, as before.
+      // Outside the window the send is not dropped: next_send_at moves to the
+      // next opening in the RECIPIENT's timezone (workspace timezone when we
+      // do not know theirs), spread across that slot so a night's backlog does
+      // not fire at 09:00:00. Sender caps and warm-up still apply after this.
+      let sendTimeArm: { id: string; index: number } | null = null;
+      let activeWindow: SendWindow | null = campaignWindow;
+      if (runningExp?.kind === 'send_time' && lead.company_key) {
+        const arm = await this.sendTimeArm(
+          c,
+          orgId,
+          runningExp,
+          lead.company_key,
+          isExperimentStep,
+        );
+        if (arm) {
+          sendTimeArm = { id: arm.id, index: arm.index };
+          activeWindow = arm.window ?? campaignWindow;
+        }
+      }
+      if (activeWindow) {
+        const orgTz = await c.query<{ timezone: string | null }>(
+          `SELECT timezone FROM orgs WHERE id = $1`,
+          [orgId],
+        );
+        const when = scheduleInWindow({
+          window: activeWindow,
+          now: this.clock(),
+          recipientTz: this.recipientTimezone(cl.snapshot, lead.timezone),
+          workspaceTz: orgTz.rows[0]?.timezone,
+          // stable per lead + step: a retry lands at the same minute
+          seed: `${cl.id}:${cl.current_step}`,
+        });
+        if (!when.inside && when.nextSendAt) {
+          await c.query(
+            `UPDATE campaign_leads SET next_send_at = $2, updated_at = now()
+             WHERE id = $1`,
+            [cl.id, when.nextSendAt],
+          );
+          return { outcome: 'deferred' as Outcome };
+        }
+      }
+
       // Plan email caps (per day / per month): defer, don't drop — the lead
       // stays due and goes out once the window resets.
       if (await this.usage.emailCapReached(c, orgId)) {
@@ -298,12 +634,12 @@ export class SendService {
       // usable the lead waits (deferred) instead of being burned.
       const sendersRes = senderIds.length
         ? await c.query<SenderRow>(
-            `SELECT id, from_name, from_email, daily_limit, ${effectiveLimitSql()} AS effective_daily_limit, send_window_start, send_window_end
+            `SELECT id, from_name, from_email, reply_to, daily_limit, ${effectiveLimitSql()} AS effective_daily_limit, send_window_start, send_window_end
              FROM sender_accounts WHERE id = ANY($1::uuid[]) AND status = 'verified'`,
             [senderIds],
           )
         : await c.query<SenderRow>(
-            `SELECT id, from_name, from_email, daily_limit, ${effectiveLimitSql()} AS effective_daily_limit, send_window_start, send_window_end
+            `SELECT id, from_name, from_email, reply_to, daily_limit, ${effectiveLimitSql()} AS effective_daily_limit, send_window_start, send_window_end
              FROM sender_accounts WHERE status = 'verified' ORDER BY created_at`,
           );
       const hour = new Date().getHours();
@@ -340,25 +676,163 @@ export class SendService {
 
       let subject = tpl.subject;
       let variantIndex = 0;
-      const variants = step.subject_variants ?? [];
-      if (variants.length > 0) {
-        const sentForStep = await c.query<{ n: number }>(
-          `SELECT count(*)::int AS n FROM sent_emails WHERE step_id = $1`,
-          [step.id],
+      let experimentId: string | null = null;
+      let variantId: string | null = null;
+
+      if (
+        isExperimentStep &&
+        runningExp &&
+        lead.company_key &&
+        runningExp.kind !== 'send_time'
+      ) {
+        // New path (Learning Loop T02): company-level assignment persisted
+        // before dispatch in the same transaction. (A send-time test, T17,
+        // already assigned above and keeps the step's own subject.)
+        const evRes = await c.query<AssignableVariant>(
+          `SELECT id, label, subject, status, is_control, created_at
+           FROM experiment_variants
+           WHERE experiment_id = $1
+           ORDER BY created_at ASC, id ASC`,
+          [runningExp.id],
         );
-        variantIndex = sentForStep.rows[0].n % variants.length;
-        subject = variants[variantIndex];
+        const expVariants = evRes.rows;
+
+        // T11: a company already assigned in an EARLIER test of this step (the
+        // one a challenger replaced) is not eligible for the new test. It keeps
+        // its old version and is credited to the old test, like a colleague at
+        // the same company would be.
+        const prior = runningExp.previous_experiment_id
+          ? await this.priorAssignment(c, runningExp.id, lead.company_key)
+          : null;
+        const hasCurrent = prior
+          ? ((
+              await c.query(
+                `SELECT 1 FROM experiment_assignments
+                 WHERE experiment_id = $1 AND company_key = $2`,
+                [runningExp.id, lead.company_key],
+              )
+            ).rowCount ?? 0) > 0
+          : false;
+
+        if (prior && !hasCurrent) {
+          experimentId = prior.experiment_id;
+          variantId = prior.variant_id;
+          variantIndex = prior.variant_index;
+          subject = prior.subject;
+        } else {
+          const weights = Array.isArray(runningExp.allocation?.weights)
+            ? runningExp.allocation.weights
+            : undefined;
+          // New companies hash over the ACTIVE versions only (a paused version
+          // gets no new first touches). The assignment, once stored, is the
+          // randomisation: a company already assigned to a version that was
+          // paused later, with nothing sent yet, KEEPS it. Re-assigning it would
+          // bias the test. Existing assignments, in-flight sequences and history
+          // are never moved by a pause (T11).
+          const candidate = pickExperimentVariant(
+            runningExp.id,
+            lead.company_key,
+            expVariants,
+            weights,
+          );
+          await c.query(
+            `INSERT INTO experiment_assignments
+             (org_id, experiment_id, company_key, variant_id, hash)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (experiment_id, company_key) DO NOTHING`,
+            [
+              orgId,
+              runningExp.id,
+              lead.company_key,
+              candidate.variant.id,
+              candidate.hash,
+            ],
+          );
+          const assignedRes = await c.query<{ variant_id: string }>(
+            `SELECT variant_id FROM experiment_assignments
+           WHERE experiment_id = $1 AND company_key = $2`,
+            [runningExp.id, lead.company_key],
+          );
+          const assignedVariantId =
+            assignedRes.rows[0]?.variant_id ?? candidate.variant.id;
+          const assignedIdx = expVariants.findIndex(
+            (v) => v.id === assignedVariantId,
+          );
+          const assignedVar =
+            assignedIdx >= 0 ? expVariants[assignedIdx] : candidate.variant;
+          experimentId = runningExp.id;
+          variantId = assignedVar.id;
+          variantIndex =
+            assignedIdx >= 0 ? assignedIdx : candidate.variantIndex;
+          subject = assignedVar.subject;
+        }
+      } else {
+        // Legacy path (untouched when no running experiment is on this step).
+        const variants = step.subject_variants ?? [];
+        const winner = step.winner_index;
+        if (winner !== null && typeof variants[winner] === 'string') {
+          // approved A/B winner: every remaining lead gets it, credited to its
+          // own version (not renumbered)
+          variantIndex = winner;
+          subject = variants[winner];
+        } else if (variants.length > 0) {
+          const sentForStep = await c.query<{ n: number }>(
+            `SELECT count(*)::int AS n FROM sent_emails WHERE step_id = $1`,
+            [step.id],
+          );
+          variantIndex = sentForStep.rows[0].n % variants.length;
+          subject = variants[variantIndex];
+        }
+
+        // Follow-up steps (step 2+): copy experiment_id / variant_id from the
+        // company's assignment if one exists for this campaign.
+        if (lead.company_key) {
+          const followUpAssign = await c.query<{
+            experiment_id: string;
+            variant_id: string;
+          }>(
+            `SELECT ea.experiment_id, ea.variant_id
+             FROM experiment_assignments ea
+             JOIN experiments e ON e.id = ea.experiment_id
+             WHERE e.campaign_id = $1 AND ea.company_key = $2
+             ORDER BY ea.assigned_at DESC LIMIT 1`,
+            [cl.campaign_id, lead.company_key],
+          );
+          if (followUpAssign.rows[0]) {
+            experimentId = followUpAssign.rows[0].experiment_id;
+            variantId = followUpAssign.rows[0].variant_id;
+          }
+        }
       }
 
-      const vars = {
-        ...varsFromLead(lead),
-        sender_name: chosen.from_name,
-      };
+      // T17 send-time test: the subject is the step's own (identical in both
+      // arms; the rotation above cannot run, a test never starts on a step with
+      // an un-won rotation). The email is credited to the company's arm.
+      if (sendTimeArm && runningExp) {
+        experimentId = runningExp.id;
+        variantId = sendTimeArm.id;
+        variantIndex = sendTimeArm.index;
+      }
+
       // CAN-SPAM footer identity: workspace name + postal address.
       const org = await c.query<{
         name: string;
         postal_address: string | null;
-      }>(`SELECT name, postal_address FROM orgs WHERE id = $1`, [orgId]);
+        website: string | null;
+      }>(`SELECT name, postal_address, website FROM orgs WHERE id = $1`, [
+        orgId,
+      ]);
+      const senderEmail = chosen.reply_to || chosen.from_email;
+      const vars = {
+        ...varsFromLead(lead),
+        sender_name: chosen.from_name,
+        sender_email: senderEmail,
+        sender_company: org.rows[0]?.name ?? null,
+        // no website in Settings: website buttons become a reply link
+        // instead of a dead one
+        sender_website:
+          websiteUrl(org.rows[0]?.website) ?? `mailto:${senderEmail}`,
+      };
 
       return {
         outcome: 'sent' as Outcome, // provisional; finalized in phase 3
@@ -374,6 +848,8 @@ export class SendService {
           bodyHtml: tpl.body_html,
           vars,
           variantIndex,
+          experimentId,
+          variantId,
           trackingId: randomUUID(),
           unsubToken: cl.unsub_token,
           sender: {
@@ -433,8 +909,8 @@ export class SendService {
         `INSERT INTO sent_emails
            (org_id, campaign_id, campaign_lead_id, lead_id, step_id, sender_id,
             to_email, subject, message_id, provider, status, variant_index,
-            tracking_id, error)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+            experiment_id, variant_id, tracking_id, error)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
          RETURNING id`,
         [
           orgId,
@@ -449,6 +925,8 @@ export class SendService {
           provider,
           error ? 'failed' : 'sent',
           p.variantIndex,
+          p.experimentId,
+          p.variantId,
           p.trackingId,
           error,
         ],
@@ -479,7 +957,7 @@ export class SendService {
           }),
         ],
       );
-      if (senderAuthBroke) {
+      if (senderAuthBroke || (error && p.experimentId)) {
         await c.query(
           `UPDATE campaign_leads SET next_send_at = now() + interval '15 minutes',
              updated_at = now() WHERE id = $1`,

@@ -1,0 +1,5 @@
+{
+  "name": "expelly_loop_stuck_actions",
+  "description": "loop_health lines that report at least one stuck review action (T13)",
+  "filter": "resource.type=\"cloud_run_revision\" AND jsonPayload.event=\"loop_health\" AND jsonPayload.stuck_actions>0"
+}

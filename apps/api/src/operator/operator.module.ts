@@ -6,6 +6,7 @@ import {
   LEAD_IMPORT_QUEUE,
   SEGMENT_REFRESH_QUEUE,
 } from '../queue/queue.module';
+import { AiModule } from '../ai/ai.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { OperatorController } from './operator.controller';
 import { OperatorGuard } from './operator.guard';
@@ -13,6 +14,7 @@ import { OperatorService } from './operator.service';
 
 @Module({
   imports: [
+    AiModule,
     NotificationsModule,
     BullModule.registerQueue(
       { name: CAMPAIGN_SEND_QUEUE },

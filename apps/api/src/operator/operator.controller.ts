@@ -7,11 +7,14 @@ import {
   HttpCode,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { IsIn, IsString, MaxLength, MinLength } from 'class-validator';
 import type { Plan } from '../usage/plan-limits';
 import { OperatorGuard, OperatorOnly } from './operator.guard';
+import { learningDashboardUrl } from './learning-dashboard';
 import { OperatorService } from './operator.service';
 
 class SetPlanDto {
@@ -65,8 +68,30 @@ export class OperatorController {
     return this.ops.failures();
   }
 
+  @Get('ai-routing')
+  aiRouting() {
+    return this.ops.aiRouting();
+  }
+
+  /** The Looker Studio learning dashboard (T16), or null until LOOKER_DASHBOARD_URL is set. */
+  @Get('learning-dashboard')
+  learningDashboard() {
+    return { url: learningDashboardUrl(process.env.LOOKER_DASHBOARD_URL) };
+  }
+
   @Get('health')
   health() {
     return this.ops.health();
+  }
+
+  /** Deploy check: the client IP the API resolves (rate limits key on it)
+   *  next to the raw forwarding chain, to set TRUST_PROXY correctly. */
+  @Get('request-ip')
+  requestIp(@Req() req: Request) {
+    return {
+      ip: req.ip,
+      forwardedFor: req.headers['x-forwarded-for'] ?? null,
+      trustProxy: process.env.TRUST_PROXY || null,
+    };
   }
 }

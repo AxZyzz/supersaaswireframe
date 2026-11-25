@@ -1,0 +1,9 @@
+{
+  "summary": "No clear winner yet. Keep A. About 1500 companies per version would settle it.",
+  "points": [
+    { "text": "Version B got confirmed qualified replies from 5 of 118 companies (9.0%); version A got 3 of 120 companies (2.5%).", "findingIds": ["F2", "F1"] },
+    { "text": "The difference is +1.7 points, but it could be anywhere from −2.1 to +5.5 points, so we can't call a winner yet.", "findingIds": ["F3"] }
+  ],
+  "caveats": [],
+  "suggestedNextStep": "keep_testing"
+}

@@ -4,7 +4,7 @@
  * and every public page follows.
  */
 export const BRAND = {
-  name: "SuperSaaS",
+  name: "Expelly",
   tagline: "AI outreach that books meetings, not spam reports.",
   description:
     "Import leads, let AI write grounded multi-step email sequences, send from your own mailboxes, and work every reply from one inbox.",

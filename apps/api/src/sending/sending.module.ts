@@ -2,6 +2,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { CAMPAIGN_SEND_QUEUE } from '../queue/queue.module';
 import { SendersModule } from '../senders/senders.module';
+import { OutcomesModule } from '../outcomes/outcomes.module';
 import { SendProcessor } from './send.processor';
 import { SendService } from './send.service';
 import { SendingController } from './sending.controller';
@@ -11,6 +12,7 @@ import { TrackingService } from './tracking.service';
 @Module({
   imports: [
     SendersModule, // SendersService.sendMessage
+    OutcomesModule, // unsubscribe -> outcome event
     BullModule.registerQueue({ name: CAMPAIGN_SEND_QUEUE }),
   ],
   controllers: [SendingController, TrackingController],
